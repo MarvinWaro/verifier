@@ -373,7 +373,7 @@ export default function PRCCheckLanding() {
                             />
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900">
-                                    CHECK with CHED
+                                    CHECK with CHED ***
                                 </h1>
                                 <p className="text-xs text-gray-600">
                                     Higher Education Institution Graduates
