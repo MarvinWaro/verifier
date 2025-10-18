@@ -8,13 +8,13 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import {
     Building2,
-    Upload,
-    FileSpreadsheet,
-    Database,
     CheckCircle2,
+    Database,
+    FileSpreadsheet,
+    Upload,
     X,
 } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -55,19 +55,27 @@ export default function InstitutionIndex({
     institutions: initialInstitutions = [],
     stats: initialStats,
     success,
-    error
+    error,
 }: Props) {
-    const [institutions, setInstitutions] = useState<InstitutionData[]>(initialInstitutions);
-    const [stats, setStats] = useState<Stats>(initialStats || {
-        totalInstitutions: 0,
-        totalPrograms: 0,
-        lastImport: null,
-    });
+    const [institutions, setInstitutions] =
+        useState<InstitutionData[]>(initialInstitutions);
+    const [stats, setStats] = useState<Stats>(
+        initialStats || {
+            totalInstitutions: 0,
+            totalPrograms: 0,
+            lastImport: null,
+        },
+    );
     const [importing, setImporting] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
-        success ? { type: 'success', text: success } :
-        error ? { type: 'error', text: error } :
-        null
+    const [message, setMessage] = useState<{
+        type: 'success' | 'error';
+        text: string;
+    } | null>(
+        success
+            ? { type: 'success', text: success }
+            : error
+              ? { type: 'error', text: error }
+              : null,
     );
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +91,8 @@ export default function InstitutionIndex({
         setMessage(null);
 
         // Use Inertia's router.post which handles CSRF automatically
-        router.post('/institutions/import',
+        router.post(
+            '/institutions/import',
             { file },
             {
                 forceFormData: true,
@@ -95,7 +104,8 @@ export default function InstitutionIndex({
                         setStats(result.stats);
                         setMessage({
                             type: 'success',
-                            text: result.message || 'Data imported successfully!'
+                            text:
+                                result.message || 'Data imported successfully!',
                         });
 
                         // Auto-hide success message after 5 seconds
@@ -110,14 +120,16 @@ export default function InstitutionIndex({
                     console.error('Import error:', errors);
                     setMessage({
                         type: 'error',
-                        text: errors.message || 'An error occurred while importing the file'
+                        text:
+                            errors.message ||
+                            'An error occurred while importing the file',
                     });
                     setImporting(false);
                     if (fileInputRef.current) {
                         fileInputRef.current.value = '';
                     }
                 },
-            }
+            },
         );
     };
 
@@ -142,11 +154,13 @@ export default function InstitutionIndex({
 
                 {/* Success/Error Message */}
                 {message && (
-                    <div className={`rounded-lg border p-4 ${
-                        message.type === 'success'
-                            ? 'border-green-200 bg-green-50'
-                            : 'border-red-200 bg-red-50'
-                    }`}>
+                    <div
+                        className={`rounded-lg border p-4 ${
+                            message.type === 'success'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-red-200 bg-red-50'
+                        }`}
+                    >
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
                                 {message.type === 'success' ? (
@@ -154,9 +168,13 @@ export default function InstitutionIndex({
                                 ) : (
                                     <X className="h-5 w-5 text-red-600" />
                                 )}
-                                <p className={`text-sm font-medium ${
-                                    message.type === 'success' ? 'text-green-900' : 'text-red-900'
-                                }`}>
+                                <p
+                                    className={`text-sm font-medium ${
+                                        message.type === 'success'
+                                            ? 'text-green-900'
+                                            : 'text-red-900'
+                                    }`}
+                                >
                                     {message.text}
                                 </p>
                             </div>
@@ -264,7 +282,7 @@ export default function InstitutionIndex({
 
                         <div className="overflow-x-auto rounded-lg border">
                             <table className="w-full">
-                                <caption className="mb-4 mt-4 text-sm text-gray-500">
+                                <caption className="mt-4 mb-4 text-sm text-gray-500">
                                     {institutions.length === 0
                                         ? 'No data available. Click "Import Excel" to upload institution data.'
                                         : `Showing ${institutions.length} program records from ${stats.totalInstitutions} institutions.`}
@@ -387,13 +405,16 @@ export default function InstitutionIndex({
                                             above
                                         </li>
                                         <li>
-                                            2. Select your Excel file with PHEI, SUC, and LUC sheets
+                                            2. Select your Excel file with PHEI,
+                                            SUC, and LUC sheets
                                         </li>
                                         <li>
-                                            3. The system will automatically process and import all data
+                                            3. The system will automatically
+                                            process and import all data
                                         </li>
                                         <li>
-                                            4. View the imported institutions and programs in the table
+                                            4. View the imported institutions
+                                            and programs in the table
                                         </li>
                                     </ol>
                                 </div>

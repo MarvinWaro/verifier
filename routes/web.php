@@ -13,14 +13,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
-    // Institution routes
+    // Institution routes - KEEP THESE
     Route::get('/institutions', [InstitutionController::class, 'index'])->name('institutions.index');
     Route::post('/institutions/import', [InstitutionController::class, 'import'])->name('institutions.import');
-
-    Route::post('/institutions/import', function() {
-        \Log::info('Import route hit!');
-        return response()->json(['test' => 'Route is working']);
-    })->name('institutions.import');
 });
 
 require __DIR__.'/settings.php';

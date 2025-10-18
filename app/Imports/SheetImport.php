@@ -5,14 +5,13 @@ namespace App\Imports;
 use App\Models\Institution;
 use App\Models\Program;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
-class SheetImport implements ToCollection, WithHeadingRow
+class SheetImport implements ToCollection
 {
-    protected $type; // 'public' or 'private'
-    protected $sector; // 'PRIVATE', 'SUC', or 'LUC'
+    protected $type;
+    protected $sector;
 
     public function __construct(string $type, string $sector)
     {
@@ -22,162 +21,186 @@ class SheetImport implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows)
     {
-        $currentInstitution = null;
+        Log::info("========== Processing {$this->sector} sheet ==========");
+
         $currentInstitutionName = null;
+        $currentInstitution = null;
         $level = null;
+        $processedCount = 0;
 
         foreach ($rows as $index => $row) {
-            // Skip header rows and empty rows
-            if ($this->isHeaderRow($row) || $this->isEmptyRow($row)) {
-                // Check if this is a level indicator row
-                if (isset($row['level']) && !empty($row['level'])) {
-                    $level = $row['level'];
+            // Skip first few header rows
+            if ($index < 4) {
+                $firstCell = trim($row[0] ?? '');
+                if (stripos($firstCell, 'Level') !== false && isset($row[1])) {
+                    $level = trim($row[1]);
                 }
                 continue;
             }
 
-            // Get institution name (handle merged cells - institution name repeats or is in column A)
-            $institutionName = $this->getInstitutionName($row, $currentInstitutionName);
+            // Get columns
+            $col0 = trim($row[0] ?? '');
+            $col1 = trim($row[1] ?? '');
+            $col2 = trim($row[2] ?? '');
+            $col3 = trim($row[3] ?? '');
+            $col4 = trim($row[4] ?? '');
 
-            if ($institutionName && $institutionName !== $currentInstitutionName) {
-                // New institution found
-                $currentInstitutionName = $institutionName;
-                $currentInstitution = $this->findOrCreateInstitution($institutionName, $level);
+            // Debug: Log the row
+            Log::info("Row {$index}: [{$col0}] [{$col1}] [{$col2}] [{$col3}]");
+
+            // Skip completely empty rows
+            if (empty($col0) && empty($col1) && empty($col2) && empty($col3)) {
+                Log::info("  → Skipping empty row");
+                continue;
             }
 
-            // Skip if no valid institution
+            // Check for institution name (not empty, not a program name)
+            if (!empty($col0) && !$this->isProgramName($col0)) {
+                $currentInstitutionName = $col0;
+                $currentInstitution = $this->findOrCreateInstitution($currentInstitutionName, $level);
+                Log::info("  → Found INSTITUTION: {$currentInstitutionName}");
+            }
+
+            // Must have a current institution
             if (!$currentInstitution) {
+                Log::info("  → No current institution, skipping");
                 continue;
             }
 
-            // Create program
-            $this->createProgram($currentInstitution, $row);
-        }
-    }
+            // Determine if this row has program data
+            $programName = null;
+            $major = null;
+            $permitNumber = null;
 
-    protected function isHeaderRow($row): bool
-    {
-        $firstCell = strtolower(trim($row[array_key_first($row->toArray())] ?? ''));
-        return in_array($firstCell, ['row labels', 'institution', 'level', 'sector']);
-    }
+            // Check where the program name is
+            if (!empty($col1) && $this->isProgramName($col1)) {
+                // Program in col1 (merged cell scenario OR institution in same row)
+                $programName = $col1;
 
-    protected function isEmptyRow($row): bool
-    {
-        return $row->filter(fn($cell) => !empty($cell))->isEmpty();
-    }
-
-    protected function getInstitutionName($row, $currentName): ?string
-    {
-        // Try to get institution name from different possible column names
-        $possibleKeys = ['row_labels', 'institution', 'institution_name', 0];
-
-        foreach ($possibleKeys as $key) {
-            if (isset($row[$key]) && !empty(trim($row[$key]))) {
-                $name = trim($row[$key]);
-                // Skip if it's a program name (usually starts with "BACHELOR" or "DIPLOMA")
-                if (!$this->isProgramName($name)) {
-                    return $name;
+                // Check if col2 is permit or major
+                if ($this->looksLikePermit($col2)) {
+                    // col2 = permit, no major
+                    $major = null;
+                    $permitNumber = $col2;
+                } else {
+                    // col2 = major (or empty), permit in col3
+                    $major = !empty($col2) ? $col2 : null;
+                    $permitNumber = $col3;
                 }
+
+                Log::info("  → Found PROGRAM in col1: {$programName} | Major: " . ($major ?: 'none') . " | Permit: {$permitNumber}");
+            }
+            elseif (!empty($col0) && $this->isProgramName($col0)) {
+                // Program in col0 (no merged cells)
+                $programName = $col0;
+
+                if ($this->looksLikePermit($col1)) {
+                    $major = null;
+                    $permitNumber = $col1;
+                } else {
+                    $major = !empty($col1) ? $col1 : null;
+                    $permitNumber = $col2;
+                }
+
+                Log::info("  → Found PROGRAM in col0: {$programName} | Major: " . ($major ?: 'none') . " | Permit: {$permitNumber}");
+            }
+
+            // Create program if we have required data
+            if ($programName && $permitNumber) {
+                $yearIssued = $col4; // Assuming year is in col4 or after permit
+                $status = $row[5] ?? '';
+
+                $created = $this->createProgram($currentInstitution, $programName, $major, $permitNumber, $yearIssued, $status);
+                if ($created) {
+                    $processedCount++;
+                }
+            } else {
+                Log::warning("  → Missing data - Program: '{$programName}', Permit: '{$permitNumber}'");
             }
         }
 
-        // If no institution name found, use the current one (merged cell scenario)
-        return $currentName;
+        Log::info("========== COMPLETED: {$processedCount} programs for {$this->sector} ==========");
     }
 
     protected function isProgramName($text): bool
     {
-        $text = strtoupper($text);
-        $programIndicators = ['BACHELOR', 'DIPLOMA', 'MASTER', 'DOCTOR', 'ASSOCIATE'];
+        $text = strtoupper(trim($text));
+        $indicators = ['BACHELOR', 'DIPLOMA', 'MASTER', 'DOCTOR', 'ASSOCIATE'];
 
-        foreach ($programIndicators as $indicator) {
+        foreach ($indicators as $indicator) {
             if (str_starts_with($text, $indicator)) {
                 return true;
             }
         }
-
         return false;
+    }
+
+    protected function looksLikePermit($text): bool
+    {
+        $text = strtoupper(trim($text));
+        // Must contain one of these patterns
+        return preg_match('/(GR|COPC|BR|RRPA)[\s-]?\d/', $text) > 0;
     }
 
     protected function findOrCreateInstitution($name, $level): Institution
     {
-        // Generate a simple code if not exists
-        $code = $this->generateInstitutionCode($name);
+        $existing = Institution::where('name', $name)->where('sector', $this->sector)->first();
 
-        return Institution::firstOrCreate(
-            ['name' => $name, 'sector' => $this->sector],
-            [
-                'code' => $code,
-                'type' => $this->type,
-                'level' => $level,
-            ]
-        );
-    }
-
-    protected function generateInstitutionCode($name): string
-    {
-        // Create a simple code from the institution name
-        $words = explode(' ', $name);
-        $code = '';
-
-        foreach (array_slice($words, 0, 3) as $word) {
-            $code .= substr($word, 0, 1);
+        if ($existing) {
+            return $existing;
         }
 
-        // Add random number to ensure uniqueness
-        return strtoupper($code) . '-' . str_pad(random_int(1, 9999), 4, '0', STR_PAD_LEFT);
+        $code = 'TEMP-' . str_pad(Institution::count() + 1, 4, '0', STR_PAD_LEFT);
+
+        return Institution::create([
+            'code' => $code,
+            'name' => $name,
+            'type' => $this->type,
+            'level' => $level,
+            'sector' => $this->sector,
+        ]);
     }
 
-    protected function createProgram(Institution $institution, $row)
+    protected function createProgram(Institution $institution, $programName, $major, $permitNumber, $yearIssued, $status): bool
     {
-        // Get program name (column B or 'major')
-        $programName = trim($row['major'] ?? $row[1] ?? '');
+        $permitNumber = trim($permitNumber);
+        $programName = trim($programName);
 
-        if (empty($programName) || $this->isProgramName($programName) === false) {
-            // If programName is empty, it might be in the first column
-            $programName = trim($row[0] ?? '');
-        }
-
-        // Get major/specialization
-        $major = trim($row[1] ?? $row['specialization'] ?? '');
-
-        // Get permit number
-        $permitNumber = trim($row['permit_number'] ?? $row[2] ?? '');
-
-        // Get year issued
-        $yearIssued = trim($row['year_issued'] ?? $row[3] ?? '');
-
-        // Get status
-        $status = trim($row['status'] ?? $row[4] ?? '');
-
-        // Skip if no program name or permit number
         if (empty($programName) || empty($permitNumber)) {
-            return;
+            return false;
         }
 
-        // Determine permit type (COPC or GR)
-        $permitType = $this->detectPermitType($permitNumber);
+        // Create unique key to check duplicates
+        $uniqueKey = $institution->id . '|' . $programName . '|' . ($major ?: 'NOMAJOR') . '|' . $permitNumber;
 
-        // Check if program already exists
-        $existingProgram = Program::where('institution_id', $institution->id)
+        // Check if already exists with same program + major + permit combination
+        $exists = Program::where('institution_id', $institution->id)
+            ->where('name', $programName)
+            ->where('major', $major)
             ->where('permit_number', $permitNumber)
             ->first();
 
-        if ($existingProgram) {
-            return; // Skip duplicates
+        if ($exists) {
+            Log::info("      ⏭ Duplicate - already exists");
+            return false;
         }
 
-        // Create the program
+        $permitType = $this->detectPermitType($permitNumber);
+
         Program::create([
             'institution_id' => $institution->id,
             'name' => $programName,
-            'major' => !empty($major) ? $major : null,
+            'major' => $major,
             'permit_number' => $permitNumber,
             'permit_type' => $permitType,
-            'year_issued' => $yearIssued,
-            'status' => $status,
-            'is_board_course' => false, // Default, can be updated later
+            'year_issued' => trim($yearIssued),
+            'status' => trim($status),
+            'is_board_course' => false,
         ]);
+
+        $majorDisplay = $major ? " | Major: {$major}" : " | (no major)";
+        Log::info("      ✓ CREATED{$majorDisplay}");
+        return true;
     }
 
     protected function detectPermitType($permitNumber): string
@@ -190,12 +213,6 @@ class SheetImport implements ToCollection, WithHeadingRow
             return 'GR';
         }
 
-        // Default based on sector
         return $this->type === 'public' ? 'COPC' : 'GR';
-    }
-
-    public function headingRow(): int
-    {
-        return 5; // Adjust based on your Excel structure
     }
 }
