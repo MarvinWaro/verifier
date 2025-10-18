@@ -20,9 +20,11 @@ import {
     Shield,
     User,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 
-// ---------- Types ----------
+// ─────────────────────────────────────────────
+// TypeScript Interfaces
+// ─────────────────────────────────────────────
 interface Graduate {
     id: number;
     name: string;
@@ -30,6 +32,7 @@ interface Graduate {
     studentId: string;
     eligibility: string;
 }
+
 interface Program {
     id: number;
     name: string;
@@ -37,6 +40,7 @@ interface Program {
     grNumber: string | null;
     graduates: Graduate[];
 }
+
 interface Institution {
     id: number;
     code: string;
@@ -45,7 +49,9 @@ interface Institution {
     programs: Program[];
 }
 
-// ---------- Dummy Data ----------
+// ─────────────────────────────────────────────
+// Dummy Data
+// ─────────────────────────────────────────────
 const dummyData: { institutions: Institution[] } = {
     institutions: [
         {
@@ -222,115 +228,11 @@ const dummyData: { institutions: Institution[] } = {
     ],
 };
 
-// ---------- Fuzzy utils (no libs) ----------
-const normalize = (s: string) =>
-    s
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // diacritics
-        .replace(/[^a-z0-9\s]/g, ' ') // punctuation → space
-        .replace(/\s+/g, ' ') // collapse
-        .trim();
-
-const levenshtein = (a: string, b: string) => {
-    const m = a.length,
-        n = b.length;
-    if (m === 0) return n;
-    if (n === 0) return m;
-    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
-    for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-            dp[i][j] = Math.min(
-                dp[i - 1][j] + 1, // del
-                dp[i][j - 1] + 1, // ins
-                dp[i - 1][j - 1] + cost, // sub
-            );
-        }
-    }
-    return dp[m][n];
-};
-
-const similarity = (a: string, b: string) => {
-    const an = normalize(a),
-        bn = normalize(b);
-    if (!an || !bn) return 0;
-    // quick exact / substring bonuses
-    if (an === bn) return 1;
-    if (an.includes(bn) || bn.includes(an)) return 0.92;
-
-    const dist = levenshtein(an, bn);
-    const maxLen = Math.max(an.length, bn.length);
-    const ratio = 1 - dist / Math.max(1, maxLen);
-    return ratio;
-};
-
-// token sort ratio: order-insensitive matching
-const tokenSortRatio = (a: string, b: string) => {
-    const ta = normalize(a).split(' ').sort().join(' ');
-    const tb = normalize(b).split(' ').sort().join(' ');
-    return similarity(ta, tb);
-};
-
-// field-level fuzzy check: returns true if good match
-const fuzzyMatch = (haystack: string, needle: string, strictBoost = false) => {
-    const h = normalize(haystack);
-    const n = normalize(needle);
-    if (!n) return true;
-    if (h.includes(n)) return true; // cheap win
-
-    // compute blended score
-    const s1 = similarity(h, n);
-    const s2 = tokenSortRatio(h, n);
-    const score = Math.max(s1, s2);
-
-    // thresholds tuned: a bit stricter for very short terms
-    if (n.length <= 3) return score >= 0.86;
-    if (n.length <= 6) return score >= (strictBoost ? 0.86 : 0.82);
-    return score >= (strictBoost ? 0.82 : 0.78);
-};
-
-// For names: match by first/last tokens with mild boost
-const firstToken = (s: string) =>
-    normalize(s).split(' ').filter(Boolean)[0] ?? '';
-const lastToken = (s: string) => {
-    const t = normalize(s).split(' ').filter(Boolean);
-    return t[t.length - 1] ?? '';
-};
-
-// ---------- Highlight utils (kept simple for exact substrings) ----------
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const highlightExact = (text: string, q: string) => {
-    if (!q) return text;
-    const re = new RegExp(`(${escapeRegExp(q)})`, 'gi');
-    const parts = text.split(re);
-    return (
-        <>
-            {parts.map((part, i) =>
-                part.toLowerCase() === q.toLowerCase() ? (
-                    <mark key={i} className="bg-yellow-200">
-                        {part}
-                    </mark>
-                ) : (
-                    <span key={i}>{part}</span>
-                ),
-            )}
-        </>
-    );
-};
-
-// ---------- Component ----------
+// ─────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────
 export default function PRCCheckLanding() {
-    // Debounced institution search
-    const [rawSearch, setRawSearch] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState<string>('');
-    useEffect(() => {
-        const t = setTimeout(() => setSearchTerm(rawSearch.trim()), 250);
-        return () => clearTimeout(t);
-    }, [rawSearch]);
-
     const [selectedInstitution, setSelectedInstitution] =
         useState<Institution | null>(null);
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(
@@ -340,7 +242,7 @@ export default function PRCCheckLanding() {
         null,
     );
 
-    // Student filters (same fields)
+    // Student Search Filters
     const [studentFilters, setStudentFilters] = useState({
         lastName: '',
         firstName: '',
@@ -353,53 +255,70 @@ export default function PRCCheckLanding() {
         Graduate[]
     >([]);
 
-    // Flat list + context resolver
-    const allGraduates = useMemo(() => {
-        const arr: Graduate[] = [];
-        dummyData.institutions.forEach((inst) =>
-            inst.programs.forEach((prog) =>
-                prog.graduates.forEach((g) => arr.push(g)),
-            ),
-        );
-        return arr;
-    }, []);
+    // Helpers
+    const norm = (s: string) => s.trim().toLowerCase();
 
-    const findGraduateContext = (gradId: number) => {
-        for (const inst of dummyData.institutions) {
-            for (const prog of inst.programs) {
-                const grad = prog.graduates.find((g) => g.id === gradId);
-                if (grad) return { inst, prog, grad };
-            }
-        }
-        return null;
-    };
-
-    // Fuzzy institution filtering + ranking
-    const filteredInstitutions = useMemo(() => {
-        const q = searchTerm;
-        if (!q) return dummyData.institutions;
-        const scored = dummyData.institutions
-            .map((inst) => {
-                const sName = Math.max(
-                    similarity(inst.name, q),
-                    tokenSortRatio(inst.name, q),
-                );
-                const sCode = similarity(inst.code, q);
-                const contains =
-                    normalize(inst.name).includes(normalize(q)) ||
-                    normalize(inst.code).includes(normalize(q));
-                const score = Math.max(contains ? 1 : 0, sName, sCode);
-                return { inst, score };
-            })
-            .filter(({ score }) => score >= 0.72); // keep reasonable matches
-        scored.sort((a, b) => b.score - a.score);
-        return scored.map((s) => s.inst);
-    }, [searchTerm]);
+    // Filter institutions based on search
+    const filteredInstitutions = dummyData.institutions.filter(
+        (inst) =>
+            inst.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            inst.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 
     const resetFilters = () => {
         setSelectedInstitution(null);
         setSelectedProgram(null);
         setSelectedGraduate(null);
+    };
+
+    // ── UPDATED: tolerant search (first/last can swap, partials allowed)
+    const handleStudentSearch = () => {
+        const allGraduates: Graduate[] = [];
+        dummyData.institutions.forEach((inst) => {
+            inst.programs.forEach((prog) => {
+                prog.graduates.forEach((grad) => allGraduates.push(grad));
+            });
+        });
+
+        const qLast = norm(studentFilters.lastName);
+        const qFirst = norm(studentFilters.firstName);
+        const qMiddle = norm(studentFilters.middleName);
+        const qExt = norm(studentFilters.extensionName);
+        const qYear = studentFilters.yearGraduated.trim();
+        const qBirth = studentFilters.birthdate.trim(); // not in dummy data yet
+
+        const results = allGraduates.filter((grad) => {
+            const full = norm(grad.name);
+            const tokens = full.split(/\s+/);
+            const firstToken = tokens[0] || '';
+            const lastToken = tokens[tokens.length - 1] || '';
+
+            const matchFirstName =
+                !qFirst ||
+                firstToken.startsWith(qFirst) ||
+                full.includes(qFirst);
+
+            const matchLastName =
+                !qLast || lastToken.startsWith(qLast) || full.includes(qLast);
+
+            const matchMiddleName = !qMiddle || full.includes(qMiddle);
+            const matchExtension = !qExt || full.includes(qExt);
+
+            const matchYear = !qYear || grad.yearGraduated.toString() === qYear;
+
+            const matchBirthdate = !qBirth; // placeholder until birthdate exists
+
+            return (
+                matchFirstName &&
+                matchLastName &&
+                matchMiddleName &&
+                matchExtension &&
+                matchYear &&
+                matchBirthdate
+            );
+        });
+
+        setStudentSearchResults(results);
     };
 
     const clearStudentFilters = () => {
@@ -414,85 +333,28 @@ export default function PRCCheckLanding() {
         setStudentSearchResults([]);
     };
 
-    // Fuzzy student search
-    const handleStudentSearch = () => {
-        const {
-            firstName,
-            lastName,
-            middleName,
-            extensionName,
-            birthdate,
-            yearGraduated,
-        } = studentFilters;
-        const hasAnyName = !!(
-            firstName ||
-            lastName ||
-            middleName ||
-            extensionName
-        );
-
-        const results = allGraduates.filter((grad) => {
-            // Year + birthdate (still exact placeholder)
-            const matchYear =
-                !yearGraduated ||
-                grad.yearGraduated.toString() === yearGraduated;
-            const matchBirthdate = !birthdate; // until you add it to data
-
-            // Name logic:
-            if (!hasAnyName) {
-                // If no name fields, allow year/birthdate-only filtering
-                return matchYear && matchBirthdate;
-            }
-
-            const gradFirst = firstToken(grad.name);
-            const gradLast = lastToken(grad.name);
-            const gradFull = grad.name;
-
-            const okFirst =
-                !firstName ||
-                fuzzyMatch(gradFirst, firstName, true) ||
-                fuzzyMatch(gradFull, firstName);
-            const okLast =
-                !lastName ||
-                fuzzyMatch(gradLast, lastName, true) ||
-                fuzzyMatch(gradFull, lastName);
-            const okMiddle = !middleName || fuzzyMatch(gradFull, middleName);
-            const okExt = !extensionName || fuzzyMatch(gradFull, extensionName);
-
-            // AND across provided fields
-            return (
-                matchYear &&
-                matchBirthdate &&
-                okFirst &&
-                okLast &&
-                okMiddle &&
-                okExt
-            );
-        });
-
-        setStudentSearchResults(results);
-    };
-
     return (
         <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-blue-100 via-white to-blue-50">
-            {/* Background */}
+            {/* Grid Pattern Background */}
             <div
                 className="absolute inset-0 opacity-20"
                 style={{
                     backgroundImage: `linear-gradient(to right, rgba(99, 102, 241, 0.1) 1px, transparent 1px),
-             linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
+                                  linear-gradient(to bottom, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
                     backgroundSize: '40px 40px',
                 }}
-            />
-            <div className="absolute top-0 left-0 h-96 w-96 animate-pulse rounded-full bg-blue-300 opacity-40 mix-blend-multiply blur-3xl" />
+            ></div>
+
+            {/* Gradient Orbs */}
+            <div className="absolute top-0 left-0 h-96 w-96 animate-pulse rounded-full bg-blue-300 opacity-40 mix-blend-multiply blur-3xl filter"></div>
             <div
-                className="absolute top-0 right-0 h-96 w-96 animate-pulse rounded-full bg-indigo-300 opacity-40 mix-blend-multiply blur-3xl"
+                className="absolute top-0 right-0 h-96 w-96 animate-pulse rounded-full bg-indigo-300 opacity-40 mix-blend-multiply blur-3xl filter"
                 style={{ animationDelay: '2s' }}
-            />
+            ></div>
             <div
-                className="absolute bottom-0 left-1/2 h-96 w-96 animate-pulse rounded-full bg-blue-200 opacity-40 mix-blend-multiply blur-3xl"
+                className="absolute bottom-0 left-1/2 h-96 w-96 animate-pulse rounded-full bg-blue-200 opacity-40 mix-blend-multiply blur-3xl filter"
                 style={{ animationDelay: '4s' }}
-            />
+            ></div>
 
             {/* Header */}
             <header className="relative z-10 border-b border-white/20 bg-gradient-to-r from-white/40 via-white/60 to-white/40 backdrop-blur-xl">
@@ -504,25 +366,26 @@ export default function PRCCheckLanding() {
                                 alt="PRC Logo"
                                 className="h-14 w-14 object-contain"
                             />
+                            <img
+                                src="/assets/img/ched-logo.png"
+                                alt="CHED Logo"
+                                className="h-14 w-14 object-contain"
+                            />
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900">
                                     CHECK with CHED
                                 </h1>
                                 <p className="text-xs text-gray-600">
-                                    Graduate Verification System
+                                    Higher Education Institution Graduates
                                 </p>
                             </div>
                         </div>
-                        <img
-                            src="/assets/img/ched-logo.png"
-                            alt="CHED Logo"
-                            className="h-14 w-14 object-contain"
-                        />
+
                     </div>
                 </div>
             </header>
 
-            {/* Hero + Search */}
+            {/* Hero Section */}
             {!selectedInstitution && !selectedProgram && (
                 <div className="relative z-10 px-4 py-16 sm:px-6 lg:px-8">
                     <div className="mx-auto max-w-7xl">
@@ -544,7 +407,7 @@ export default function PRCCheckLanding() {
                             </p>
                         </div>
 
-                        {/* Stats */}
+                        {/* Stats Cards */}
                         <div className="mx-auto mb-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
                             <Card className="border-0 bg-white/80 shadow-lg backdrop-blur-sm">
                                 <CardContent className="p-6 text-center">
@@ -604,18 +467,17 @@ export default function PRCCheckLanding() {
                                             <Input
                                                 type="text"
                                                 placeholder="Enter institution code or name..."
-                                                value={rawSearch}
+                                                value={searchTerm}
                                                 onChange={(e) => {
-                                                    setRawSearch(
+                                                    setSearchTerm(
                                                         e.target.value,
                                                     );
                                                     resetFilters();
                                                 }}
                                                 className="h-12 pl-10 text-base"
-                                                aria-label="Search institution by code or name"
                                             />
                                         </div>
-                                        {rawSearch && (
+                                        {searchTerm && (
                                             <div className="text-sm text-gray-600">
                                                 Found{' '}
                                                 {filteredInstitutions.length}{' '}
@@ -641,6 +503,7 @@ export default function PRCCheckLanding() {
                                         Directly search for a specific
                                         graduate's information
                                     </p>
+
                                     <div className="mb-4 grid grid-cols-2 gap-3">
                                         <Input
                                             placeholder="Last Name"
@@ -723,11 +586,7 @@ export default function PRCCheckLanding() {
                                             className="h-12 flex-1 bg-purple-600 text-base hover:bg-purple-700"
                                             disabled={
                                                 !studentFilters.lastName &&
-                                                !studentFilters.firstName &&
-                                                !studentFilters.middleName &&
-                                                !studentFilters.extensionName &&
-                                                !studentFilters.yearGraduated &&
-                                                !studentFilters.birthdate
+                                                !studentFilters.firstName
                                             }
                                         >
                                             <Search className="mr-2 h-4 w-4" />
@@ -752,8 +611,8 @@ export default function PRCCheckLanding() {
                             </Card>
                         </div>
 
-                        {/* Institution Results */}
-                        {rawSearch && !selectedInstitution && (
+                        {/* Institution Search Results */}
+                        {searchTerm && !selectedInstitution && (
                             <div className="mx-auto mt-8 max-w-6xl">
                                 <h3 className="mb-4 text-lg font-semibold text-gray-900">
                                     Search Results
@@ -768,15 +627,6 @@ export default function PRCCheckLanding() {
                                                     institution,
                                                 )
                                             }
-                                            role="button"
-                                            tabIndex={0}
-                                            onKeyDown={(e) =>
-                                                (e.key === 'Enter' ||
-                                                    e.key === ' ') &&
-                                                setSelectedInstitution(
-                                                    institution,
-                                                )
-                                            }
                                         >
                                             <CardContent className="p-6">
                                                 <div className="flex items-start justify-between">
@@ -786,18 +636,16 @@ export default function PRCCheckLanding() {
                                                         </div>
                                                         <div>
                                                             <h3 className="mb-1 text-lg font-semibold text-gray-900">
-                                                                {highlightExact(
-                                                                    institution.name,
-                                                                    rawSearch,
-                                                                )}
+                                                                {
+                                                                    institution.name
+                                                                }
                                                             </h3>
                                                             <div className="flex items-center gap-3 text-sm text-gray-600">
                                                                 <span>
                                                                     Code:{' '}
-                                                                    {highlightExact(
-                                                                        institution.code,
-                                                                        rawSearch,
-                                                                    )}
+                                                                    {
+                                                                        institution.code
+                                                                    }
                                                                 </span>
                                                                 <Badge
                                                                     variant={
@@ -833,7 +681,7 @@ export default function PRCCheckLanding() {
                             </div>
                         )}
 
-                        {/* Student Results (no institution selected) */}
+                        {/* Student Search Results (from hero view) */}
                         {studentSearchResults.length > 0 &&
                             !selectedInstitution && (
                                 <div className="mx-auto mt-8 max-w-6xl">
@@ -910,29 +758,11 @@ export default function PRCCheckLanding() {
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            onClick={() => {
-                                                                                const ctx =
-                                                                                    findGraduateContext(
-                                                                                        graduate.id,
-                                                                                    );
-                                                                                if (
-                                                                                    ctx
-                                                                                ) {
-                                                                                    setSelectedInstitution(
-                                                                                        ctx.inst,
-                                                                                    );
-                                                                                    setSelectedProgram(
-                                                                                        ctx.prog,
-                                                                                    );
-                                                                                    setSelectedGraduate(
-                                                                                        ctx.grad,
-                                                                                    );
-                                                                                } else {
-                                                                                    setSelectedGraduate(
-                                                                                        graduate,
-                                                                                    );
-                                                                                }
-                                                                            }}
+                                                                            onClick={() =>
+                                                                                setSelectedGraduate(
+                                                                                    graduate,
+                                                                                )
+                                                                            }
                                                                         >
                                                                             View
                                                                             Details
@@ -948,18 +778,45 @@ export default function PRCCheckLanding() {
                                     </Card>
                                 </div>
                             )}
+
+                        {/* Features (only when no queries/results) */}
+                        {!searchTerm && studentSearchResults.length === 0 && (
+                            <div className="mt-16 text-center">
+                                <h3 className="mb-6 text-lg font-semibold text-gray-900">
+                                    Key Features
+                                </h3>
+                                <div className="flex flex-wrap justify-center gap-6">
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                        Real-time Verification
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                        Official CHED Database
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                        Secure & Authenticated
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                        24/7 Accessibility
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Main Content (institution/program) */}
+            {/* Main Content Area (when institution/program selected) */}
             {(selectedInstitution || selectedProgram) && (
                 <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                    {/* Back to Search */}
                     <Button
                         variant="ghost"
                         onClick={() => {
                             resetFilters();
-                            setRawSearch('');
                             setSearchTerm('');
                             clearStudentFilters();
                         }}
@@ -968,43 +825,137 @@ export default function PRCCheckLanding() {
                         ← Back to Search
                     </Button>
 
-                    {/* Breadcrumbs */}
-                    <Card className="mb-6 border-0 bg-white/80 backdrop-blur-sm">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-2 text-sm">
-                                <button
-                                    onClick={resetFilters}
-                                    className="font-medium text-blue-600 hover:text-blue-800"
-                                >
-                                    All Institutions
-                                </button>
-                                {selectedInstitution && (
-                                    <>
-                                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                                        <button
-                                            onClick={() => {
-                                                setSelectedProgram(null);
-                                                setSelectedGraduate(null);
-                                            }}
-                                            className="font-medium text-blue-600 hover:text-blue-800"
-                                        >
-                                            {selectedInstitution.name}
-                                        </button>
-                                    </>
-                                )}
-                                {selectedProgram && (
-                                    <>
-                                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                                        <span className="font-medium text-gray-700">
-                                            {selectedProgram.name}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* Breadcrumb */}
+                    {(selectedInstitution || selectedProgram) && (
+                        <Card className="mb-6 border-0 bg-white/80 backdrop-blur-sm">
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-2 text-sm">
+                                    <button
+                                        onClick={resetFilters}
+                                        className="font-medium text-blue-600 hover:text-blue-800"
+                                    >
+                                        All Institutions
+                                    </button>
+                                    {selectedInstitution && (
+                                        <>
+                                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedProgram(null);
+                                                    setSelectedGraduate(null);
+                                                }}
+                                                className="font-medium text-blue-600 hover:text-blue-800"
+                                            >
+                                                {selectedInstitution.name}
+                                            </button>
+                                        </>
+                                    )}
+                                    {selectedProgram && (
+                                        <>
+                                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                                            <span className="font-medium text-gray-700">
+                                                {selectedProgram.name}
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    {/* Institution list during search */}
+                    {/* Student Search Results (also visible in this area) */}
+                    {studentSearchResults.length > 0 &&
+                        !selectedInstitution && (
+                            <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm">
+                                <CardContent className="p-6">
+                                    <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                                        Student Search Results (
+                                        {studentSearchResults.length} found)
+                                    </h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full">
+                                            <thead>
+                                                <tr className="border-b">
+                                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                        Name
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                        Student ID
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                        Year Graduated
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                        Status
+                                                    </th>
+                                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                        Action
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {studentSearchResults.map(
+                                                    (graduate) => (
+                                                        <tr
+                                                            key={graduate.id}
+                                                            className="border-b hover:bg-gray-50"
+                                                        >
+                                                            <td className="px-4 py-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
+                                                                        <User className="h-4 w-4 text-blue-600" />
+                                                                    </div>
+                                                                    <span className="font-medium">
+                                                                        {
+                                                                            graduate.name
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 font-mono text-sm">
+                                                                {
+                                                                    graduate.studentId
+                                                                }
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                {
+                                                                    graduate.yearGraduated
+                                                                }
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-green-200 bg-green-50 text-green-700"
+                                                                >
+                                                                    {
+                                                                        graduate.eligibility
+                                                                    }
+                                                                </Badge>
+                                                            </td>
+                                                            <td className="px-4 py-3">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        setSelectedGraduate(
+                                                                            graduate,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    View Details
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                    {/* Institution List */}
                     {!selectedInstitution && searchTerm && (
                         <div className="grid gap-4">
                             {filteredInstitutions.map((institution) => (
@@ -1023,18 +974,12 @@ export default function PRCCheckLanding() {
                                                 </div>
                                                 <div>
                                                     <h3 className="mb-1 text-lg font-semibold text-gray-900">
-                                                        {highlightExact(
-                                                            institution.name,
-                                                            rawSearch,
-                                                        )}
+                                                        {institution.name}
                                                     </h3>
                                                     <div className="flex items-center gap-3 text-sm text-gray-600">
                                                         <span>
                                                             Code:{' '}
-                                                            {highlightExact(
-                                                                institution.code,
-                                                                rawSearch,
-                                                            )}
+                                                            {institution.code}
                                                         </span>
                                                         <Badge
                                                             variant={
@@ -1067,7 +1012,7 @@ export default function PRCCheckLanding() {
                         </div>
                     )}
 
-                    {/* Program list */}
+                    {/* Program List */}
                     {selectedInstitution && !selectedProgram && (
                         <>
                             <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm">
@@ -1172,7 +1117,7 @@ export default function PRCCheckLanding() {
                         </>
                     )}
 
-                    {/* Graduates table */}
+                    {/* Graduate List */}
                     {selectedProgram && (
                         <>
                             <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm">
@@ -1484,7 +1429,7 @@ export default function PRCCheckLanding() {
                                 </Card>
                             </div>
 
-                            {/* Notice */}
+                            {/* Verification Notice */}
                             <Card className="border-0 bg-blue-50">
                                 <CardContent className="p-4">
                                     <div className="flex gap-3">
