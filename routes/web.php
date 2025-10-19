@@ -5,6 +5,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\GraduateController;
+use App\Http\Controllers\ImportController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -23,6 +24,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Graduate routes
     Route::get('graduates', [GraduateController::class, 'index'])->name('graduates.index');
+
+    // Import routes
+    Route::get('import', [ImportController::class, 'index'])->name('import.index');
 });
 
 require __DIR__.'/settings.php';
