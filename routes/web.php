@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\InstitutionController;
+use App\Http\Controllers\ProgramController;
+use App\Http\Controllers\GraduateController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -13,9 +15,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
-    // Institution routes - KEEP THESE
-    Route::get('/institutions', [InstitutionController::class, 'index'])->name('institutions.index');
-    Route::post('/institutions/import', [InstitutionController::class, 'import'])->name('institutions.import');
+    // Institution routes
+    Route::get('institutions', [InstitutionController::class, 'index'])->name('institutions.index');
+
+    // Program routes
+    Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
+
+    // Graduate routes
+    Route::get('graduates', [GraduateController::class, 'index'])->name('graduates.index');
 });
 
 require __DIR__.'/settings.php';
