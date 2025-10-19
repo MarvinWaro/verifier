@@ -27,6 +27,22 @@ const mainNavItems: NavItem[] = [
         href: '/institutions',
         icon: Building2,
     },
+    {
+        title: 'Programs',
+        href: '/programs',
+        icon: Building2,
+    },
+    {
+        title: 'Graduates',
+        href: '/graduates',
+        icon: Building2,
+    },
+        {
+        title: 'Import',
+        href: '/import',
+        icon: Building2,
+    },
+
 ];
 
 const footerNavItems: NavItem[] = [
