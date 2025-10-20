@@ -27,6 +27,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Import routes
     Route::get('import', [ImportController::class, 'index'])->name('import.index');
+
+    
 });
 
 require __DIR__.'/settings.php';

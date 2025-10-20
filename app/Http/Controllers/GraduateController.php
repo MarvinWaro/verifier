@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Graduate;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -9,120 +10,63 @@ class GraduateController extends Controller
 {
     public function index()
     {
-        // For now, return dummy data
-        // Later we'll replace this with: Graduate::with('program.institution')->get()
-        $graduates = [
-            [
-                'id' => 1,
-                'last_name' => 'DELA CRUZ',
-                'first_name' => 'JUAN',
-                'middle_name' => 'SANTOS',
-                'extension_name' => null,
-                'year_graduated' => '2023',
-                'program' => [
-                    'program_name' => 'BACHELOR OF SCIENCE IN NURSING',
-                    'major' => null,
-                    'program_type' => 'Board',
-                    'permit_number' => 'COP045-2010',
-                    'institution' => [
-                        'institution_code' => '12150',
-                        'name' => 'NOTRE DAME OF MARBEL UNIVERSITY',
-                        'type' => 'Private',
-                    ],
-                ],
-                'so_number' => 'SO-2023-001',
-                'lrn' => null,
-                'philsys_id' => null,
-            ],
-            [
-                'id' => 2,
-                'last_name' => 'SANTOS',
-                'first_name' => 'MARIA',
-                'middle_name' => 'REYES',
-                'extension_name' => null,
-                'year_graduated' => '2024',
-                'program' => [
-                    'program_name' => 'BACHELOR OF SCIENCE IN COMPUTER SCIENCE',
-                    'major' => null,
-                    'program_type' => 'Non-Board',
-                    'permit_number' => 'GR048-2011',
-                    'institution' => [
-                        'institution_code' => '12120',
-                        'name' => 'ACLC COLLEGE OF MARBEL',
-                        'type' => 'Private',
-                    ],
-                ],
-                'so_number' => 'SO-2024-045',
-                'lrn' => null,
-                'philsys_id' => null,
-            ],
-            [
-                'id' => 3,
-                'last_name' => 'REYES',
-                'first_name' => 'PEDRO',
-                'middle_name' => 'GARCIA',
-                'extension_name' => 'JR.',
-                'year_graduated' => '2023',
-                'program' => [
-                    'program_name' => 'BACHELOR OF SCIENCE IN BUSINESS ADMINISTRATION',
-                    'major' => 'HUMAN RESOURCE DEVELOPMENT MANAGEMENT',
-                    'program_type' => 'Non-Board',
-                    'permit_number' => 'GR035-2012',
-                    'institution' => [
-                        'institution_code' => '12120',
-                        'name' => 'ACLC COLLEGE OF MARBEL',
-                        'type' => 'Private',
-                    ],
-                ],
-                'so_number' => 'SO-2023-089',
-                'lrn' => null,
-                'philsys_id' => null,
-            ],
-            [
-                'id' => 4,
-                'last_name' => 'GARCIA',
-                'first_name' => 'ANA',
-                'middle_name' => 'CRUZ',
-                'extension_name' => null,
-                'year_graduated' => '2024',
-                'program' => [
-                    'program_name' => 'BACHELOR OF SCIENCE IN INFORMATION SYSTEMS',
-                    'major' => null,
-                    'program_type' => 'Non-Board',
-                    'permit_number' => 'RRPA No. 004, Series of 2025',
-                    'institution' => [
-                        'institution_code' => '12169',
-                        'name' => 'MALAPATAN COLLEGE OF SCIENCE AND TECHNOLOGY',
-                        'type' => 'LUCs',
-                    ],
-                ],
-                'so_number' => null,  // LUCs - no SO number
-                'lrn' => null,
-                'philsys_id' => null,
-            ],
-            [
-                'id' => 5,
-                'last_name' => 'RIVERA',
-                'first_name' => 'JOSE',
-                'middle_name' => 'MARTINEZ',
-                'extension_name' => null,
-                'year_graduated' => '2022',
-                'program' => [
-                    'program_name' => 'BACHELOR OF SCIENCE IN NURSING',
-                    'major' => null,
-                    'program_type' => 'Board',
-                    'permit_number' => 'COP045-2010',
-                    'institution' => [
-                        'institution_code' => '12150',
-                        'name' => 'NOTRE DAME OF MARBEL UNIVERSITY',
-                        'type' => 'Private',
-                    ],
-                ],
-                'so_number' => 'SO-2022-156',
-                'lrn' => null,
-                'philsys_id' => null,
-            ],
-        ];
+        $graduates = Graduate::with(['program.institution', 'institution'])
+            ->get()
+            ->map(function ($graduate) {
+                if ($graduate->program) {
+                    return [
+                        'id' => $graduate->id,
+                        'student_id_number' => $graduate->student_id_number,
+                        'date_of_birth' => $graduate->date_of_birth,
+                        'last_name' => $graduate->last_name,
+                        'first_name' => $graduate->first_name,
+                        'middle_name' => $graduate->middle_name,
+                        'extension_name' => $graduate->extension_name,
+                        'sex' => $graduate->sex,
+                        'year_graduated' => $graduate->date_graduated,
+                        'program' => [
+                            'program_name' => $graduate->program->program_name,
+                            'major' => $graduate->program->major,
+                            'program_type' => $graduate->program->program_type,
+                            'permit_number' => $graduate->program->permit_number,
+                            'institution' => [
+                                'institution_code' => $graduate->program->institution->institution_code,
+                                'name' => $graduate->program->institution->name,
+                                'type' => $graduate->program->institution->type,
+                            ],
+                        ],
+                        'so_number' => $graduate->so_number,
+                        'lrn' => $graduate->lrn,
+                        'philsys_id' => $graduate->philsys_id,
+                    ];
+                } else {
+                    return [
+                        'id' => $graduate->id,
+                        'student_id_number' => $graduate->student_id_number,
+                        'date_of_birth' => $graduate->date_of_birth,
+                        'last_name' => $graduate->last_name,
+                        'first_name' => $graduate->first_name,
+                        'middle_name' => $graduate->middle_name,
+                        'extension_name' => $graduate->extension_name,
+                        'sex' => $graduate->sex,
+                        'year_graduated' => $graduate->date_graduated,
+                        'program' => [
+                            'program_name' => $graduate->course_from_excel,
+                            'major' => $graduate->major_from_excel,
+                            'program_type' => 'Unknown',
+                            'permit_number' => 'N/A',
+                            'institution' => [
+                                'institution_code' => $graduate->institution ? $graduate->institution->institution_code : 'N/A',
+                                'name' => $graduate->institution ? $graduate->institution->name : 'Unknown Institution',
+                                'type' => $graduate->institution ? $graduate->institution->type : 'Unknown',
+                            ],
+                        ],
+                        'so_number' => $graduate->so_number,
+                        'lrn' => $graduate->lrn,
+                        'philsys_id' => $graduate->philsys_id,
+                    ];
+                }
+            });
 
         return Inertia::render('graduates/index', [
             'graduates' => $graduates,
