@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Upload, Trash2, CheckCircle, AlertCircle, FileSpreadsheet, Users } from 'lucide-react';
 import { useState } from 'react';
+import axios from 'axios';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -85,26 +86,23 @@ function InstitutionsImport() {
         formData.append('file', file);
 
         try {
-            const response = await fetch('/api/import/institutions', {
-                method: 'POST',
-                body: formData,
+            const response = await axios.post('/import/institutions', formData, {
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
+                    'Content-Type': 'multipart/form-data',
                 },
             });
 
-            const data = await response.json();
-
-            if (data.success) {
-                setResult(data);
+            if (response.data.success) {
+                setResult(response.data);
                 setFile(null);
                 const input = document.getElementById('institutions-file-input') as HTMLInputElement;
                 if (input) input.value = '';
             } else {
-                setError(data.message);
+                setError(response.data.message);
             }
-        } catch (err) {
-            setError('An error occurred during import: ' + (err as Error).message);
+        } catch (err: any) {
+            console.error('Import error:', err);
+            setError('An error occurred during import: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -119,23 +117,16 @@ function InstitutionsImport() {
         setError(null);
 
         try {
-            const response = await fetch('/api/import/institutions/clear', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
-                },
-            });
+            const response = await axios.post('/import/institutions/clear');
 
-            const data = await response.json();
-
-            if (data.success) {
-                setResult({ message: data.message, success: true });
+            if (response.data.success) {
+                setResult({ message: response.data.message, success: true });
             } else {
-                setError(data.message);
+                setError(response.data.message);
             }
-        } catch (err) {
-            setError('An error occurred: ' + (err as Error).message);
+        } catch (err: any) {
+            console.error('Clear error:', err);
+            setError('An error occurred: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -213,10 +204,10 @@ function InstitutionsImport() {
                                 <tr><td className="py-1">A</td><td>Institution Code</td><td>✓</td></tr>
                                 <tr><td className="py-1">B</td><td>HEI (Institution Name)</td><td>✓</td></tr>
                                 <tr><td className="py-1">C</td><td>Programs</td><td>✓</td></tr>
-                                <tr><td className="py-1">D</td><td>Major</td><td>-</td></tr>
-                                <tr><td className="py-1">E</td><td>Permit Number</td><td>✓</td></tr>
-                                <tr><td className="py-1">F</td><td>Type (Public/Private/LUCs)</td><td>✓</td></tr>
-                                <tr><td className="py-1">G</td><td>Program Type</td><td>-</td></tr>
+                                <tr><td className="py-1">D</td><td>Program Type (Board/Non-Board)</td><td>-</td></tr>
+                                <tr><td className="py-1">E</td><td>Major</td><td>-</td></tr>
+                                <tr><td className="py-1">F</td><td>Permit Number</td><td>✓</td></tr>
+                                <tr><td className="py-1">G</td><td>Type (Private/SUCs/LUCs)</td><td>✓</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -270,26 +261,23 @@ function GraduatesImport() {
         formData.append('file', file);
 
         try {
-            const response = await fetch('/api/import/graduates', {
-                method: 'POST',
-                body: formData,
+            const response = await axios.post('/import/graduates', formData, {
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
+                    'Content-Type': 'multipart/form-data',
                 },
             });
 
-            const data = await response.json();
-
-            if (data.success) {
-                setResult(data);
+            if (response.data.success) {
+                setResult(response.data);
                 setFile(null);
                 const input = document.getElementById('graduates-file-input') as HTMLInputElement;
                 if (input) input.value = '';
             } else {
-                setError(data.message);
+                setError(response.data.message);
             }
-        } catch (err) {
-            setError('An error occurred during import: ' + (err as Error).message);
+        } catch (err: any) {
+            console.error('Import error:', err);
+            setError('An error occurred during import: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -304,23 +292,16 @@ function GraduatesImport() {
         setError(null);
 
         try {
-            const response = await fetch('/api/import/graduates/clear', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
-                },
-            });
+            const response = await axios.post('/import/graduates/clear');
 
-            const data = await response.json();
-
-            if (data.success) {
-                setResult({ message: data.message, success: true });
+            if (response.data.success) {
+                setResult({ message: response.data.message, success: true });
             } else {
-                setError(data.message);
+                setError(response.data.message);
             }
-        } catch (err) {
-            setError('An error occurred: ' + (err as Error).message);
+        } catch (err: any) {
+            console.error('Clear error:', err);
+            setError('An error occurred: ' + (err.response?.data?.message || err.message));
         } finally {
             setLoading(false);
         }
@@ -331,7 +312,7 @@ function GraduatesImport() {
             <CardHeader>
                 <CardTitle>Import Graduates</CardTitle>
                 <CardDescription>
-                    Upload an Excel file containing graduate information (Ready for Tuesday's data)
+                    Upload an Excel file containing graduate information
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -368,7 +349,23 @@ function GraduatesImport() {
                             {result.message}
                             {result.data && (
                                 <div className="mt-2 font-medium">
-                                    • Graduates: {result.data.graduates}
+                                    • Graduates Imported: {result.data.graduates}<br />
+                                    • Programs Matched: {result.data.matched}<br />
+                                    {result.data.unmatched > 0 && (
+                                        <span className="text-orange-700">
+                                            • Unmatched Programs: {result.data.unmatched}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            {result.data && result.data.errors && result.data.errors.length > 0 && (
+                                <div className="mt-3 text-xs">
+                                    <p className="font-semibold mb-1">First few errors:</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                        {result.data.errors.map((err: string, idx: number) => (
+                                            <li key={idx}>{err}</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             )}
                         </AlertDescription>
@@ -383,18 +380,33 @@ function GraduatesImport() {
                 )}
 
                 <div className="pt-4 border-t">
-                    <h3 className="text-sm font-medium mb-3">Expected Excel Format:</h3>
-                    <div className="bg-gray-50 p-4 rounded-lg text-xs text-gray-600">
-                        <p>The graduate import will expect columns for:</p>
-                        <ul className="list-disc list-inside mt-2 space-y-1">
-                            <li>Last Name, First Name, Middle Name, Extension</li>
-                            <li>Institution Code (to match with existing institutions)</li>
-                            <li>Program Name (to match with existing programs)</li>
-                            <li>Year Graduated</li>
-                            <li>SO Number (optional - for Private schools)</li>
-                            <li>LRN (optional)</li>
-                            <li>PhilSys ID (optional)</li>
-                        </ul>
+                    <h3 className="text-sm font-medium mb-3">Excel Format Requirements:</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                        <table className="text-xs w-full">
+                            <thead>
+                                <tr className="border-b">
+                                    <th className="text-left py-2">Column</th>
+                                    <th className="text-left py-2">Field</th>
+                                    <th className="text-left py-2">Required</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-gray-600">
+                                <tr><td className="py-1">A</td><td>Institution Code</td><td>-</td></tr>
+                                <tr><td className="py-1">B</td><td>Student ID Number</td><td>✓</td></tr>
+                                <tr><td className="py-1">C</td><td>Date of Birth</td><td>-</td></tr>
+                                <tr><td className="py-1">D</td><td>Last Name</td><td>✓</td></tr>
+                                <tr><td className="py-1">E</td><td>First Name</td><td>✓</td></tr>
+                                <tr><td className="py-1">F</td><td>Middle Name</td><td>-</td></tr>
+                                <tr><td className="py-1">G</td><td>Extension Name</td><td>-</td></tr>
+                                <tr><td className="py-1">H</td><td>Sex</td><td>-</td></tr>
+                                <tr><td className="py-1">I</td><td>Date Graduated</td><td>✓</td></tr>
+                                <tr><td className="py-1">J</td><td>Course</td><td>✓</td></tr>
+                                <tr><td className="py-1">K</td><td>Major</td><td>-</td></tr>
+                                <tr><td className="py-1">L</td><td>SO Number</td><td>-</td></tr>
+                                <tr><td className="py-1">M</td><td>LRN</td><td>-</td></tr>
+                                <tr><td className="py-1">N</td><td>PhilSys ID</td><td>-</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 

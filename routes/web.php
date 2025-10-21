@@ -11,21 +11,6 @@ use App\Http\Controllers\WelcomeController;
 // Landing page - publicly accessible
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
-// Add this temporary route to debug
-Route::get('/debug-institutions', function() {
-    $institutions = \App\Models\Institution::all();
-    return response()->json([
-        'count' => $institutions->count(),
-        'types' => $institutions->pluck('type')->unique(),
-        'sample' => $institutions->take(5)->map(fn($i) => [
-            'code' => $i->institution_code,
-            'name' => $i->name,
-            'type' => $i->type,
-        ]),
-    ]);
-});
-
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
@@ -40,8 +25,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Graduate routes
     Route::get('graduates', [GraduateController::class, 'index'])->name('graduates.index');
 
-    // Import routes
+    // Import routes - MOVED FROM api.php
     Route::get('import', [ImportController::class, 'index'])->name('import.index');
+    Route::post('import/institutions', [ImportController::class, 'importInstitutions'])->name('import.institutions');
+    Route::post('import/institutions/clear', [ImportController::class, 'clearInstitutions'])->name('import.institutions.clear');
+    Route::post('import/graduates', [ImportController::class, 'importGraduates'])->name('import.graduates');
+    Route::post('import/graduates/clear', [ImportController::class, 'clearGraduates'])->name('import.graduates.clear');
 });
 
 require __DIR__.'/settings.php';

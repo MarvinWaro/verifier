@@ -8,6 +8,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import axios from 'axios';
 import {
     Award,
     Building2,
@@ -21,7 +22,6 @@ import {
     User,
 } from 'lucide-react';
 import { useState } from 'react';
-import axios from 'axios';
 
 interface Graduate {
     id: number;
@@ -86,21 +86,22 @@ interface Props {
 export default function PRCCheckLanding({ stats }: Props) {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [institutions, setInstitutions] = useState<Institution[]>([]);
-    const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
-    const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-    const [selectedGraduate, setSelectedGraduate] = useState<Graduate | null>(null);
+    const [selectedInstitution, setSelectedInstitution] =
+        useState<Institution | null>(null);
+    const [selectedProgram, setSelectedProgram] = useState<Program | null>(
+        null,
+    );
+    const [selectedGraduate, setSelectedGraduate] = useState<Graduate | null>(
+        null,
+    );
     const [isSearching, setIsSearching] = useState(false);
 
-    const [studentFilters, setStudentFilters] = useState({
-        lastName: '',
-        firstName: '',
-        middleName: '',
-        extensionName: '',
-        birthdate: '',
-        yearGraduated: '',
-    });
-    const [studentSearchResults, setStudentSearchResults] = useState<Graduate[]>([]);
+    // with this:
+    const [studentQuery, setStudentQuery] = useState<string>('');
     const [isSearchingStudents, setIsSearchingStudents] = useState(false);
+    const [studentSearchResults, setStudentSearchResults] = useState<
+        Graduate[]
+    >([]);
 
     const resetFilters = () => {
         setSelectedInstitution(null);
@@ -118,7 +119,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         setIsSearching(true);
         try {
             const response = await axios.post('/api/search-institution', {
-                search: searchTerm
+                search: searchTerm,
             });
 
             console.log('Search response:', response.data); // Debug log
@@ -145,10 +146,17 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
+    // replace handleStudentSearch with:
     const handleStudentSearch = async () => {
+        if (!studentQuery.trim()) {
+            setStudentSearchResults([]);
+            return;
+        }
         setIsSearchingStudents(true);
         try {
-            const response = await axios.post('/api/search-student', studentFilters);
+            const response = await axios.post('/api/search-student', {
+                search: studentQuery,
+            });
             setStudentSearchResults(response.data.graduates);
         } catch (error) {
             console.error('Student search failed:', error);
@@ -157,15 +165,9 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
-    const clearStudentFilters = () => {
-        setStudentFilters({
-            lastName: '',
-            firstName: '',
-            middleName: '',
-            extensionName: '',
-            birthdate: '',
-            yearGraduated: '',
-        });
+    // replace clearStudentFilters with:
+    const clearStudentSearch = () => {
+        setStudentQuery('');
         setStudentSearchResults([]);
     };
 
@@ -231,11 +233,14 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 Verify Graduate Eligibility
                             </h1>
                             <p className="mx-auto max-w-3xl text-xl text-gray-600">
-                                Access the official database to verify higher education graduates' eligibility for Professional Regulation Commission board examinations
+                                Access the official database to verify higher
+                                education graduates' eligibility for
+                                Professional Regulation Commission board
+                                examinations
                             </p>
                         </div>
 
-                        <div className="mx-auto mb-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
+                        <div className="mx-auto mb-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
                             <Card className="border-0 bg-white/80 shadow-lg backdrop-blur-sm">
                                 <CardContent className="p-6 text-center">
                                     <Building2 className="mx-auto mb-3 h-10 w-10 text-blue-600" />
@@ -247,17 +252,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </div>
                                 </CardContent>
                             </Card>
-                            <Card className="border-0 bg-white/80 shadow-lg backdrop-blur-sm">
-                                <CardContent className="p-6 text-center">
-                                    <GraduationCap className="mx-auto mb-3 h-10 w-10 text-purple-600" />
-                                    <div className="text-3xl font-bold text-gray-900">
-                                        {stats.programs}
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                        Academic Programs
-                                    </div>
-                                </CardContent>
-                            </Card>
+
                             <Card className="border-0 bg-white/80 shadow-lg backdrop-blur-sm">
                                 <CardContent className="p-6 text-center">
                                     <Award className="mx-auto mb-3 h-10 w-10 text-green-600" />
@@ -283,7 +278,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </h2>
                                     </div>
                                     <p className="mb-6 text-gray-600">
-                                        Find graduates by selecting their educational institution
+                                        Find graduates by selecting their
+                                        educational institution
                                     </p>
                                     <div className="space-y-4">
                                         <div className="flex gap-2">
@@ -293,7 +289,11 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                     type="text"
                                                     placeholder="Enter institution code or name..."
                                                     value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    onChange={(e) =>
+                                                        setSearchTerm(
+                                                            e.target.value,
+                                                        )
+                                                    }
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
                                                             handleInstitutionSearch();
@@ -303,16 +303,24 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 />
                                             </div>
                                             <Button
-                                                onClick={handleInstitutionSearch}
+                                                onClick={
+                                                    handleInstitutionSearch
+                                                }
                                                 className="h-12 bg-blue-600 hover:bg-blue-700"
-                                                disabled={isSearching || !searchTerm.trim()}
+                                                disabled={
+                                                    isSearching ||
+                                                    !searchTerm.trim()
+                                                }
                                             >
-                                                {isSearching ? 'Searching...' : 'Search'}
+                                                {isSearching
+                                                    ? 'Searching...'
+                                                    : 'Search'}
                                             </Button>
                                         </div>
                                         {institutions.length > 0 && (
                                             <div className="text-sm text-gray-600">
-                                                Found {institutions.length} institution(s)
+                                                Found {institutions.length}{' '}
+                                                institution(s)
                                             </div>
                                         )}
                                     </div>
@@ -330,108 +338,62 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </h2>
                                     </div>
                                     <p className="mb-6 text-gray-600">
-                                        Directly search for a specific graduate's information
+                                        Directly search for a specific graduate.
                                     </p>
 
-                                    <div className="mb-4 grid grid-cols-2 gap-3">
-                                        <Input
-                                            placeholder="Last Name"
-                                            value={studentFilters.lastName}
-                                            onChange={(e) =>
-                                                setStudentFilters({
-                                                    ...studentFilters,
-                                                    lastName: e.target.value,
-                                                })
-                                            }
-                                            className="h-12"
-                                        />
-                                        <Input
-                                            placeholder="First Name"
-                                            value={studentFilters.firstName}
-                                            onChange={(e) =>
-                                                setStudentFilters({
-                                                    ...studentFilters,
-                                                    firstName: e.target.value,
-                                                })
-                                            }
-                                            className="h-12"
-                                        />
-                                    </div>
-                                    <div className="mb-4 grid grid-cols-2 gap-3">
-                                        <Input
-                                            placeholder="Middle Name"
-                                            value={studentFilters.middleName}
-                                            onChange={(e) =>
-                                                setStudentFilters({
-                                                    ...studentFilters,
-                                                    middleName: e.target.value,
-                                                })
-                                            }
-                                            className="h-10"
-                                        />
-                                        <Input
-                                            placeholder="Extension (Jr., Sr., III)"
-                                            value={studentFilters.extensionName}
-                                            onChange={(e) =>
-                                                setStudentFilters({
-                                                    ...studentFilters,
-                                                    extensionName: e.target.value,
-                                                })
-                                            }
-                                            className="h-10"
-                                        />
-                                    </div>
-                                    <div className="mb-4 grid grid-cols-2 gap-3">
-                                        <Input
-                                            type="date"
-                                            placeholder="Birthdate"
-                                            value={studentFilters.birthdate}
-                                            onChange={(e) =>
-                                                setStudentFilters({
-                                                    ...studentFilters,
-                                                    birthdate: e.target.value,
-                                                })
-                                            }
-                                            className="h-10"
-                                        />
-                                        <Input
-                                            type="text"
-                                            placeholder="Year Graduated"
-                                            value={studentFilters.yearGraduated}
-                                            onChange={(e) =>
-                                                setStudentFilters({
-                                                    ...studentFilters,
-                                                    yearGraduated: e.target.value,
-                                                })
-                                            }
-                                            className="h-10"
-                                        />
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={handleStudentSearch}
-                                            className="h-12 flex-1 bg-purple-600 text-base hover:bg-purple-700"
-                                            disabled={
-                                                isSearchingStudents ||
-                                                (!studentFilters.lastName && !studentFilters.firstName)
-                                            }
-                                        >
-                                            <Search className="mr-2 h-4 w-4" />
-                                            {isSearchingStudents ? 'Searching...' : 'Search'}
-                                        </Button>
-                                        <Button
-                                            onClick={clearStudentFilters}
-                                            variant="outline"
-                                            className="h-12"
-                                        >
-                                            Clear
-                                        </Button>
-                                    </div>
-                                    {studentSearchResults.length > 0 && (
-                                        <div className="mt-3 text-sm font-medium text-green-600">
-                                            ✓ Found {studentSearchResults.length} matching student(s)
+                                    <div className="space-y-4">
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Search Student Name or ID"
+                                                    value={studentQuery}
+                                                    onChange={(e) =>
+                                                        setStudentQuery(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter')
+                                                            handleStudentSearch();
+                                                    }}
+                                                    className="h-12 pl-10 text-base"
+                                                />
+                                            </div>
+                                            <Button
+                                                onClick={handleStudentSearch}
+                                                className="h-12 bg-purple-600 text-base hover:bg-purple-700"
+                                                disabled={
+                                                    isSearchingStudents ||
+                                                    !studentQuery.trim()
+                                                }
+                                            >
+                                                {isSearchingStudents
+                                                    ? 'Searching…'
+                                                    : 'Search'}
+                                            </Button>
+                                            <Button
+                                                onClick={clearStudentSearch}
+                                                variant="outline"
+                                                className="h-12"
+                                            >
+                                                Clear
+                                            </Button>
                                         </div>
-                                    )}
+
+                                        {studentSearchResults.length > 0 && (
+                                            <div className="text-sm text-gray-600">
+                                                Found{' '}
+                                                {studentSearchResults.length}{' '}
+                                                student
+                                                {studentSearchResults.length ===
+                                                1
+                                                    ? ''
+                                                    : 's'}
+                                            </div>
+                                        )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>
@@ -446,7 +408,11 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         <Card
                                             key={institution.id}
                                             className="cursor-pointer border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:shadow-xl"
-                                            onClick={() => setSelectedInstitution(institution)}
+                                            onClick={() =>
+                                                setSelectedInstitution(
+                                                    institution,
+                                                )
+                                            }
                                         >
                                             <CardContent className="p-6">
                                                 <div className="flex items-start justify-between">
@@ -456,24 +422,39 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         </div>
                                                         <div>
                                                             <h3 className="mb-1 text-lg font-semibold text-gray-900">
-                                                                {institution.name}
+                                                                {
+                                                                    institution.name
+                                                                }
                                                             </h3>
                                                             <div className="flex items-center gap-3 text-sm text-gray-600">
-                                                                <span>Code: {institution.code}</span>
+                                                                <span>
+                                                                    Code:{' '}
+                                                                    {
+                                                                        institution.code
+                                                                    }
+                                                                </span>
                                                                 <Badge
                                                                     variant={
-                                                                        institution.type === 'public'
+                                                                        institution.type ===
+                                                                        'public'
                                                                             ? 'default'
                                                                             : 'secondary'
                                                                     }
                                                                 >
-                                                                    {institution.type === 'public'
+                                                                    {institution.type ===
+                                                                    'public'
                                                                         ? 'Public'
                                                                         : 'Private'}
                                                                 </Badge>
                                                             </div>
                                                             <p className="mt-2 text-sm text-gray-500">
-                                                                {institution.programs.length} programs available
+                                                                {
+                                                                    institution
+                                                                        .programs
+                                                                        .length
+                                                                }{' '}
+                                                                programs
+                                                                available
                                                             </p>
                                                         </div>
                                                     </div>
@@ -486,106 +467,138 @@ export default function PRCCheckLanding({ stats }: Props) {
                             </div>
                         )}
 
-                        {studentSearchResults.length > 0 && !selectedInstitution && (
-                            <div className="mx-auto mt-8 max-w-6xl">
-                                <Card className="border-0 bg-white/90 shadow-lg backdrop-blur-sm">
-                                    <CardContent className="p-6">
-                                        <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                                            Student Search Results ({studentSearchResults.length} found)
-                                        </h3>
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full">
-                                                <thead>
-                                                    <tr className="border-b">
-                                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                                            Name
-                                                        </th>
-                                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                                            Student ID
-                                                        </th>
-                                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                                            Year Graduated
-                                                        </th>
-                                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                                            Status
-                                                        </th>
-                                                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
-                                                            Action
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {studentSearchResults.map((graduate) => (
-                                                        <tr
-                                                            key={graduate.id}
-                                                            className="border-b hover:bg-gray-50"
-                                                        >
-                                                            <td className="px-4 py-3">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
-                                                                        <User className="h-4 w-4 text-blue-600" />
-                                                                    </div>
-                                                                    <span className="font-medium">
-                                                                        {graduate.name}
-                                                                    </span>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 font-mono text-sm">
-                                                                {graduate.studentId}
-                                                            </td>
-                                                            <td className="px-4 py-3">{graduate.yearGraduated}</td>
-                                                            <td className="px-4 py-3">
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className="border-green-200 bg-green-50 text-green-700"
-                                                                >
-                                                                    {graduate.eligibility}
-                                                                </Badge>
-                                                            </td>
-                                                            <td className="px-4 py-3">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => setSelectedGraduate(graduate)}
-                                                                >
-                                                                    View Details
-                                                                </Button>
-                                                            </td>
+                        {studentSearchResults.length > 0 &&
+                            !selectedInstitution && (
+                                <div className="mx-auto mt-8 max-w-6xl">
+                                    <Card className="border-0 bg-white/90 shadow-lg backdrop-blur-sm">
+                                        <CardContent className="p-6">
+                                            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                                                Student Search Results (
+                                                {studentSearchResults.length}{' '}
+                                                found)
+                                            </h3>
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full">
+                                                    <thead>
+                                                        <tr className="border-b">
+                                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                                Name
+                                                            </th>
+                                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                                Student ID
+                                                            </th>
+                                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                                Year Graduated
+                                                            </th>
+                                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                                Status
+                                                            </th>
+                                                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">
+                                                                Action
+                                                            </th>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
+                                                    </thead>
+                                                    <tbody>
+                                                        {studentSearchResults.map(
+                                                            (
+                                                                graduate: Graduate,
+                                                            ) => (
+                                                                <tr
+                                                                    key={
+                                                                        graduate.id
+                                                                    }
+                                                                    className="border-b hover:bg-gray-50"
+                                                                >
+                                                                    <td className="px-4 py-3">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100">
+                                                                                <User className="h-4 w-4 text-blue-600" />
+                                                                            </div>
+                                                                            <span className="font-medium">
+                                                                                {
+                                                                                    graduate.name
+                                                                                }
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
 
-                        {!searchTerm && studentSearchResults.length === 0 && institutions.length === 0 && (
-                            <div className="mt-16 text-center">
-                                <h3 className="mb-6 text-lg font-semibold text-gray-900">
-                                    Key Features
-                                </h3>
-                                <div className="flex flex-wrap justify-center gap-6">
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                        Real-time Verification
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                        Official CHED Database
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                        Secure & Authenticated
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                        24/7 Accessibility
+                                                                    <td className="px-4 py-3 font-mono text-sm">
+                                                                        {
+                                                                            graduate.studentId
+                                                                        }
+                                                                    </td>
+
+                                                                    <td className="px-4 py-3">
+                                                                        {
+                                                                            graduate.yearGraduated
+                                                                        }
+                                                                    </td>
+
+                                                                    <td className="px-4 py-3">
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className={
+                                                                                graduate.eligibility === 'Eligible'
+                                                                                    ? 'border-green-200 bg-green-50 text-green-700'
+                                                                                    : 'border-red-200 bg-red-50 text-red-700'
+                                                                            }
+                                                                        >
+                                                                            {graduate.eligibility}
+                                                                        </Badge>
+                                                                    </td>
+
+                                                                    <td className="px-4 py-3">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={() =>
+                                                                                setSelectedGraduate(
+                                                                                    graduate,
+                                                                                )
+                                                                            }
+                                                                        >
+                                                                            View
+                                                                            Details
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            ),
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            )}
+
+                        {!searchTerm &&
+                            studentSearchResults.length === 0 &&
+                            institutions.length === 0 && (
+                                <div className="mt-16 text-center">
+                                    <h3 className="mb-6 text-lg font-semibold text-gray-900">
+                                        Key Features
+                                    </h3>
+                                    <div className="flex flex-wrap justify-center gap-6">
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            Real-time Verification
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            Official CHED Database
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            Secure & Authenticated
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                            24/7 Accessibility
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
                     </div>
                 </div>
             )}
@@ -597,7 +610,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                         onClick={() => {
                             resetFilters();
                             setSearchTerm('');
-                            clearStudentFilters();
+                            clearStudentSearch();
                         }}
                         className="mb-6"
                     >
@@ -653,16 +666,19 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             </h2>
                                             <div className="mt-2 flex items-center gap-3">
                                                 <span className="text-sm text-gray-600">
-                                                    Code: {selectedInstitution.code}
+                                                    Code:{' '}
+                                                    {selectedInstitution.code}
                                                 </span>
                                                 <Badge
                                                     variant={
-                                                        selectedInstitution.type === 'public'
+                                                        selectedInstitution.type ===
+                                                        'public'
                                                             ? 'default'
                                                             : 'secondary'
                                                     }
                                                 >
-                                                    {selectedInstitution.type === 'public'
+                                                    {selectedInstitution.type ===
+                                                    'public'
                                                         ? 'Public Institution'
                                                         : 'Private Institution'}
                                                 </Badge>
@@ -680,7 +696,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     <Card
                                         key={program.id}
                                         className="cursor-pointer border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:shadow-xl"
-                                        onClick={() => handleProgramClick(program)}
+                                        onClick={() =>
+                                            handleProgramClick(program)
+                                        }
                                     >
                                         <CardContent className="p-6">
                                             <div className="flex items-center justify-between">
@@ -694,29 +712,43 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         </h4>
                                                         {program.major && (
                                                             <p className="text-sm text-gray-600">
-                                                                Major: {program.major}
+                                                                Major:{' '}
+                                                                {program.major}
                                                             </p>
                                                         )}
                                                         <div className="mt-2 flex flex-wrap gap-3 text-sm">
                                                             {program.copNumber && (
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="text-gray-600">COP:</span>
+                                                                    <span className="text-gray-600">
+                                                                        COP:
+                                                                    </span>
                                                                     <span className="font-mono text-green-600">
-                                                                        {program.copNumber}
+                                                                        {
+                                                                            program.copNumber
+                                                                        }
                                                                     </span>
                                                                 </div>
                                                             )}
                                                             {program.grNumber && (
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="text-gray-600">GR:</span>
+                                                                    <span className="text-gray-600">
+                                                                        GR:
+                                                                    </span>
                                                                     <span className="font-mono text-purple-600">
-                                                                        {program.grNumber}
+                                                                        {
+                                                                            program.grNumber
+                                                                        }
                                                                     </span>
                                                                 </div>
                                                             )}
-                                                            {program.graduates_count !== undefined && (
+                                                            {program.graduates_count !==
+                                                                undefined && (
                                                                 <span className="text-gray-500">
-                                                                    • {program.graduates_count} graduates
+                                                                    •{' '}
+                                                                    {
+                                                                        program.graduates_count
+                                                                    }{' '}
+                                                                    graduates
                                                                 </span>
                                                             )}
                                                         </div>
@@ -745,7 +777,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             </h2>
                                             {selectedProgram.major && (
                                                 <p className="mt-1 text-gray-600">
-                                                    Major: {selectedProgram.major}
+                                                    Major:{' '}
+                                                    {selectedProgram.major}
                                                 </p>
                                             )}
                                             <div className="mt-3 flex flex-wrap items-center gap-4">
@@ -754,7 +787,10 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         variant="outline"
                                                         className="border-green-200 bg-green-50 text-green-700"
                                                     >
-                                                        COP: {selectedProgram.copNumber}
+                                                        COP:{' '}
+                                                        {
+                                                            selectedProgram.copNumber
+                                                        }
                                                     </Badge>
                                                 )}
                                                 {selectedProgram.grNumber && (
@@ -762,13 +798,20 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         variant="outline"
                                                         className="border-purple-200 bg-purple-50 text-purple-700"
                                                     >
-                                                        GR: {selectedProgram.grNumber}
+                                                        GR:{' '}
+                                                        {
+                                                            selectedProgram.grNumber
+                                                        }
                                                     </Badge>
                                                 )}
                                                 {selectedProgram.institution && (
                                                     <div className="flex items-center gap-1 text-sm text-gray-600">
                                                         <School className="h-4 w-4" />
-                                                        {selectedProgram.institution.name}
+                                                        {
+                                                            selectedProgram
+                                                                .institution
+                                                                .name
+                                                        }
                                                     </div>
                                                 )}
                                             </div>
@@ -780,7 +823,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                             <Card className="border-0 bg-white/90 shadow-lg backdrop-blur-sm">
                                 <CardContent className="p-6">
                                     <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                                        Registered Graduates ({selectedProgram.graduates.length})
+                                        Registered Graduates (
+                                        {selectedProgram.graduates.length})
                                     </h3>
                                     <div className="overflow-x-auto">
                                         <table className="min-w-full">
@@ -804,52 +848,74 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {selectedProgram.graduates.map((graduate) => (
-                                                    <tr
-                                                        key={graduate.id}
-                                                        className="border-b transition-colors hover:bg-gray-50/50"
-                                                    >
-                                                        <td className="px-4 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-purple-100">
-                                                                    <User className="h-5 w-5 text-blue-600" />
+                                                {selectedProgram.graduates.map(
+                                                    (graduate: Graduate) => (
+                                                        <tr
+                                                            key={graduate.id}
+                                                            className="border-b transition-colors hover:bg-gray-50/50"
+                                                        >
+                                                            <td className="px-4 py-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-purple-100">
+                                                                        <User className="h-5 w-5 text-blue-600" />
+                                                                    </div>
+                                                                    <span className="font-medium text-gray-900">
+                                                                        {
+                                                                            graduate.name
+                                                                        }
+                                                                    </span>
                                                                 </div>
-                                                                <span className="font-medium text-gray-900">
-                                                                    {graduate.name}
+                                                            </td>
+
+                                                            <td className="px-4 py-4">
+                                                                <span className="font-mono text-sm text-gray-600">
+                                                                    {
+                                                                        graduate.studentId
+                                                                    }
                                                                 </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-4">
-                                                            <span className="font-mono text-sm text-gray-600">
-                                                                {graduate.studentId}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <Calendar className="h-4 w-4 text-gray-400" />
-                                                                <span className="text-gray-700">
-                                                                    {graduate.yearGraduated}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-4">
-                                                            <Badge className="border-0 bg-green-100 text-green-800">
-                                                                <CheckCircle2 className="mr-1 h-3 w-3" />
-                                                                {graduate.eligibility}
-                                                            </Badge>
-                                                        </td>
-                                                        <td className="px-4 py-4">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => setSelectedGraduate(graduate)}
-                                                                className="text-blue-600 hover:text-blue-800"
-                                                            >
-                                                                View Details
-                                                            </Button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                            </td>
+
+                                                            <td className="px-4 py-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Calendar className="h-4 w-4 text-gray-400" />
+                                                                    <span className="text-gray-700">
+                                                                        {
+                                                                            graduate.yearGraduated
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+
+                                                            <td className="px-4 py-4">
+                                                                <Badge
+                                                                    className={
+                                                                        graduate.eligibility === 'Eligible'
+                                                                            ? 'border-0 bg-green-100 text-green-800'
+                                                                            : 'border-0 bg-red-100 text-red-800'
+                                                                    }
+                                                                >
+                                                                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                                                                    {graduate.eligibility}
+                                                                </Badge>
+                                                            </td>
+
+                                                            <td className="px-4 py-4">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        setSelectedGraduate(
+                                                                            graduate,
+                                                                        )
+                                                                    }
+                                                                    className="text-blue-600 hover:text-blue-800"
+                                                                >
+                                                                    View Details
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -860,7 +926,10 @@ export default function PRCCheckLanding({ stats }: Props) {
                 </main>
             )}
 
-            <Dialog open={!!selectedGraduate} onOpenChange={() => setSelectedGraduate(null)}>
+            <Dialog
+                open={!!selectedGraduate}
+                onOpenChange={() => setSelectedGraduate(null)}
+            >
                 <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">
@@ -877,7 +946,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 <h3 className="text-2xl font-bold text-gray-900">
                                     {selectedGraduate.name}
                                 </h3>
-                                <Badge className="mt-2 border-0 bg-green-100 text-green-800">
+                                <Badge
+                                    className={
+                                        selectedGraduate.eligibility === 'Eligible'
+                                            ? 'mt-2 border-0 bg-green-100 text-green-800'
+                                            : 'mt-2 border-0 bg-red-100 text-red-800'
+                                    }
+                                >
                                     <CheckCircle2 className="mr-1 h-4 w-4" />
                                     {selectedGraduate.eligibility}
                                 </Badge>
@@ -891,37 +966,51 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </h4>
                                         <div className="grid gap-3">
                                             <div className="flex justify-between">
-                                                <span className="text-sm text-gray-600">Full Name</span>
+                                                <span className="text-sm text-gray-600">
+                                                    Full Name
+                                                </span>
                                                 <span className="text-sm font-medium">
                                                     {selectedGraduate.name}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">
-                                                <span className="text-sm text-gray-600">Student ID</span>
+                                                <span className="text-sm text-gray-600">
+                                                    Student ID
+                                                </span>
                                                 <span className="font-mono text-sm font-medium">
                                                     {selectedGraduate.studentId}
                                                 </span>
                                             </div>
                                             {selectedGraduate.dateOfBirth && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">Date of Birth</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        Date of Birth
+                                                    </span>
                                                     <span className="text-sm font-medium">
-                                                        {selectedGraduate.dateOfBirth}
+                                                        {
+                                                            selectedGraduate.dateOfBirth
+                                                        }
                                                     </span>
                                                 </div>
                                             )}
                                             {selectedGraduate.sex && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">Sex</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        Sex
+                                                    </span>
                                                     <span className="text-sm font-medium">
                                                         {selectedGraduate.sex}
                                                     </span>
                                                 </div>
                                             )}
                                             <div className="flex justify-between">
-                                                <span className="text-sm text-gray-600">Year Graduated</span>
+                                                <span className="text-sm text-gray-600">
+                                                    Year Graduated
+                                                </span>
                                                 <span className="text-sm font-medium">
-                                                    {selectedGraduate.yearGraduated}
+                                                    {
+                                                        selectedGraduate.yearGraduated
+                                                    }
                                                 </span>
                                             </div>
                                         </div>
@@ -937,16 +1026,29 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             {selectedGraduate.program && (
                                                 <>
                                                     <div className="flex justify-between">
-                                                        <span className="text-sm text-gray-600">Program</span>
+                                                        <span className="text-sm text-gray-600">
+                                                            Program
+                                                        </span>
                                                         <span className="text-right text-sm font-medium">
-                                                            {selectedGraduate.program.name}
+                                                            {
+                                                                selectedGraduate
+                                                                    .program
+                                                                    .name
+                                                            }
                                                         </span>
                                                     </div>
-                                                    {selectedGraduate.program.major && (
+                                                    {selectedGraduate.program
+                                                        .major && (
                                                         <div className="flex justify-between">
-                                                            <span className="text-sm text-gray-600">Major</span>
+                                                            <span className="text-sm text-gray-600">
+                                                                Major
+                                                            </span>
                                                             <span className="text-right text-sm font-medium">
-                                                                {selectedGraduate.program.major}
+                                                                {
+                                                                    selectedGraduate
+                                                                        .program
+                                                                        .major
+                                                                }
                                                             </span>
                                                         </div>
                                                     )}
@@ -955,9 +1057,15 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             {selectedGraduate.institution && (
                                                 <>
                                                     <div className="flex justify-between">
-                                                        <span className="text-sm text-gray-600">Institution</span>
+                                                        <span className="text-sm text-gray-600">
+                                                            Institution
+                                                        </span>
                                                         <span className="text-right text-sm font-medium">
-                                                            {selectedGraduate.institution.name}
+                                                            {
+                                                                selectedGraduate
+                                                                    .institution
+                                                                    .name
+                                                            }
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between">
@@ -965,7 +1073,11 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             Institution Code
                                                         </span>
                                                         <span className="font-mono text-sm font-medium">
-                                                            {selectedGraduate.institution.code}
+                                                            {
+                                                                selectedGraduate
+                                                                    .institution
+                                                                    .code
+                                                            }
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between">
@@ -974,13 +1086,19 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         </span>
                                                         <Badge
                                                             variant={
-                                                                selectedGraduate.institution.type === 'public'
+                                                                selectedGraduate
+                                                                    .institution
+                                                                    .type ===
+                                                                'public'
                                                                     ? 'default'
                                                                     : 'secondary'
                                                             }
                                                             className="text-xs"
                                                         >
-                                                            {selectedGraduate.institution.type === 'public'
+                                                            {selectedGraduate
+                                                                .institution
+                                                                .type ===
+                                                            'public'
                                                                 ? 'Public'
                                                                 : 'Private'}
                                                         </Badge>
@@ -997,33 +1115,53 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             Certification Details
                                         </h4>
                                         <div className="grid gap-3">
-                                            {selectedGraduate.program?.copNumber && (
+                                            {selectedGraduate.program
+                                                ?.copNumber && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">COP Number</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        COP Number
+                                                    </span>
                                                     <span className="font-mono text-sm font-medium text-green-600">
-                                                        {selectedGraduate.program.copNumber}
+                                                        {
+                                                            selectedGraduate
+                                                                .program
+                                                                .copNumber
+                                                        }
                                                     </span>
                                                 </div>
                                             )}
-                                            {selectedGraduate.program?.grNumber && (
+                                            {selectedGraduate.program
+                                                ?.grNumber && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">GR Number</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        GR Number
+                                                    </span>
                                                     <span className="font-mono text-sm font-medium text-purple-600">
-                                                        {selectedGraduate.program.grNumber}
+                                                        {
+                                                            selectedGraduate
+                                                                .program
+                                                                .grNumber
+                                                        }
                                                     </span>
                                                 </div>
                                             )}
                                             {selectedGraduate.soNumber && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">SO Number</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        SO Number
+                                                    </span>
                                                     <span className="font-mono text-sm font-medium">
-                                                        {selectedGraduate.soNumber}
+                                                        {
+                                                            selectedGraduate.soNumber
+                                                        }
                                                     </span>
                                                 </div>
                                             )}
                                             {selectedGraduate.lrn && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">LRN</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        LRN
+                                                    </span>
                                                     <span className="font-mono text-sm font-medium">
                                                         {selectedGraduate.lrn}
                                                     </span>
@@ -1031,9 +1169,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             )}
                                             {selectedGraduate.philsysId && (
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">PhilSys ID</span>
+                                                    <span className="text-sm text-gray-600">
+                                                        PhilSys ID
+                                                    </span>
                                                     <span className="font-mono text-sm font-medium">
-                                                        {selectedGraduate.philsysId}
+                                                        {
+                                                            selectedGraduate.philsysId
+                                                        }
                                                     </span>
                                                 </div>
                                             )}
@@ -1041,7 +1183,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 <span className="text-sm text-gray-600">
                                                     Eligibility Status
                                                 </span>
-                                                <Badge className="border-0 bg-green-100 text-xs text-green-800">
+                                                <Badge
+                                                    className={
+                                                        selectedGraduate.eligibility === 'Eligible'
+                                                            ? 'border-0 bg-green-100 text-xs text-green-800'
+                                                            : 'border-0 bg-red-100 text-xs text-red-800'
+                                                    }
+                                                >
                                                     {selectedGraduate.eligibility}
                                                 </Badge>
                                             </div>
@@ -1055,10 +1203,14 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     <div className="flex gap-3">
                                         <Shield className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" />
                                         <div className="text-sm text-blue-900">
-                                            <p className="mb-1 font-semibold">Verification Notice</p>
+                                            <p className="mb-1 font-semibold">
+                                                Verification Notice
+                                            </p>
                                             <p>
-                                                This information is verified from CHED's official records
-                                                and is valid for PRC board examination eligibility
+                                                This information is verified
+                                                from CHED's official records and
+                                                is valid for PRC board
+                                                examination eligibility
                                                 verification.
                                             </p>
                                         </div>

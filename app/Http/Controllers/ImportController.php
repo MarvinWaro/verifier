@@ -13,11 +13,12 @@ class ImportController extends Controller
 {
     public function index()
     {
-        return Inertia::render('import/index');
+        return Inertia::render('import-page/index');
     }
 
     public function importInstitutions(Request $request)
     {
+        
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
         ]);
