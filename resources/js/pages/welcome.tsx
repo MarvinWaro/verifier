@@ -1119,7 +1119,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 ?.copNumber && (
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-gray-600">
-                                                        COP Number
+                                                        COPC Number
                                                     </span>
                                                     <span className="font-mono text-sm font-medium text-green-600">
                                                         {
