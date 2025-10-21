@@ -32,10 +32,13 @@ interface Program {
 
 interface Graduate {
     id: number;
+    student_id_number: string | null;
+    date_of_birth: string | null;
     last_name: string;
     first_name: string;
     middle_name: string;
     extension_name: string | null;
+    sex: string | null;
     year_graduated: string;
     program: Program;
     so_number: string | null;
@@ -67,9 +70,11 @@ export default function GraduateIndex({ graduates }: Props) {
             graduate.last_name?.toLowerCase().includes(search.toLowerCase()) ||
             graduate.first_name?.toLowerCase().includes(search.toLowerCase()) ||
             graduate.middle_name?.toLowerCase().includes(search.toLowerCase()) ||
+            graduate.student_id_number?.toLowerCase().includes(search.toLowerCase()) ||
             graduate.program.program_name.toLowerCase().includes(search.toLowerCase()) ||
             graduate.program.institution.name.toLowerCase().includes(search.toLowerCase()) ||
-            graduate.year_graduated.includes(search)
+            graduate.year_graduated.includes(search) ||
+            graduate.date_of_birth?.includes(search)
     );
 
     // Get badge color based on program type
@@ -87,12 +92,24 @@ export default function GraduateIndex({ graduates }: Props) {
     // Get badge color based on institution type
     const getInstitutionTypeColor = (type: string) => {
         switch (type) {
-            case 'Public':
-                return 'bg-green-100 text-green-800 hover:bg-green-100';
             case 'Private':
                 return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
+            case 'SUCs':
+                return 'bg-green-100 text-green-800 hover:bg-green-100';
             case 'LUCs':
                 return 'bg-purple-100 text-purple-800 hover:bg-purple-100';
+            default:
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+        }
+    };
+
+    // Get badge color based on sex
+    const getSexColor = (sex: string | null) => {
+        switch (sex?.toUpperCase()) {
+            case 'MALE':
+                return 'bg-blue-50 text-blue-700 hover:bg-blue-50';
+            case 'FEMALE':
+                return 'bg-pink-50 text-pink-700 hover:bg-pink-50';
             default:
                 return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
         }
@@ -117,7 +134,7 @@ export default function GraduateIndex({ graduates }: Props) {
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                 <Input
                                     type="text"
-                                    placeholder="Search by name, program, institution, or year..."
+                                    placeholder="Search by name, student ID, program, institution, date of birth, or year..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-10"
@@ -130,10 +147,13 @@ export default function GraduateIndex({ graduates }: Props) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>Student ID</TableHead>
+                                        <TableHead>Date of Birth</TableHead>
                                         <TableHead>Last Name</TableHead>
                                         <TableHead>First Name</TableHead>
                                         <TableHead>Middle Name</TableHead>
                                         <TableHead>Ext</TableHead>
+                                        <TableHead>Sex</TableHead>
                                         <TableHead>Year Graduated</TableHead>
                                         <TableHead>Program</TableHead>
                                         <TableHead>Major</TableHead>
@@ -148,13 +168,23 @@ export default function GraduateIndex({ graduates }: Props) {
                                 <TableBody>
                                     {filteredGraduates.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={13} className="text-center py-8 text-gray-500">
+                                            <TableCell colSpan={16} className="text-center py-8 text-gray-500">
                                                 {search ? 'No graduates found' : 'No graduates available'}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredGraduates.map((graduate) => (
                                             <TableRow key={graduate.id} className="cursor-pointer hover:bg-gray-50">
+                                                <TableCell className="text-sm font-mono">
+                                                    {graduate.student_id_number || (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {graduate.date_of_birth || (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="font-medium">
                                                     {graduate.last_name}
                                                 </TableCell>
@@ -166,6 +196,15 @@ export default function GraduateIndex({ graduates }: Props) {
                                                 </TableCell>
                                                 <TableCell className="text-sm text-gray-600">
                                                     {graduate.extension_name || '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {graduate.sex ? (
+                                                        <Badge variant="outline" className={getSexColor(graduate.sex)}>
+                                                            {graduate.sex}
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge variant="outline" className="bg-orange-50 text-orange-800 hover:bg-orange-50">
