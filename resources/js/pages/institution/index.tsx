@@ -10,11 +10,25 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { Search, GraduationCap, ChevronDown } from 'lucide-react';
+import React, { useState } from 'react';
+
+interface Program {
+    id: number;
+    program_name: string;
+    major: string | null;
+    program_type: string | null;
+    permit_number: string;
+}
 
 interface Institution {
     id: number;
@@ -22,6 +36,7 @@ interface Institution {
     name: string;
     type: string;
     programs_count: number;
+    programs: Program[];
 }
 
 interface Props {
@@ -41,6 +56,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function InstitutionIndex({ institutions }: Props) {
     const [search, setSearch] = useState('');
+    const [expandedId, setExpandedId] = useState<number | null>(null);
 
     // Filter institutions based on search
     const filteredInstitutions = institutions.filter(
@@ -63,6 +79,18 @@ export default function InstitutionIndex({ institutions }: Props) {
         }
     };
 
+    // Get badge color for program type
+    const getProgramTypeColor = (type: string | null) => {
+        if (type === 'Board') {
+            return 'bg-green-100 text-green-800';
+        }
+        return 'bg-gray-100 text-gray-800';
+    };
+
+    const toggleExpand = (id: number) => {
+        setExpandedId(expandedId === id ? null : id);
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Institutions" />
@@ -72,7 +100,8 @@ export default function InstitutionIndex({ institutions }: Props) {
                     <CardHeader>
                         <CardTitle>All Institutions</CardTitle>
                         <CardDescription>
-                            Total of {institutions.length} institution{institutions.length !== 1 ? 's' : ''} registered
+                            Total of {institutions.length} institution
+                            {institutions.length !== 1 ? 's' : ''} registered
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -98,32 +127,143 @@ export default function InstitutionIndex({ institutions }: Props) {
                                         <TableHead>Institution Code</TableHead>
                                         <TableHead>Institution Name</TableHead>
                                         <TableHead>Type</TableHead>
-                                        <TableHead className="text-right">Programs</TableHead>
+                                        <TableHead className="text-right">
+                                            Programs
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredInstitutions.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                                                {search ? 'No institutions found' : 'No institutions available'}
+                                            <TableCell
+                                                colSpan={4}
+                                                className="text-center py-8 text-gray-500"
+                                            >
+                                                {search
+                                                    ? 'No institutions found'
+                                                    : 'No institutions available'}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredInstitutions.map((institution) => (
-                                            <TableRow key={institution.id} className="cursor-pointer hover:bg-gray-50">
-                                                <TableCell className="font-medium">
-                                                    {institution.institution_code}
-                                                </TableCell>
-                                                <TableCell>{institution.name}</TableCell>
-                                                <TableCell>
-                                                    <Badge className={getTypeColor(institution.type)}>
-                                                        {institution.type}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {institution.programs_count}
-                                                </TableCell>
-                                            </TableRow>
+                                            <React.Fragment key={institution.id}>
+                                                <TableRow
+                                                    className="cursor-pointer hover:bg-gray-50"
+                                                    onClick={() =>
+                                                        toggleExpand(institution.id)
+                                                    }
+                                                >
+                                                    <TableCell className="font-medium">
+                                                        {institution.institution_code}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {institution.name}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge
+                                                            className={getTypeColor(
+                                                                institution.type
+                                                            )}
+                                                        >
+                                                            {institution.type}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <span>
+                                                                {
+                                                                    institution.programs_count
+                                                                }
+                                                            </span>
+                                                            <ChevronDown
+                                                                className={`h-4 w-4 transition-transform ${
+                                                                    expandedId ===
+                                                                    institution.id
+                                                                        ? 'rotate-180'
+                                                                        : ''
+                                                                }`}
+                                                            />
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                                {expandedId === institution.id && (
+                                                    <TableRow>
+                                                        <TableCell
+                                                            colSpan={4}
+                                                            className="bg-gray-50 p-0"
+                                                        >
+                                                            <div className="p-6">
+                                                                {institution.programs
+                                                                    .length === 0 ? (
+                                                                    <p className="text-sm text-gray-500">
+                                                                        No programs
+                                                                        available
+                                                                    </p>
+                                                                ) : (
+                                                                    <>
+                                                                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                                                                            <GraduationCap className="h-4 w-4" />
+                                                                            Programs
+                                                                            Offered
+                                                                        </h4>
+                                                                        <div className="space-y-2">
+                                                                            {institution.programs.map(
+                                                                                (
+                                                                                    program
+                                                                                ) => (
+                                                                                    <div
+                                                                                        key={
+                                                                                            program.id
+                                                                                        }
+                                                                                        className="bg-white rounded-md p-3 shadow-sm border"
+                                                                                    >
+                                                                                        <div className="flex items-start justify-between">
+                                                                                            <div className="flex-1">
+                                                                                                <p className="font-medium text-sm">
+                                                                                                    {
+                                                                                                        program.program_name
+                                                                                                    }
+                                                                                                </p>
+                                                                                                {program.major && (
+                                                                                                    <p className="text-xs text-gray-600 mt-1">
+                                                                                                        Major:{' '}
+                                                                                                        {
+                                                                                                            program.major
+                                                                                                        }
+                                                                                                    </p>
+                                                                                                )}
+                                                                                                <p className="text-xs text-gray-500 mt-1 font-mono">
+                                                                                                    Permit:{' '}
+                                                                                                    {
+                                                                                                        program.permit_number
+                                                                                                    }
+                                                                                                </p>
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                {program.program_type && (
+                                                                                                    <Badge
+                                                                                                        className={getProgramTypeColor(
+                                                                                                            program.program_type
+                                                                                                        )}
+                                                                                                    >
+                                                                                                        {
+                                                                                                            program.program_type
+                                                                                                        }
+                                                                                                    </Badge>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )
+                                                                            )}
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </React.Fragment>
                                         ))
                                     )}
                                 </TableBody>
@@ -133,7 +273,8 @@ export default function InstitutionIndex({ institutions }: Props) {
                         {/* Results count */}
                         {search && (
                             <p className="text-sm text-gray-600 mt-4">
-                                Showing {filteredInstitutions.length} of {institutions.length} institutions
+                                Showing {filteredInstitutions.length} of{' '}
+                                {institutions.length} institutions
                             </p>
                         )}
                     </CardContent>
