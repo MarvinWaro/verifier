@@ -167,6 +167,13 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     return (
         <div className="relative min-h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+            {/* Background Image with Overlay */}
+            <div
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 dark:opacity-10"
+                style={{ backgroundImage: 'url(/assets/img/bg-ched.jpg)' }}
+            ></div>
+            <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/60"></div>
+
             {/* Header with Login/Register and Dark Mode Toggle */}
             <header className="absolute top-0 right-0 z-20 p-6">
                 <div className="flex items-center gap-4">

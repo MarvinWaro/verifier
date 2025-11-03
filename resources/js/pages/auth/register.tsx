@@ -17,6 +17,17 @@ export default function Register() {
             description="Enter your details below to create your account"
         >
             <Head title="Register" />
+
+            {/* System Identifier */}
+            <div className="mb-3 text-center">
+                <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-400">
+                    CHECK with CHED
+                </h2>
+                {/* <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Higher Education Institution Graduates Verification System
+                </p> */}
+            </div>
+
             <Form
                 {...RegisteredUserController.store.form()}
                 resetOnSuccess={['password', 'password_confirmation']}

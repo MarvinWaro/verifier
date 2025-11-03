@@ -24,6 +24,16 @@ export default function Login({ status, canResetPassword }: LoginProps) {
         >
             <Head title="Log in" />
 
+            {/* System Identifier */}
+            <div className="mb-3 text-center">
+                <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-400">
+                    CHECK with CHED
+                </h2>
+                {/* <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    Higher Education Institution Graduates Verification System
+                </p> */}
+            </div>
+
             <Form
                 {...AuthenticatedSessionController.store.form()}
                 resetOnSuccess={['password']}
