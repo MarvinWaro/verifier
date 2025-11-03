@@ -115,12 +115,12 @@ export default function ProgramIndex({ programs }: Props) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
+                                        <TableHead>Institution</TableHead>
+                                        <TableHead>Institution Code</TableHead>
                                         <TableHead>Program Name</TableHead>
                                         <TableHead>Major</TableHead>
-                                        <TableHead>Institution</TableHead>
-                                        <TableHead>HEI Code</TableHead>
-                                        <TableHead>Permit Number</TableHead>
                                         <TableHead>Program Type</TableHead>
+                                        <TableHead>Permit Number</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -132,7 +132,18 @@ export default function ProgramIndex({ programs }: Props) {
                                         </TableRow>
                                     ) : (
                                         filteredPrograms.map((program) => (
-                                            <TableRow key={program.id} className="cursor-pointer hover:bg-gray-50">
+                                            <TableRow key={program.id} className="hover:bg-gray-50">
+                                                <TableCell>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-sm font-medium">{program.institution.name}</span>
+                                                        <Badge className={getInstitutionTypeColor(program.institution.type)} variant="outline">
+                                                            {program.institution.type}
+                                                        </Badge>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-sm text-gray-600">
+                                                    {program.institution.institution_code}
+                                                </TableCell>
                                                 <TableCell className="font-medium">
                                                     {program.program_name}
                                                 </TableCell>
@@ -140,25 +151,12 @@ export default function ProgramIndex({ programs }: Props) {
                                                     {program.major || '-'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-sm">{program.institution.name}</span>
-                                                        <Badge className={getInstitutionTypeColor(program.institution.type)} variant="outline">
-                                                            {program.institution.type}
-                                                        </Badge>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-xs text-gray-600">
-                                                        {program.institution.institution_code}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {program.permit_number}
-                                                </TableCell>
-                                                <TableCell>
                                                     <Badge className={getProgramTypeColor(program.program_type)}>
                                                         {program.program_type}
                                                     </Badge>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-sm">
+                                                    {program.permit_number}
                                                 </TableCell>
                                             </TableRow>
                                         ))

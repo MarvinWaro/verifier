@@ -70,11 +70,10 @@ export default function GraduateIndex({ graduates }: Props) {
             graduate.last_name?.toLowerCase().includes(search.toLowerCase()) ||
             graduate.first_name?.toLowerCase().includes(search.toLowerCase()) ||
             graduate.middle_name?.toLowerCase().includes(search.toLowerCase()) ||
-            graduate.student_id_number?.toLowerCase().includes(search.toLowerCase()) ||
             graduate.program.program_name.toLowerCase().includes(search.toLowerCase()) ||
             graduate.program.institution.name.toLowerCase().includes(search.toLowerCase()) ||
             graduate.year_graduated.includes(search) ||
-            graduate.date_of_birth?.includes(search)
+            graduate.so_number?.toLowerCase().includes(search.toLowerCase())
     );
 
     // Get badge color based on program type
@@ -134,7 +133,7 @@ export default function GraduateIndex({ graduates }: Props) {
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                 <Input
                                     type="text"
-                                    placeholder="Search by name, student ID, program, institution, date of birth, or year..."
+                                    placeholder="Search by name, SO number, program, institution, or year..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-10"
@@ -147,41 +146,35 @@ export default function GraduateIndex({ graduates }: Props) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Student ID</TableHead>
-                                        <TableHead>Date of Birth</TableHead>
+                                        <TableHead>SO Number</TableHead>
                                         <TableHead>Last Name</TableHead>
                                         <TableHead>First Name</TableHead>
                                         <TableHead>Middle Name</TableHead>
                                         <TableHead>Ext</TableHead>
                                         <TableHead>Sex</TableHead>
-                                        <TableHead>Year Graduated</TableHead>
+                                        <TableHead>Institution</TableHead>
+                                        <TableHead>Institution Code</TableHead>
                                         <TableHead>Program</TableHead>
                                         <TableHead>Major</TableHead>
-                                        <TableHead>Institution</TableHead>
-                                        <TableHead>HEI Code</TableHead>
                                         <TableHead>Program Type</TableHead>
-                                        <TableHead>SO Number</TableHead>
+                                        <TableHead>Year Graduated</TableHead>
                                         <TableHead>LRN</TableHead>
-                                        <TableHead>PhilSys ID</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredGraduates.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={16} className="text-center py-8 text-gray-500">
+                                            <TableCell colSpan={13} className="text-center py-8 text-gray-500">
                                                 {search ? 'No graduates found' : 'No graduates available'}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredGraduates.map((graduate) => (
-                                            <TableRow key={graduate.id} className="cursor-pointer hover:bg-gray-50">
-                                                <TableCell className="text-sm font-mono">
-                                                    {graduate.student_id_number || (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
-                                                </TableCell>
+                                            <TableRow key={graduate.id} className="hover:bg-gray-50">
                                                 <TableCell className="text-sm">
-                                                    {graduate.date_of_birth || (
+                                                    {graduate.so_number ? (
+                                                        <span className="font-medium text-blue-600">{graduate.so_number}</span>
+                                                    ) : (
                                                         <span className="text-gray-400">-</span>
                                                     )}
                                                 </TableCell>
@@ -207,9 +200,15 @@ export default function GraduateIndex({ graduates }: Props) {
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline" className="bg-orange-50 text-orange-800 hover:bg-orange-50">
-                                                        {graduate.year_graduated}
-                                                    </Badge>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-sm">{graduate.program.institution.name}</span>
+                                                        <Badge className={getInstitutionTypeColor(graduate.program.institution.type)} variant="outline">
+                                                            {graduate.program.institution.type}
+                                                        </Badge>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-sm text-gray-600">
+                                                    {graduate.program.institution.institution_code}
                                                 </TableCell>
                                                 <TableCell className="text-sm">
                                                     {graduate.program.program_name}
@@ -218,40 +217,18 @@ export default function GraduateIndex({ graduates }: Props) {
                                                     {graduate.program.major || '-'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-sm">{graduate.program.institution.name}</span>
-                                                        <Badge className={getInstitutionTypeColor(graduate.program.institution.type)} variant="outline">
-                                                            {graduate.program.institution.type}
-                                                        </Badge>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-xs text-gray-600">
-                                                        {graduate.program.institution.institution_code}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell>
                                                     <Badge className={getProgramTypeColor(graduate.program.program_type)}>
                                                         {graduate.program.program_type}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {graduate.so_number ? (
-                                                        <span className="text-blue-600">{graduate.so_number}</span>
-                                                    ) : (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
+                                                <TableCell>
+                                                    <Badge variant="outline" className="bg-orange-50 text-orange-800 hover:bg-orange-50">
+                                                        {graduate.year_graduated}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
                                                     {graduate.lrn ? (
                                                         <span>{graduate.lrn}</span>
-                                                    ) : (
-                                                        <span className="text-gray-400 italic">Pending</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {graduate.philsys_id ? (
-                                                        <span>{graduate.philsys_id}</span>
                                                     ) : (
                                                         <span className="text-gray-400 italic">Pending</span>
                                                     )}
