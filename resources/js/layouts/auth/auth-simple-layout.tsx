@@ -26,6 +26,11 @@ export default function AuthSimpleLayout({
                             <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
                                 <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
                             </div>
+                            <div className="text-center">
+                                <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-400">
+                                    CHECK with CHED
+                                </h2>
+                            </div>
                             <span className="sr-only">{title}</span>
                         </Link>
 

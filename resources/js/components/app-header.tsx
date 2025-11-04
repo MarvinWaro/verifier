@@ -27,7 +27,7 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Building2, Ribbon, GraduationCap, Import, Menu, Moon, Sun, Monitor } from 'lucide-react';
+import { LayoutGrid, Building2, Ribbon, GraduationCap, Import, Menu, Moon, Sun, Monitor, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -51,6 +51,11 @@ const mainNavItems: NavItem[] = [
         title: 'Graduates',
         href: '/graduates',
         icon: GraduationCap,
+    },
+    {
+        title: 'Users',
+        href: '/users',
+        icon: Users,
     },
     {
         title: 'Import',

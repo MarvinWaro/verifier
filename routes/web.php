@@ -6,6 +6,7 @@ use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\GraduateController;
 use App\Http\Controllers\ImportController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\WelcomeController;
 
 // Landing page - publicly accessible
@@ -24,6 +25,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Graduate routes
     Route::get('graduates', [GraduateController::class, 'index'])->name('graduates.index');
+
+    // User routes
+    Route::get('users', [UserController::class, 'index'])->name('users.index');
+    Route::post('users', [UserController::class, 'store'])->name('users.store');
+    Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // Import routes - MOVED FROM api.php
     Route::get('import', [ImportController::class, 'index'])->name('import.index');
