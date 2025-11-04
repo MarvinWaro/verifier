@@ -26,6 +26,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search, Plus, Edit, Trash2, Mail } from 'lucide-react';
 import { useState } from 'react';
@@ -60,7 +65,7 @@ export default function UsersIndex({ users, filters }: Props) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
+    const [deletePopoverId, setDeletePopoverId] = useState<number | null>(null);
 
     // Create user form
     const createForm = useForm({
@@ -128,7 +133,7 @@ export default function UsersIndex({ users, filters }: Props) {
     const handleDelete = (userId: number) => {
         router.delete(`/users/${userId}`, {
             onSuccess: () => {
-                setDeleteUserId(null);
+                setDeletePopoverId(null);
             },
         });
     };
@@ -389,13 +394,50 @@ export default function UsersIndex({ users, filters }: Props) {
                                                     >
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => setDeleteUserId(user.id)}
+                                                    <Popover
+                                                        open={deletePopoverId === user.id}
+                                                        onOpenChange={(open) =>
+                                                            setDeletePopoverId(open ? user.id : null)
+                                                        }
                                                     >
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                    </Button>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-80">
+                                                            <div className="space-y-4">
+                                                                <div className="space-y-2">
+                                                                    <h4 className="font-semibold text-sm">
+                                                                        Delete User
+                                                                    </h4>
+                                                                    <p className="text-sm text-muted-foreground">
+                                                                        Are you sure you want to delete{' '}
+                                                                        <strong>{user.name}</strong>? This
+                                                                        action cannot be undone.
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex justify-end space-x-2">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() =>
+                                                                            setDeletePopoverId(null)
+                                                                        }
+                                                                    >
+                                                                        Cancel
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="destructive"
+                                                                        size="sm"
+                                                                        onClick={() => handleDelete(user.id)}
+                                                                    >
+                                                                        Delete
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -553,29 +595,6 @@ export default function UsersIndex({ users, filters }: Props) {
                             </Button>
                         </DialogFooter>
                     </form>
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteUserId !== null} onOpenChange={() => setDeleteUserId(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete User</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete this user? This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteUserId(null)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={() => deleteUserId && handleDelete(deleteUserId)}
-                        >
-                            Delete
-                        </Button>
-                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>
