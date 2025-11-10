@@ -4,40 +4,53 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        {{-- Theme initializer: prefer explicit client-saved preference; default = light --}}
+        {{-- Theme initializer: ALWAYS default to light mode --}}
         <script>
             (function () {
                 try {
-                    // Try client-saved preference first (localStorage)
+                    // Get saved preference from localStorage
                     var saved = null;
-                    try { saved = localStorage.getItem('appearance'); } catch (e) { saved = null; }
+                    try {
+                        saved = localStorage.getItem('appearance');
+                    } catch (e) {
+                        saved = null;
+                    }
 
-                    // If user explicitly saved 'dark', apply dark.
+                    // Function to apply theme
+                    function applyTheme(isDark) {
+                        if (isDark) {
+                            document.documentElement.classList.add('dark');
+                            document.documentElement.style.colorScheme = 'dark';
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                            document.documentElement.style.colorScheme = 'light';
+                        }
+                    }
+
+                    // If user explicitly saved 'dark', apply dark
                     if (saved === 'dark') {
-                        document.documentElement.classList.add('dark');
-                        document.documentElement.style.colorScheme = 'dark';
+                        applyTheme(true);
                         return;
                     }
 
-                    // If user explicitly saved 'light', ensure dark is removed.
-                    if (saved === 'light') {
-                        document.documentElement.classList.remove('dark');
-                        document.documentElement.style.colorScheme = 'light';
+                    // If user explicitly saved 'system', check system preference
+                    if (saved === 'system') {
+                        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                        applyTheme(prefersDark);
                         return;
                     }
 
-                    // If no saved preference, default to LIGHT (do not follow system).
-                    // If you later want to respect system preference when there's no saved value,
-                    // replace the next lines with the "system" behavior.
+                    // Default to LIGHT (includes when saved === 'light' or saved === null)
+                    applyTheme(false);
+                } catch (err) {
+                    // Fail silently — default to light
                     document.documentElement.classList.remove('dark');
                     document.documentElement.style.colorScheme = 'light';
-                } catch (err) {
-                    // Fail silently — default light
                 }
             })();
         </script>
 
-        {{-- Inline style to set the HTML background color based on our theme in app.css --}}
+        {{-- Inline style to set the HTML background color based on theme --}}
         <style>
             html {
                 background-color: oklch(1 0 0);
