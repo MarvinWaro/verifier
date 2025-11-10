@@ -1,20 +1,38 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'system') == 'dark'])>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        {{-- Inline script to detect system dark mode preference and apply it immediately --}}
+        {{-- Theme initializer: prefer explicit client-saved preference; default = light --}}
         <script>
-            (function() {
-                const appearance = '{{ $appearance ?? "system" }}';
+            (function () {
+                try {
+                    // Try client-saved preference first (localStorage)
+                    var saved = null;
+                    try { saved = localStorage.getItem('appearance'); } catch (e) { saved = null; }
 
-                if (appearance === 'system') {
-                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-                    if (prefersDark) {
+                    // If user explicitly saved 'dark', apply dark.
+                    if (saved === 'dark') {
                         document.documentElement.classList.add('dark');
+                        document.documentElement.style.colorScheme = 'dark';
+                        return;
                     }
+
+                    // If user explicitly saved 'light', ensure dark is removed.
+                    if (saved === 'light') {
+                        document.documentElement.classList.remove('dark');
+                        document.documentElement.style.colorScheme = 'light';
+                        return;
+                    }
+
+                    // If no saved preference, default to LIGHT (do not follow system).
+                    // If you later want to respect system preference when there's no saved value,
+                    // replace the next lines with the "system" behavior.
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.style.colorScheme = 'light';
+                } catch (err) {
+                    // Fail silently — default light
                 }
             })();
         </script>

@@ -1,27 +1,24 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import GraduateViewModal from '@/components/welcome/view-modal';
-import StudentResultsTable from '@/components/welcome/student-results-table';
+import { Input } from '@/components/ui/input';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
 import ProgramsList from '@/components/welcome/programs-list';
-import { Input } from '@/components/ui/input';
+import GraduateViewModal from '@/components/welcome/view-modal';
 import axios from 'axios';
 import {
-    Award,
     Building2,
-    Calendar,
-    CheckCircle2,
     ChevronRight,
     GraduationCap,
     School,
     Search,
-    Shield,
-    User,
 } from 'lucide-react';
 import { useState } from 'react';
+import Footer from '@/components/footer';
+
 
 interface Graduate {
+    /* same as before - omitted for brevity in display, keep full definition */
     id: number;
     name: string;
     firstName: string;
@@ -51,7 +48,7 @@ interface Graduate {
 }
 
 interface Program {
-    id: number;
+    /* same as before */ id: number;
     name: string;
     major: string | null;
     copNumber: string | null;
@@ -66,7 +63,7 @@ interface Program {
 }
 
 interface Institution {
-    id: number;
+    /* same as before */ id: number;
     code: string;
     name: string;
     type: 'public' | 'private';
@@ -93,12 +90,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         null,
     );
     const [isSearching, setIsSearching] = useState(false);
-
-    const [studentQuery, setStudentQuery] = useState<string>('');
-    const [isSearchingStudents, setIsSearchingStudents] = useState(false);
-    const [studentSearchResults, setStudentSearchResults] = useState<
-        Graduate[]
-    >([]);
 
     const resetFilters = () => {
         setSelectedInstitution(null);
@@ -142,39 +133,16 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
-    const handleStudentSearch = async () => {
-        if (!studentQuery.trim()) {
-            setStudentSearchResults([]);
-            return;
-        }
-        setIsSearchingStudents(true);
-        try {
-            const response = await axios.post('/api/search-student', {
-                search: studentQuery,
-            });
-            setStudentSearchResults(response.data.graduates);
-        } catch (error) {
-            console.error('Student search failed:', error);
-        } finally {
-            setIsSearchingStudents(false);
-        }
-    };
-
-    const clearStudentSearch = () => {
-        setStudentQuery('');
-        setStudentSearchResults([]);
-    };
-
     return (
-        <div className="relative min-h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+        <div className="relative min-h-screen overflow-hidden bg-gray-50 font-sans dark:bg-gray-900">
             {/* Background Image with Overlay */}
             <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 dark:opacity-10"
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-18 dark:opacity-10"
                 style={{ backgroundImage: 'url(/assets/img/bg-ched.jpg)' }}
-            ></div>
-            <div className="absolute inset-0 bg-white/50 dark:bg-gray-900/60"></div>
+            />
+            <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/65" />
 
-            {/* Header with Login/Register and Dark Mode Toggle */}
+            {/* Header with Login and Dark Mode Toggle (Register removed) */}
             <header className="absolute top-0 right-0 z-20 p-6">
                 <div className="flex items-center gap-4">
                     {/* Dark Mode Toggle */}
@@ -182,7 +150,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                         onClick={() => {
                             document.documentElement.classList.toggle('dark');
                         }}
-                        className="rounded-lg bg-white p-2 shadow-sm hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+                        className="rounded-full bg-white p-2 shadow-sm hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
                         aria-label="Toggle dark mode"
                     >
                         <svg
@@ -213,198 +181,163 @@ export default function PRCCheckLanding({ stats }: Props) {
                         </svg>
                     </button>
 
-                    {/* Login/Register Links */}
+                    {/* Login Link only */}
                     <a
                         href="/login"
                         className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                     >
                         Log in
                     </a>
-                    <a
-                        href="/register"
-                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
-                    >
-                        Register
-                    </a>
                 </div>
             </header>
 
+            {/* ---------- Landing view (no institution/program selected) ---------- */}
             {!selectedInstitution && !selectedProgram && (
-                <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
-                    <div className="mx-auto w-full max-w-7xl">
-                        <div className="mb-10 text-center">
-                            <div className="mb-6 flex justify-center">
+                <div className="relative z-10 flex min-h-screen flex-col px-4 pt-8 pb-16 sm:px-6 lg:px-8">
+                    <div className="mx-auto w-full max-w-5xl">
+                        {/* --- HERO TOP: moved upward with padding --- */}
+                        <div className="mb-6 pt-2 text-center">
+                            <div className="mb-3 flex justify-center">
                                 <img
                                     src="/assets/img/ched-logo.png"
                                     alt="CHED Logo"
-                                    className="h-28 w-28 object-contain"
+                                    className="h-20 w-20 object-contain drop-shadow-sm"
                                 />
                             </div>
-                            <h1 className="mb-2 text-5xl font-bold text-gray-900 dark:text-white">
+                            <h1 className="mb-0 text-3xl font-semibold text-gray-900 md:text-4xl dark:text-white">
                                 Commission on Higher Education
                             </h1>
-                            <p className="mb-4 text-base text-gray-600 dark:text-gray-400">
+                            <p className="mt-1 mb-1 text-sm text-gray-600 dark:text-gray-400">
                                 Regional Office XII
                             </p>
-                            <h2 className="mb-10 text-5xl font-bold text-blue-900 dark:text-blue-400">
+                            <h2 className="mt-3 text-4xl font-extrabold tracking-tight text-blue-900 md:text-5xl dark:text-blue-300">
                                 CHECK with CHED
                             </h2>
                         </div>
+                    </div>
 
-                        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-2">
-                            <Card className="border-0 bg-white/90 shadow-xl backdrop-blur-sm dark:bg-gray-800">
-                                <CardContent className="p-8">
+                    {/* --- CENTERED SEARCH CARD (narrower, more visible) --- */}
+                    <div className="mt-2 flex flex-1 items-start justify-center">
+                        <div className="mx-auto w-full max-w-3xl">
+                            {/* Search Card */}
+                            <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/70">
+                                <CardContent className="p-6">
                                     <div className="mb-4 flex items-center gap-3">
-                                        <div className="rounded-lg bg-blue-100 p-2 dark:bg-blue-900">
-                                            <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-300" />
+                                        <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                                            <Building2 className="h-7 w-7 text-blue-600 dark:text-blue-300" />
                                         </div>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            Search by Institution
-                                        </h2>
-                                    </div>
-                                    <p className="mb-6 text-base text-gray-600 dark:text-gray-300">
-                                        Find graduates by selecting their
-                                        educational institution
-                                    </p>
-                                    <div className="space-y-4">
-                                        <div className="flex gap-2">
-                                            <div className="relative flex-1">
-                                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Enter institution code or name..."
-                                                    value={searchTerm}
-                                                    onChange={(e) =>
-                                                        setSearchTerm(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            handleInstitutionSearch();
-                                                        }
-                                                    }}
-                                                    className="h-12 pl-10 text-base dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400"
-                                                />
-                                            </div>
-                                            <Button
-                                                onClick={
-                                                    handleInstitutionSearch
-                                                }
-                                                className="h-12 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
-                                                disabled={
-                                                    isSearching ||
-                                                    !searchTerm.trim()
-                                                }
-                                            >
-                                                {isSearching
-                                                    ? 'Searching...'
-                                                    : 'Search'}
-                                            </Button>
+                                        <div>
+                                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                Search by Institution
+                                            </h2>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                Find School and programs offered by
+                                                their educational institution
+                                            </p>
                                         </div>
-                                        {institutions.length > 0 && (
-                                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                Found {institutions.length}{' '}
-                                                institution(s)
-                                            </div>
-                                        )}
                                     </div>
-                                </CardContent>
-                            </Card>
 
-                            <Card className="border-0 bg-white/90 shadow-xl backdrop-blur-sm dark:bg-gray-800">
-                                <CardContent className="p-8">
-                                    <div className="mb-4 flex items-center gap-3">
-                                        <div className="rounded-lg bg-purple-100 p-2 dark:bg-purple-900">
-                                            <User className="h-6 w-6 text-purple-600 dark:text-purple-300" />
-                                        </div>
-                                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            Search by Student
-                                        </h2>
-                                    </div>
-                                    <p className="mb-6 text-base text-gray-600 dark:text-gray-300">
-                                        Directly search for a specific graduate
-                                    </p>
+                                    {/* INPUT ROW */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative flex-1">
+                                            {/* Larger search icon inside the input */}
+                                            <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
+                                                <div className="grid h-10 w-10 place-items-center rounded-full bg-gray-100 dark:bg-gray-700/60">
+                                                    <Search className="h-5 w-5 text-gray-500 dark:text-gray-200" />
+                                                </div>
+                                            </div>
 
-                                    <div className="space-y-4">
-                                        <div className="flex gap-2">
-                                            <div className="relative flex-1">
-                                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Search Student Name or ID"
-                                                    value={studentQuery}
-                                                    onChange={(e) =>
-                                                        setStudentQuery(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter')
-                                                            handleStudentSearch();
-                                                    }}
-                                                    className="h-12 pl-10 text-base dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400"
-                                                />
+                                            <Input
+                                                type="text"
+                                                placeholder="Enter institution code or name..."
+                                                value={searchTerm}
+                                                onChange={(e) =>
+                                                    setSearchTerm(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter')
+                                                        handleInstitutionSearch();
+                                                }}
+                                                className="h-14 rounded-full border border-gray-200 bg-white pr-4 pl-16 text-lg shadow-sm placeholder:text-gray-400 focus:ring-2 focus:ring-blue-300 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
+                                            />
+                                        </div>
+
+                                        <Button
+                                            onClick={handleInstitutionSearch}
+                                            className="h-12 rounded-full bg-blue-600 px-6 text-base shadow-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                            disabled={
+                                                isSearching ||
+                                                !searchTerm.trim()
+                                            }
+                                        >
+                                            {isSearching
+                                                ? 'Searching...'
+                                                : 'Search'}
+                                        </Button>
+                                    </div>
+
+                                    {institutions.length > 0 && (
+                                        <div className="mt-4 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 p-3 dark:border-blue-700 dark:bg-blue-900/25">
+                                            <div className="flex items-center gap-2">
+                                                <div className="rounded-full bg-blue-600 p-1">
+                                                    <svg
+                                                        className="h-4 w-4 text-white"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M5 13l4 4L19 7"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                                                    Found {institutions.length}{' '}
+                                                    institution
+                                                    {institutions.length !== 1
+                                                        ? 's'
+                                                        : ''}
+                                                </span>
                                             </div>
                                             <Button
-                                                onClick={handleStudentSearch}
-                                                className="h-12 bg-purple-600 text-base text-white hover:bg-purple-700 dark:bg-purple-700 dark:hover:bg-purple-800"
-                                                disabled={
-                                                    isSearchingStudents ||
-                                                    !studentQuery.trim()
-                                                }
-                                            >
-                                                {isSearchingStudents
-                                                    ? 'Searching…'
-                                                    : 'Search'}
-                                            </Button>
-                                            <Button
-                                                onClick={clearStudentSearch}
-                                                variant="outline"
-                                                className="h-12 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                                onClick={() => {
+                                                    setSearchTerm('');
+                                                    setInstitutions([]);
+                                                }}
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-800"
                                             >
                                                 Clear
                                             </Button>
                                         </div>
-
-                                        {studentSearchResults.length > 0 && (
-                                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                                                Found{' '}
-                                                {studentSearchResults.length}{' '}
-                                                student
-                                                {studentSearchResults.length ===
-                                                1
-                                                    ? ''
-                                                    : 's'}
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
                                 </CardContent>
                             </Card>
+
+                            {/* Results list if available */}
+                            {institutions.length > 0 &&
+                                !selectedInstitution && (
+                                    <div className="mt-6">
+                                        <InstitutionResultsList
+                                            institutions={institutions}
+                                            onSelectInstitution={
+                                                setSelectedInstitution
+                                            }
+                                        />
+                                    </div>
+                                )}
                         </div>
-
-                        {institutions.length > 0 && !selectedInstitution && (
-                            <InstitutionResultsList
-                                institutions={institutions}
-                                onSelectInstitution={setSelectedInstitution}
-                            />
-                        )}
-
-                        {studentSearchResults.length > 0 && !selectedInstitution && (
-                            <StudentResultsTable
-                                students={studentSearchResults}
-                                onViewDetails={(graduate) => {
-                                    // Show login requirement message
-                                    alert('Please log in to view detailed student information.');
-                                    // TODO: Redirect to login page
-                                    // window.location.href = '/login';
-                                }}
-                            />
-                        )}
                     </div>
                 </div>
             )}
 
+            {/* ---------- Selected institution or program view (unchanged) ---------- */}
             {(selectedInstitution || selectedProgram) && (
                 <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                     <Button
@@ -412,31 +345,30 @@ export default function PRCCheckLanding({ stats }: Props) {
                         onClick={() => {
                             resetFilters();
                             setSearchTerm('');
-                            clearStudentSearch();
                         }}
-                        className="mb-6"
+                        className="mb-6 dark:text-gray-300 dark:hover:bg-gray-700"
                     >
                         ← Back to Search
                     </Button>
 
-                    <Card className="mb-6 border-0 bg-white/80 backdrop-blur-sm">
+                    <Card className="mb-6 border-0 bg-white/90 shadow-sm backdrop-blur-sm dark:bg-gray-800">
                         <CardContent className="p-4">
                             <div className="flex items-center gap-2 text-sm">
                                 <button
                                     onClick={resetFilters}
-                                    className="font-medium text-blue-600 hover:text-blue-800"
+                                    className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                                 >
                                     All Institutions
                                 </button>
                                 {selectedInstitution && (
                                     <>
-                                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                                        <ChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                                         <button
                                             onClick={() => {
                                                 setSelectedProgram(null);
                                                 setSelectedGraduate(null);
                                             }}
-                                            className="font-medium text-blue-600 hover:text-blue-800"
+                                            className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                                         >
                                             {selectedInstitution.name}
                                         </button>
@@ -444,8 +376,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 )}
                                 {selectedProgram && (
                                     <>
-                                        <ChevronRight className="h-4 w-4 text-gray-400" />
-                                        <span className="font-medium text-gray-700">
+                                        <ChevronRight className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">
                                             {selectedProgram.name}
                                         </span>
                                     </>
@@ -456,18 +388,18 @@ export default function PRCCheckLanding({ stats }: Props) {
 
                     {selectedInstitution && !selectedProgram && (
                         <>
-                            <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm">
+                            <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm dark:bg-gray-800">
                                 <CardContent className="p-6">
                                     <div className="flex items-start gap-4">
-                                        <div className="rounded-lg bg-blue-100 p-3">
-                                            <Building2 className="h-8 w-8 text-blue-600" />
+                                        <div className="rounded-lg bg-blue-100 p-3 dark:bg-blue-900">
+                                            <Building2 className="h-8 w-8 text-blue-600 dark:text-blue-300" />
                                         </div>
                                         <div>
-                                            <h2 className="text-2xl font-bold text-gray-900">
+                                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                                                 {selectedInstitution.name}
                                             </h2>
                                             <div className="mt-2 flex items-center gap-3">
-                                                <span className="text-sm text-gray-600">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">
                                                     Code:{' '}
                                                     {selectedInstitution.code}
                                                 </span>
@@ -561,8 +493,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                                             Program Permit Document
                                         </h3>
-                                        <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">
-                                            {selectedProgram.copNumber ? 'COPC Document' : 'GR Document'}
+                                        <Badge
+                                            variant="outline"
+                                            className="dark:border-gray-600 dark:text-gray-300"
+                                        >
+                                            {selectedProgram.copNumber
+                                                ? 'COPC Document'
+                                                : 'GR Document'}
                                         </Badge>
                                     </div>
 
@@ -593,8 +530,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             <p className="mb-6 max-w-md text-gray-600 dark:text-gray-400">
                                                 {selectedProgram.copNumber
                                                     ? `COPC Number: ${selectedProgram.copNumber}`
-                                                    : `GR Number: ${selectedProgram.grNumber}`
-                                                }
+                                                    : `GR Number: ${selectedProgram.grNumber}`}
                                             </p>
 
                                             {/* Document Details */}
@@ -613,7 +549,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             Major:
                                                         </span>
                                                         <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                            {selectedProgram.major}
+                                                            {
+                                                                selectedProgram.major
+                                                            }
                                                         </span>
                                                     </div>
                                                 )}
@@ -622,15 +560,32 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         Institution:
                                                     </span>
                                                     <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                        {selectedProgram.institution?.name}
+                                                        {
+                                                            selectedProgram
+                                                                .institution
+                                                                ?.name
+                                                        }
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                                                         Type:
                                                     </span>
-                                                    <Badge variant={selectedProgram.institution?.type === 'public' ? 'default' : 'secondary'}>
-                                                        {selectedProgram.institution?.type === 'public' ? 'Public' : 'Private'}
+                                                    <Badge
+                                                        variant={
+                                                            selectedProgram
+                                                                .institution
+                                                                ?.type ===
+                                                            'public'
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                        }
+                                                    >
+                                                        {selectedProgram
+                                                            .institution
+                                                            ?.type === 'public'
+                                                            ? 'Public'
+                                                            : 'Private'}
                                                     </Badge>
                                                 </div>
                                             </div>
@@ -654,10 +609,14 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">
-                                                        Document Preview Placeholder
+                                                        Document Preview
+                                                        Placeholder
                                                     </p>
                                                     <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
-                                                        The actual permit document (PDF) will be displayed here once uploaded to the system.
+                                                        The actual permit
+                                                        document (PDF) will be
+                                                        displayed here once
+                                                        uploaded to the system.
                                                     </p>
                                                 </div>
                                             </div>
@@ -674,6 +633,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                 graduate={selectedGraduate}
                 onClose={() => setSelectedGraduate(null)}
             />
+
         </div>
+
     );
 }
