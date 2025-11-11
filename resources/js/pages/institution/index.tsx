@@ -1,15 +1,4 @@
-import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
-import { dashboard } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import {
     Card,
     CardContent,
@@ -18,9 +7,20 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Search, GraduationCap, ChevronDown } from 'lucide-react';
-import React, { useState } from 'react';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import AppLayout from '@/layouts/app-layout';
+import { dashboard } from '@/routes';
+import { type BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/react';
+import { ChevronDown, GraduationCap, Search } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 
 interface Program {
     id: number;
@@ -34,9 +34,13 @@ interface Institution {
     id: number;
     institution_code: string;
     name: string;
-    type: string;
-    programs_count: number;
-    programs: Program[];
+
+    ownership_sector: string | null;
+    ownership_type: string | null;
+    x_coordinate: string | null;
+    y_coordinate: string | null;
+
+    programs: Program[]; // not preloaded
 }
 
 interface Props {
@@ -44,51 +48,66 @@ interface Props {
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-    {
-        title: 'Institutions',
-        href: '/institutions',
-    },
+    { title: 'Dashboard', href: dashboard().url },
+    { title: 'Institutions', href: '/institutions' },
 ];
 
 export default function InstitutionIndex({ institutions }: Props) {
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
-    // Filter institutions based on search
-    const filteredInstitutions = institutions.filter(
-        (institution) =>
-            institution.name.toLowerCase().includes(search.toLowerCase()) ||
-            institution.institution_code.includes(search)
-    );
+    // cache loaded program lists per instCode
+    const [loadedPrograms, setLoadedPrograms] = useState<
+        Record<string, Program[]>
+    >({});
+    const [loading, setLoading] = useState<Record<string, boolean>>({});
 
-    // Get badge color based on type
-    const getTypeColor = (type: string) => {
-        switch (type) {
-            case 'Private':
-                return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
-            case 'SUCs':
-                return 'bg-green-100 text-green-800 hover:bg-green-100';
-            case 'LUCs':
-                return 'bg-purple-100 text-purple-800 hover:bg-purple-100';
-            default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+    const filtered = useMemo(() => {
+        const q = search.toLowerCase();
+        return institutions.filter(
+            (i) =>
+                i.name.toLowerCase().includes(q) ||
+                i.institution_code.includes(search),
+        );
+    }, [institutions, search]);
+
+    const getProgramTypeColor = (type: string | null) =>
+        type === 'Board'
+            ? 'bg-green-100 text-green-800'
+            : 'bg-gray-100 text-gray-800';
+
+    const fmt = (v: string | number | null | undefined) =>
+        v === null || v === undefined || String(v).trim() === ''
+            ? '-'
+            : String(v);
+
+    async function loadPrograms(instCode: string) {
+        if (loadedPrograms[instCode] || loading[instCode]) return;
+        try {
+            setLoading((s) => ({ ...s, [instCode]: true }));
+            const res = await fetch(
+                `/institutions/${encodeURIComponent(instCode)}/programs`,
+                {
+                    headers: { Accept: 'application/json' },
+                },
+            );
+            const json = await res.json();
+            const items: Program[] = json?.data ?? [];
+            setLoadedPrograms((s) => ({ ...s, [instCode]: items }));
+        } catch (err) {
+            console.error(err);
+            setLoadedPrograms((s) => ({ ...s, [instCode]: [] }));
+        } finally {
+            setLoading((s) => ({ ...s, [instCode]: false }));
         }
-    };
+    }
 
-    // Get badge color for program type
-    const getProgramTypeColor = (type: string | null) => {
-        if (type === 'Board') {
-            return 'bg-green-100 text-green-800';
+    const onRowToggle = (row: Institution) => {
+        const newId = expandedId === row.id ? null : row.id;
+        setExpandedId(newId);
+        if (newId === row.id) {
+            void loadPrograms(row.institution_code);
         }
-        return 'bg-gray-100 text-gray-800';
-    };
-
-    const toggleExpand = (id: number) => {
-        setExpandedId(expandedId === id ? null : id);
     };
 
     return (
@@ -105,10 +124,10 @@ export default function InstitutionIndex({ institutions }: Props) {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {/* Search Bar */}
+                        {/* Search */}
                         <div className="mb-4">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                 <Input
                                     type="text"
                                     placeholder="Search by institution code or name..."
@@ -126,18 +145,23 @@ export default function InstitutionIndex({ institutions }: Props) {
                                     <TableRow>
                                         <TableHead>Institution Code</TableHead>
                                         <TableHead>Institution Name</TableHead>
-                                        <TableHead>Type</TableHead>
-                                        <TableHead className="text-right">
-                                            Programs
+                                        <TableHead>Ownership Sector</TableHead>
+                                        <TableHead>Ownership Type</TableHead>
+                                        <TableHead>X</TableHead>
+                                        <TableHead>Y</TableHead>
+                                        <TableHead className="w-12 text-right">
+                                            {' '}
+                                            {/* arrow only */}
+                                            {/* empty on purpose */}
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredInstitutions.length === 0 ? (
+                                    {filtered.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={4}
-                                                className="text-center py-8 text-gray-500"
+                                                colSpan={7}
+                                                className="py-8 text-center text-gray-500"
                                             >
                                                 {search
                                                     ? 'No institutions found'
@@ -145,135 +169,160 @@ export default function InstitutionIndex({ institutions }: Props) {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredInstitutions.map((institution) => (
-                                            <React.Fragment key={institution.id}>
-                                                <TableRow
-                                                    className="cursor-pointer hover:bg-gray-50"
-                                                    onClick={() =>
-                                                        toggleExpand(institution.id)
-                                                    }
-                                                >
-                                                    <TableCell className="font-medium">
-                                                        {institution.institution_code}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {institution.name}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            className={getTypeColor(
-                                                                institution.type
+                                        filtered.map((row) => {
+                                            const progs =
+                                                loadedPrograms[
+                                                    row.institution_code
+                                                ];
+                                            const isLoading =
+                                                loading[
+                                                    row.institution_code
+                                                ] === true;
+
+                                            return (
+                                                <React.Fragment key={row.id}>
+                                                    <TableRow
+                                                        className="cursor-pointer hover:bg-gray-50"
+                                                        onClick={() =>
+                                                            onRowToggle(row)
+                                                        }
+                                                    >
+                                                        <TableCell className="font-medium">
+                                                            {
+                                                                row.institution_code
+                                                            }
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {row.name}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {fmt(
+                                                                row.ownership_sector,
                                                             )}
-                                                        >
-                                                            {institution.type}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <span>
-                                                                {
-                                                                    institution.programs_count
-                                                                }
-                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            {fmt(
+                                                                row.ownership_type,
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="font-mono text-sm">
+                                                            {fmt(
+                                                                row.x_coordinate,
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="font-mono text-sm">
+                                                            {fmt(
+                                                                row.y_coordinate,
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-right">
                                                             <ChevronDown
-                                                                className={`h-4 w-4 transition-transform ${
+                                                                className={`mx-auto h-4 w-4 transition-transform ${
                                                                     expandedId ===
-                                                                    institution.id
+                                                                    row.id
                                                                         ? 'rotate-180'
                                                                         : ''
                                                                 }`}
                                                             />
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {expandedId === institution.id && (
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colSpan={4}
-                                                            className="bg-gray-50 p-0"
-                                                        >
-                                                            <div className="p-6">
-                                                                {institution.programs
-                                                                    .length === 0 ? (
-                                                                    <p className="text-sm text-gray-500">
-                                                                        No programs
-                                                                        available
-                                                                    </p>
-                                                                ) : (
-                                                                    <>
-                                                                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                                                                            <GraduationCap className="h-4 w-4" />
-                                                                            Programs
-                                                                            Offered
-                                                                        </h4>
-                                                                        <div className="space-y-2">
-                                                                            {institution.programs.map(
-                                                                                (
-                                                                                    program
-                                                                                ) => (
-                                                                                    <div
-                                                                                        key={
-                                                                                            program.id
-                                                                                        }
-                                                                                        className="bg-white rounded-md p-3 shadow-sm border"
-                                                                                    >
-                                                                                        <div className="flex items-start justify-between">
-                                                                                            <div className="flex-1">
-                                                                                                <p className="font-medium text-sm">
-                                                                                                    {
-                                                                                                        program.program_name
-                                                                                                    }
-                                                                                                </p>
-                                                                                                {program.major && (
-                                                                                                    <p className="text-xs text-gray-600 mt-1">
-                                                                                                        Major:{' '}
-                                                                                                        {
-                                                                                                            program.major
-                                                                                                        }
-                                                                                                    </p>
-                                                                                                )}
-                                                                                                <p className="text-xs text-gray-500 mt-1 font-mono">
-                                                                                                    Permit:{' '}
-                                                                                                    {
-                                                                                                        program.permit_number
-                                                                                                    }
-                                                                                                </p>
-                                                                                            </div>
-                                                                                            <div>
-                                                                                                {program.program_type && (
-                                                                                                    <Badge
-                                                                                                        className={getProgramTypeColor(
-                                                                                                            program.program_type
-                                                                                                        )}
-                                                                                                    >
-                                                                                                        {
-                                                                                                            program.program_type
-                                                                                                        }
-                                                                                                    </Badge>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                )
-                                                                            )}
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
-                                                )}
-                                            </React.Fragment>
-                                        ))
+
+                                                    {expandedId === row.id && (
+                                                        <TableRow>
+                                                            <TableCell
+                                                                colSpan={7}
+                                                                className="bg-gray-50 p-0"
+                                                            >
+                                                                <div className="p-6">
+                                                                    {isLoading ? (
+                                                                        <p className="text-sm text-gray-500">
+                                                                            Loading
+                                                                            programs…
+                                                                        </p>
+                                                                    ) : !progs ||
+                                                                      progs.length ===
+                                                                          0 ? (
+                                                                        <p className="text-sm text-gray-500">
+                                                                            No
+                                                                            programs
+                                                                            available
+                                                                        </p>
+                                                                    ) : (
+                                                                        <>
+                                                                            <h4 className="mb-3 flex items-center gap-2 font-semibold">
+                                                                                <GraduationCap className="h-4 w-4" />
+                                                                                Programs
+                                                                                Offered
+                                                                            </h4>
+                                                                            <div className="space-y-2">
+                                                                                {progs.map(
+                                                                                    (
+                                                                                        program,
+                                                                                    ) => (
+                                                                                        <div
+                                                                                            key={
+                                                                                                program.id
+                                                                                            }
+                                                                                            className="rounded-md border bg-white p-3 shadow-sm"
+                                                                                        >
+                                                                                            <div className="flex items-start justify-between">
+                                                                                                <div className="flex-1">
+                                                                                                    <p className="text-sm font-medium">
+                                                                                                        {
+                                                                                                            program.program_name
+                                                                                                        }
+                                                                                                    </p>
+                                                                                                    {program.major && (
+                                                                                                        <p className="mt-1 text-xs text-gray-600">
+                                                                                                            Major:{' '}
+                                                                                                            {
+                                                                                                                program.major
+                                                                                                            }
+                                                                                                        </p>
+                                                                                                    )}
+                                                                                                    <p className="mt-1 font-mono text-xs text-gray-500">
+                                                                                                        Permit:{' '}
+                                                                                                        {fmt(
+                                                                                                            program.permit_number,
+                                                                                                        )}
+                                                                                                    </p>
+                                                                                                </div>
+                                                                                                <div>
+                                                                                                    {program.program_type && (
+                                                                                                        <Badge
+                                                                                                            className={getProgramTypeColor(
+                                                                                                                program.program_type,
+                                                                                                            )}
+                                                                                                        >
+                                                                                                            {
+                                                                                                                program.program_type
+                                                                                                            }
+                                                                                                        </Badge>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ),
+                                                                                )}
+                                                                            </div>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>
                         </div>
 
-                        {/* Results count */}
+                        {/* results note */}
                         {search && (
-                            <p className="text-sm text-gray-600 mt-4">
-                                Showing {filteredInstitutions.length} of{' '}
+                            <p className="mt-4 text-sm text-gray-600">
+                                Showing {filtered.length} of{' '}
                                 {institutions.length} institutions
                             </p>
                         )}

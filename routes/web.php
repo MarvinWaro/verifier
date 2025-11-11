@@ -9,30 +9,29 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WelcomeController;
 
-// Landing page - publicly accessible
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
 
-    // Institution routes
+    // Institutions page
     Route::get('institutions', [InstitutionController::class, 'index'])->name('institutions.index');
 
-    // Program routes
-    Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
+    // Lazy row API used by the accordion
+    Route::get('institutions/{instCode}/programs', [InstitutionController::class, 'programs'])
+        ->name('institutions.programs');
 
-    // Graduate routes
+    // Other existing pages
+    Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
     Route::get('graduates', [GraduateController::class, 'index'])->name('graduates.index');
 
-    // User routes
+    // Users
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::post('users', [UserController::class, 'store'])->name('users.store');
     Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
-    // Import routes - MOVED FROM api.php
+    // Import
     Route::get('import', [ImportController::class, 'index'])->name('import.index');
     Route::post('import/institutions', [ImportController::class, 'importInstitutions'])->name('import.institutions');
     Route::post('import/institutions/clear', [ImportController::class, 'clearInstitutions'])->name('import.institutions.clear');
