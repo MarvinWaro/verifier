@@ -2,31 +2,53 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Program;
+use App\Services\PortalService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
 {
-    public function index()
+    public function index(Request $request, PortalService $portal)
     {
-        $programs = Program::with('institution')->get()->map(function ($program) {
+        // 1) Get all HEIs for the dropdown
+        $hei = $portal->fetchAllHEI(); // [ ['instCode'=>'123','instName'=>'ABC'], ... ]
+
+        // 2) Determine selected institution (?instCode=...)
+        $selectedInstCode = $request->query('instCode');
+        if (!$selectedInstCode && !empty($hei)) {
+            $selectedInstCode = $hei[0]['instCode']; // default to first
+        }
+
+        // 3) Fetch programs for selected institution
+        $programNames = $selectedInstCode ? $portal->fetchPrograms($selectedInstCode) : [];
+
+        // 4) Find selected institution name (for display)
+        $instName = null;
+        if ($selectedInstCode) {
+            $hit = collect($hei)->firstWhere('instCode', $selectedInstCode);
+            $instName = $hit['instName'] ?? $selectedInstCode;
+        }
+
+        // 5) Map to your frontend shape (placeholders for unknown fields)
+        $programs = collect($programNames)->values()->map(function ($name, $i) use ($selectedInstCode, $instName) {
             return [
-                'id' => $program->id,
-                'program_name' => $program->program_name,
-                'major' => $program->major,
-                'program_type' => $program->program_type,
-                'permit_number' => $program->permit_number,
-                'institution' => [
-                    'institution_code' => $program->institution->institution_code,
-                    'name' => $program->institution->name,
-                    'type' => $program->institution->type,
+                'id'            => $i + 1,
+                'program_name'  => $name,
+                'major'         => null,
+                'program_type'  => '-',  // not provided by API (for now)
+                'permit_number' => '',   // not provided by API (for now)
+                'institution'   => [
+                    'institution_code' => $selectedInstCode,
+                    'name'             => $instName ?? $selectedInstCode,
+                    'type'             => '-', // not provided by API
                 ],
             ];
         });
 
         return Inertia::render('programs/index', [
-            'programs' => $programs,
+            'programs'         => $programs,
+            'hei'              => $hei,
+            'selectedInstCode' => $selectedInstCode,
         ]);
     }
 }

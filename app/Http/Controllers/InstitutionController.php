@@ -2,30 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Institution;
-use Illuminate\Http\Request;
+use App\Services\PortalService;
 use Inertia\Inertia;
 
 class InstitutionController extends Controller
 {
-    public function index()
+    public function index(PortalService $portal)
     {
-        $institutions = Institution::with('programs')->withCount('programs')->get()->map(function ($institution) {
+        // API returns: [ ['instCode' => 'X', 'instName' => 'Y'], ... ]
+        $hei = $portal->fetchAllHEI();
+
+        // Map the API data to your current front-end shape
+        $institutions = collect($hei)->values()->map(function ($row, $i) {
             return [
-                'id' => $institution->id,
-                'institution_code' => $institution->institution_code,
-                'name' => $institution->name,
-                'type' => $institution->type,
-                'programs_count' => $institution->programs_count,
-                'programs' => $institution->programs->map(function ($program) {
-                    return [
-                        'id' => $program->id,
-                        'program_name' => $program->program_name,
-                        'major' => $program->major,
-                        'program_type' => $program->program_type,
-                        'permit_number' => $program->permit_number,
-                    ];
-                }),
+                'id' => $i + 1,                    // synthetic id just for React keys
+                'institution_code' => $row['instCode'],
+                'name' => $row['instName'],
+                'type' => '-',                     // API doesn't provide; placeholder
+                'programs_count' => 0,             // not fetching programs here
+                'programs' => [],                  // empty list for now
             ];
         });
 

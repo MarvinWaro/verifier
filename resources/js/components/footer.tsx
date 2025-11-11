@@ -95,30 +95,39 @@ const Footer: React.FC<FooterProps> = ({
                         </p>
                     </div>
 
-                    {/* Menu Columns - evenly spaced */}
-                    {menuItems.map((section, idx) => (
-                        <div key={idx} className="col-span-1">
-                            <h3
-                                className={`mb-4 ${compact ? 'text-xs' : 'text-sm font-semibold'} tracking-wide text-gray-900 uppercase dark:text-gray-100`}
+                    {/* Menu Columns - evenly spaced
+                        -> NOTE: the last column receives `ml-auto` so it is pushed to the right edge of the grid container.
+                    */}
+                    {menuItems.map((section, idx) => {
+                        const isLast = idx === menuItems.length - 1;
+                        return (
+                            <div
+                                key={idx}
+                                // add ml-auto to the last column so it aligns to the far right (display-end)
+                                className={`col-span-1 ${isLast ? 'ml-auto' : ''}`}
                             >
-                                {section.title}
-                            </h3>
-                            <ul
-                                className={`${compact ? 'space-y-2 text-xs' : 'space-y-3 text-sm'}`}
-                            >
-                                {section.links.map((link, linkIdx) => (
-                                    <li key={linkIdx}>
-                                        <a
-                                            href={link.url}
-                                            className="transition-colors duration-150 hover:text-blue-600 dark:hover:text-blue-400"
-                                        >
-                                            {link.text}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                                <h3
+                                    className={`mb-4 ${compact ? 'text-xs' : 'text-sm font-semibold'} tracking-wide text-gray-900 uppercase dark:text-gray-100`}
+                                >
+                                    {section.title}
+                                </h3>
+                                <ul
+                                    className={`${compact ? 'space-y-2 text-xs' : 'space-y-3 text-sm'}`}
+                                >
+                                    {section.links.map((link, linkIdx) => (
+                                        <li key={linkIdx}>
+                                            <a
+                                                href={link.url}
+                                                className="transition-colors duration-150 hover:text-blue-600 dark:hover:text-blue-400"
+                                            >
+                                                {link.text}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Bottom Section */}
