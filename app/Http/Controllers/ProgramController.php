@@ -10,40 +10,48 @@ class ProgramController extends Controller
 {
     public function index(Request $request, PortalService $portal)
     {
-        // 1) Get all HEIs for the dropdown
-        $hei = $portal->fetchAllHEI(); // [ ['instCode'=>'123','instName'=>'ABC'], ... ]
+        // 1) HEI list for the dropdown
+        $hei = $portal->fetchAllHEI(); // [ ['instCode'=>'...', 'instName'=>'...'], ... ]
 
-        // 2) Determine selected institution (?instCode=...)
+        // 2) Which institution is selected? (?instCode=...)
         $selectedInstCode = $request->query('instCode');
         if (!$selectedInstCode && !empty($hei)) {
-            $selectedInstCode = $hei[0]['instCode']; // default to first
+            $selectedInstCode = $hei[0]['instCode']; // default to first HEI
         }
 
-        // 3) Fetch programs for selected institution
-        $programNames = $selectedInstCode ? $portal->fetchPrograms($selectedInstCode) : [];
+        // 3) Pull FULL program records so we can read majors + permit_4thyr
+        $records = $selectedInstCode ? $portal->fetchProgramRecords($selectedInstCode) : [];
 
-        // 4) Find selected institution name (for display)
+        // 4) Find selected institution name for display
         $instName = null;
         if ($selectedInstCode) {
             $hit = collect($hei)->firstWhere('instCode', $selectedInstCode);
             $instName = $hit['instName'] ?? $selectedInstCode;
         }
 
-        // 5) Map to your frontend shape (placeholders for unknown fields)
-        $programs = collect($programNames)->values()->map(function ($name, $i) use ($selectedInstCode, $instName) {
-            return [
-                'id'            => $i + 1,
-                'program_name'  => $name,
-                'major'         => null,
-                'program_type'  => '-',  // not provided by API (for now)
-                'permit_number' => '',   // not provided by API (for now)
-                'institution'   => [
-                    'institution_code' => $selectedInstCode,
-                    'name'             => $instName ?? $selectedInstCode,
-                    'type'             => '-', // not provided by API
-                ],
-            ];
-        });
+        // 5) Map records -> frontend shape (dedupe by program+major)
+        $programs = collect($records)
+            ->map(function ($r, $i) use ($selectedInstCode, $instName) {
+                $programName = (string) ($r['programName'] ?? '');
+                $majorName   = trim((string) ($r['majorName'] ?? ''));
+                $permit4th   = (string) ($r['permit_4thyr'] ?? '');
+
+                return [
+                    'id'            => $i + 1,
+                    'program_name'  => $programName,
+                    'major'         => $majorName !== '' ? $majorName : null,
+                    'program_type'  => '-',       // placeholder (not from API)
+                    'permit_number' => $permit4th,
+                    'institution'   => [
+                        'institution_code' => $selectedInstCode,
+                        'name'             => $instName ?? $selectedInstCode,
+                        'type'             => '-', // placeholder
+                    ],
+                ];
+            })
+            ->filter(fn ($p) => $p['program_name'] !== '')
+            ->unique(fn ($p) => $p['program_name'] . '|' . ($p['major'] ?? ''))
+            ->values();
 
         return Inertia::render('programs/index', [
             'programs'         => $programs,

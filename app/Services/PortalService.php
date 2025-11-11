@@ -8,18 +8,18 @@ use Illuminate\Support\Facades\Http;
 class PortalService
 {
     /** Base endpoints */
-    protected string $baseUrl = 'https://portal.chedro12.com/api';
+    protected string $baseUrl     = 'https://portal.chedro12.com/api';
     protected string $programsPath = '/fetch-programs';
     protected string $allHeiPath   = '/fetch-all-hei';
 
     /** Config */
-    protected int $timeout = 30;     // seconds
-    protected int $retries = 3;      // attempts
-    protected int $backoff = 500;    // ms between retries
-    protected int $cacheTtl = 600;   // seconds
+    protected int $timeout  = 30;   // seconds
+    protected int $retries  = 3;    // attempts
+    protected int $backoff  = 500;  // ms between retries
+    protected int $cacheTtl = 600;  // seconds
 
     /** Secret (env) */
-    protected string $apiKey = '';   // default prevents null-type crash
+    protected string $apiKey = '';  // default prevents null-type crash
 
     public function __construct()
     {
@@ -64,7 +64,7 @@ class PortalService
      */
     public function fetchMajors(string $instCode, string $programName): array
     {
-        $instCode = trim($instCode);
+        $instCode    = trim($instCode);
         $programName = trim($programName);
         if ($instCode === '' || $programName === '') {
             return [];
@@ -83,6 +83,27 @@ class PortalService
                 ->unique()
                 ->values()
                 ->all();
+        });
+    }
+
+    /**
+     * NEW: Get the full program records for an institution (raw API rows).
+     * Each row contains fields like:
+     *  instCode, instName, programCode, programName, majorName, permit_4thyr, programLevel, ...
+     *
+     * Returns: [ { ...full record... }, ... ]
+     */
+    public function fetchProgramRecords(string $instCode): array
+    {
+        $instCode = trim($instCode);
+        if ($instCode === '') {
+            return [];
+        }
+
+        $cacheKey = "chedro12_program_records_{$instCode}";
+
+        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($instCode) {
+            return $this->postToCHED($instCode) ?? [];
         });
     }
 
@@ -143,9 +164,9 @@ class PortalService
 
         try {
             $response = Http::withHeaders([
-                    'PORTAL-API'  => $this->apiKey,
-                    'Accept'      => 'application/json',
-                    'Content-Type'=> 'application/x-www-form-urlencoded',
+                    'PORTAL-API'   => $this->apiKey,
+                    'Accept'       => 'application/json',
+                    'Content-Type' => 'application/x-www-form-urlencoded',
                 ])
                 ->asForm()
                 ->timeout($this->timeout)
