@@ -20,7 +20,7 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { ChevronDown, GraduationCap, Search } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 
 interface Program {
     id: number;
@@ -40,11 +40,14 @@ interface Institution {
     x_coordinate: string | null;
     y_coordinate: string | null;
 
-    programs: Program[]; // not preloaded
+    // programs are NOT preloaded (lazy)
+    programs: Program[];
 }
 
 interface Props {
     institutions: Institution[];
+    // optional error from server (shown as a banner if present)
+    error?: string;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -52,15 +55,21 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Institutions', href: '/institutions' },
 ];
 
-export default function InstitutionIndex({ institutions }: Props) {
+export default function InstitutionIndex({ institutions, error }: Props) {
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
-    // cache loaded program lists per instCode
+    // cache of loaded programs per instCode
     const [loadedPrograms, setLoadedPrograms] = useState<
         Record<string, Program[]>
     >({});
     const [loading, setLoading] = useState<Record<string, boolean>>({});
+    const [loadError, setLoadError] = useState<Record<string, string | null>>(
+        {},
+    );
+
+    // track active requests so we can abort on collapse / navigation
+    const controllersRef = useRef<Record<string, AbortController>>({});
 
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
@@ -82,30 +91,78 @@ export default function InstitutionIndex({ institutions }: Props) {
             : String(v);
 
     async function loadPrograms(instCode: string) {
+        // already loaded or actively loading => skip
         if (loadedPrograms[instCode] || loading[instCode]) return;
+
+        // make sure any previous controller is cleared
+        if (controllersRef.current[instCode]) {
+            try {
+                controllersRef.current[instCode].abort();
+            } catch {}
+        }
+
+        const controller = new AbortController();
+        controllersRef.current[instCode] = controller;
+
         try {
             setLoading((s) => ({ ...s, [instCode]: true }));
+            setLoadError((s) => ({ ...s, [instCode]: null }));
+
             const res = await fetch(
                 `/institutions/${encodeURIComponent(instCode)}/programs`,
                 {
                     headers: { Accept: 'application/json' },
+                    signal: controller.signal,
                 },
             );
+
+            if (!res.ok) {
+                // backend may return JSON with message
+                let message = `Request failed (${res.status})`;
+                try {
+                    const j = await res.json();
+                    if (j?.message) message = j.message;
+                } catch {}
+                throw new Error(message);
+            }
+
             const json = await res.json();
             const items: Program[] = json?.data ?? [];
             setLoadedPrograms((s) => ({ ...s, [instCode]: items }));
-        } catch (err) {
+        } catch (err: any) {
+            // ignore abort noise
+            if (err?.name === 'AbortError') return;
             console.error(err);
+            setLoadError((s) => ({
+                ...s,
+                [instCode]: err?.message || 'Failed to load programs.',
+            }));
             setLoadedPrograms((s) => ({ ...s, [instCode]: [] }));
         } finally {
             setLoading((s) => ({ ...s, [instCode]: false }));
+            // cleanup controller for this instCode
+            delete controllersRef.current[instCode];
         }
     }
 
     const onRowToggle = (row: Institution) => {
-        const newId = expandedId === row.id ? null : row.id;
+        const opening = expandedId !== row.id;
+        const newId = opening ? row.id : null;
+
+        // if closing, abort any in-flight request for this instCode
+        if (!opening) {
+            const c = controllersRef.current[row.institution_code];
+            if (c) {
+                try {
+                    c.abort();
+                } catch {}
+                delete controllersRef.current[row.institution_code];
+            }
+        }
+
         setExpandedId(newId);
-        if (newId === row.id) {
+
+        if (opening) {
             void loadPrograms(row.institution_code);
         }
     };
@@ -122,7 +179,14 @@ export default function InstitutionIndex({ institutions }: Props) {
                             Total of {institutions.length} institution
                             {institutions.length !== 1 ? 's' : ''} registered
                         </CardDescription>
+
+                        {error && (
+                            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                {error}
+                            </div>
+                        )}
                     </CardHeader>
+
                     <CardContent>
                         {/* Search */}
                         <div className="mb-4">
@@ -150,9 +214,7 @@ export default function InstitutionIndex({ institutions }: Props) {
                                         <TableHead>X</TableHead>
                                         <TableHead>Y</TableHead>
                                         <TableHead className="w-12 text-right">
-                                            {' '}
-                                            {/* arrow only */}
-                                            {/* empty on purpose */}
+                                            {/* arrow only (no count) */}
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -178,6 +240,8 @@ export default function InstitutionIndex({ institutions }: Props) {
                                                 loading[
                                                     row.institution_code
                                                 ] === true;
+                                            const errMsg =
+                                                loadError[row.institution_code];
 
                                             return (
                                                 <React.Fragment key={row.id}>
@@ -238,6 +302,12 @@ export default function InstitutionIndex({ institutions }: Props) {
                                                                         <p className="text-sm text-gray-500">
                                                                             Loading
                                                                             programs…
+                                                                        </p>
+                                                                    ) : errMsg ? (
+                                                                        <p className="text-sm text-red-600">
+                                                                            {
+                                                                                errMsg
+                                                                            }
                                                                         </p>
                                                                     ) : !progs ||
                                                                       progs.length ===
