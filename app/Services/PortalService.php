@@ -88,10 +88,7 @@ class PortalService
 
     /**
      * Get the full program records for an institution (raw API rows).
-     * Each row contains fields like:
-     *  instCode, instName, programCode, programName, majorName, permit_4thyr, programLevel, ...
-     *
-     * Returns: [ { ...full record... }, ... ]
+     * Each row: instCode, instName, programCode, programName, majorName, permit_4thyr, programLevel, ...
      */
     public function fetchProgramRecords(string $instCode): array
     {
@@ -109,7 +106,7 @@ class PortalService
 
     /**
      * Get list of all HEIs with extra fields you need.
-     * Returns each item with:
+     * Each item returns:
      *  instCode, instName, instOwnership, province, municipalityCity, status,
      *  xCoordinate, yCoordinate, ownershipSector, ownershipHei_type
      */

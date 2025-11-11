@@ -53,6 +53,7 @@ interface Props {
     programs: Program[];
     hei: HeiItem[];
     selectedInstCode: string | null;
+    error?: string | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -102,14 +103,10 @@ export default function ProgramIndex({
     };
 
     const onSelectInst = (val: string) => {
-        // No Ziggy; use a plain path
         router.get(
             '/programs',
             { instCode: val },
-            {
-                preserveScroll: true,
-                preserveState: true,
-            },
+            { preserveScroll: true, preserveState: true },
         );
     };
 
@@ -123,8 +120,12 @@ export default function ProgramIndex({
                         <CardTitle>All Programs</CardTitle>
                         <CardDescription>
                             {selectedInstCode
-                                ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${filteredPrograms.length !== 1 ? 's' : ''}`
-                                : `Total of ${filteredPrograms.length} program${filteredPrograms.length !== 1 ? 's' : ''}`}
+                                ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`
+                                : `Total of ${filteredPrograms.length} program${
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>

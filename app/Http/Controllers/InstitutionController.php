@@ -12,20 +12,15 @@ use Symfony\Component\HttpFoundation\Response;
 
 class InstitutionController extends Controller
 {
-    /**
-     * Institutions page (Inertia).
-     */
     public function index(PortalService $portal)
     {
+        $error = null;
         try {
             $hei = $portal->fetchAllHEI();
         } catch (\Throwable $e) {
-            Log::error('Failed to fetch HEI list', ['err' => $e->getMessage()]);
-            // Render page with empty list and an error prop the UI can toast
-            return Inertia::render('institution/index', [
-                'institutions' => collect(),
-                'error'        => 'Unable to load institutions right now. Please try again shortly.',
-            ]);
+            report($e);
+            $hei = [];
+            $error = 'Unable to fetch institutions right now.';
         }
 
         $institutions = collect($hei)->values()->map(function ($row, $i) {
@@ -34,34 +29,30 @@ class InstitutionController extends Controller
                 'institution_code' => $row['instCode'],
                 'name'             => $row['instName'],
 
-                // extra columns
+                // extra columns you wanted
                 'x_coordinate'     => $row['xCoordinate'] ?? null,
                 'y_coordinate'     => $row['yCoordinate'] ?? null,
                 'ownership_sector' => $row['ownershipSector'] ?? null,
                 'ownership_type'   => $row['ownershipHei_type'] ?? null,
 
-                // lazy-loaded on expand (kept for TS types)
+                // no preloaded programs (lazy on click)
                 'programs'         => [],
             ];
         });
 
         return Inertia::render('institution/index', [
             'institutions' => $institutions,
+            'error'        => $error, // frontend can toast this if present
         ]);
     }
 
     /**
      * GET /institutions/{instCode}/programs
-     * JSON helper used by the accordion to fetch a school's programs.
-     *
-     * Response shape (kept stable for the frontend):
-     *   200: { data: Program[] }
-     *   422: { message: "...", errors: { instCode: [...] } }
-     *   503: { message: "Upstream service unavailable" }
+     * Returns the mapped program list for a single institution.
      */
     public function programs(string $instCode, PortalService $portal): JsonResponse
     {
-        // Validate path param (defense-in-depth in addition to route->where())
+        // Validate instCode
         $v = Validator::make(
             ['instCode' => $instCode],
             [
@@ -76,43 +67,43 @@ class InstitutionController extends Controller
             return response()->json([
                 'message' => 'Invalid institution code.',
                 'errors'  => $v->errors(),
+                'data'    => [],
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
             $records = $portal->fetchProgramRecords($instCode);
+
+            $programs = collect($records)
+                ->map(function ($r, $i) {
+                    $programName = trim((string) ($r['programName'] ?? ''));
+                    $majorName   = trim((string) ($r['majorName'] ?? ''));
+                    $permit4th   = (string) ($r['permit_4thyr'] ?? '');
+
+                    return [
+                        'id'            => $i + 1,
+                        'program_name'  => $programName,
+                        'major'         => $majorName !== '' ? $majorName : null,
+                        'program_type'  => '-',        // placeholder (not from API)
+                        'permit_number' => $permit4th, // from API
+                    ];
+                })
+                ->filter(fn ($p) => $p['program_name'] !== '')
+                ->unique(fn ($p) => $p['program_name'] . '|' . ($p['major'] ?? ''))
+                ->values()
+                ->all();
+
+            return response()->json(['data' => $programs], Response::HTTP_OK);
         } catch (\Throwable $e) {
-            Log::error('Failed to fetch program records', [
+            Log::error('Failed to fetch programs', [
                 'instCode' => $instCode,
-                'err'      => $e->getMessage(),
+                'err' => $e->getMessage(),
             ]);
 
             return response()->json([
-                'message' => 'Upstream service is unavailable. Please try again later.',
-                'data'    => [],
+                'message' => 'Unable to fetch programs.',
+                'data' => [],
             ], Response::HTTP_SERVICE_UNAVAILABLE);
         }
-
-        // Map API rows -> UI rows
-        $programs = collect($records)
-            ->map(function ($r, $i) {
-                $programName = trim((string)($r['programName'] ?? ''));
-                $majorName   = trim((string)($r['majorName'] ?? ''));
-                $permit4th   = (string)($r['permit_4thyr'] ?? '');
-
-                return [
-                    'id'            => $i + 1,
-                    'program_name'  => $programName,
-                    'major'         => $majorName !== '' ? $majorName : null,
-                    'program_type'  => '-',        // placeholder (not provided by API)
-                    'permit_number' => $permit4th, // from API
-                ];
-            })
-            ->filter(fn ($p) => $p['program_name'] !== '')
-            ->unique(fn ($p) => $p['program_name'] . '|' . ($p['major'] ?? ''))
-            ->values()
-            ->all();
-
-        return response()->json(['data' => $programs], Response::HTTP_OK);
     }
 }
