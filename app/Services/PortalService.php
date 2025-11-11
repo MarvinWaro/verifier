@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 class PortalService
 {
     /** Base endpoints */
-    protected string $baseUrl     = 'https://portal.chedro12.com/api';
+    protected string $baseUrl      = 'https://portal.chedro12.com/api';
     protected string $programsPath = '/fetch-programs';
     protected string $allHeiPath   = '/fetch-all-hei';
 
@@ -87,7 +87,7 @@ class PortalService
     }
 
     /**
-     * NEW: Get the full program records for an institution (raw API rows).
+     * Get the full program records for an institution (raw API rows).
      * Each row contains fields like:
      *  instCode, instName, programCode, programName, majorName, permit_4thyr, programLevel, ...
      *
@@ -108,8 +108,10 @@ class PortalService
     }
 
     /**
-     * Get list of all HEIs.
-     * Returns: [ ['instCode' => 'X', 'instName' => 'Y'], ... ]
+     * Get list of all HEIs with extra fields you need.
+     * Returns each item with:
+     *  instCode, instName, instOwnership, province, municipalityCity, status,
+     *  xCoordinate, yCoordinate, ownershipSector, ownershipHei_type
      */
     public function fetchAllHEI(): array
     {
@@ -137,10 +139,20 @@ class PortalService
                 $data = $this->normalize($response->json());
 
                 return collect($data ?? [])
-                    ->map(fn ($item) => [
-                        'instCode' => $item['instCode'] ?? null,
-                        'instName' => $item['instName'] ?? null,
-                    ])
+                    ->map(function ($item) {
+                        return [
+                            'instCode'          => $item['instCode']          ?? null,
+                            'instName'          => $item['instName']          ?? null,
+                            'instOwnership'     => $item['instOwnership']     ?? null,
+                            'province'          => $item['province']          ?? null,
+                            'municipalityCity'  => $item['municipalityCity']  ?? null,
+                            'status'            => $item['status']            ?? null,
+                            'xCoordinate'       => $item['xCoordinate']       ?? null,
+                            'yCoordinate'       => $item['yCoordinate']       ?? null,
+                            'ownershipSector'   => $item['ownershipSector']   ?? null,
+                            'ownershipHei_type' => $item['ownershipHei_type'] ?? null,
+                        ];
+                    })
                     ->filter(fn ($r) => filled($r['instCode']) && filled($r['instName']))
                     ->sortBy('instName', SORT_NATURAL | SORT_FLAG_CASE)
                     ->values()
