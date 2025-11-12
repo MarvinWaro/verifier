@@ -12,38 +12,33 @@ class ProgramController extends Controller
 {
     public function index(Request $request, PortalService $portal)
     {
-        // 1) HEI list for the dropdown
         $hei = [];
         $error = null;
 
+        // HEI list for dropdown
         try {
-            $hei = $portal->fetchAllHEI(); // [ ['instCode'=>'...', 'instName'=>'...'], ... ]
+            $hei = $portal->fetchAllHEI();
         } catch (\Throwable $e) {
             report($e);
             $error = 'Unable to load institutions.';
         }
 
-        // 2) Which institution is selected? (?instCode=...)
+        // selected ?instCode=
         $selectedInstCode = $request->query('instCode');
-
         if ($selectedInstCode) {
             $v = Validator::make(
                 ['instCode' => $selectedInstCode],
-                [
-                    'instCode' => ['required', 'string', 'max:32', 'regex:/^[A-Za-z0-9\-]+$/'],
-                ]
+                ['instCode' => ['required','string','max:32','regex:/^[A-Za-z0-9\-]+$/']]
             );
             if ($v->fails()) {
-                // if invalid query, ignore it and fall back to first HEI
-                $selectedInstCode = null;
+                $selectedInstCode = null; // ignore bad query & fall back to first
             }
         }
-
         if (!$selectedInstCode && !empty($hei)) {
-            $selectedInstCode = $hei[0]['instCode']; // default to first HEI
+            $selectedInstCode = $hei[0]['instCode'];
         }
 
-        // 3) Pull FULL program records so we can read majors + permit_4thyr
+        // full program rows for selected HEI
         $records = [];
         if ($selectedInstCode) {
             try {
@@ -57,30 +52,30 @@ class ProgramController extends Controller
             }
         }
 
-        // 4) Find selected institution name for display
+        // friendly name
         $instName = null;
         if ($selectedInstCode) {
             $hit = collect($hei)->firstWhere('instCode', $selectedInstCode);
             $instName = $hit['instName'] ?? $selectedInstCode;
         }
 
-        // 5) Map records -> frontend shape (dedupe by program+major)
+        // map -> UI shape (dedupe by program+major)
         $programs = collect($records)
             ->map(function ($r, $i) use ($selectedInstCode, $instName) {
-                $programName = (string) ($r['programName'] ?? '');
-                $majorName   = trim((string) ($r['majorName'] ?? ''));
-                $permit4th   = (string) ($r['permit_4thyr'] ?? '');
+                $programName = trim((string) ($r['programName'] ?? ''));
+                $majorName   = trim((string) ($r['majorName']   ?? ''));
+                $permit4th   = trim((string) ($r['permit_4thyr'] ?? ''));
 
                 return [
                     'id'            => $i + 1,
                     'program_name'  => $programName,
                     'major'         => $majorName !== '' ? $majorName : null,
-                    'program_type'  => '-',       // placeholder (not from API)
-                    'permit_number' => $permit4th,
+                    'program_type'  => null,                               // placeholder -> null
+                    'permit_number' => $permit4th !== '' ? $permit4th : null,
                     'institution'   => [
                         'institution_code' => $selectedInstCode,
                         'name'             => $instName ?? $selectedInstCode,
-                        'type'             => '-', // placeholder
+                        'type'             => '-', // kept for compatibility (UI may ignore)
                     ],
                 ];
             })
@@ -92,7 +87,7 @@ class ProgramController extends Controller
             'programs'         => $programs,
             'hei'              => $hei,
             'selectedInstCode' => $selectedInstCode,
-            'error'            => $error, // you can toast this on the page if you want
+            'error'            => $error, // optional toast on page load
         ]);
     }
 }
