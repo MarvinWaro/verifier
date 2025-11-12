@@ -38,15 +38,15 @@ interface HeiItem {
 interface Institution {
     institution_code: string;
     name: string;
-    type: string | null; // placeholder from server may be '-' or null
+    type: string | null;
 }
 
 interface Program {
     id: number;
     program_name: string;
     major: string | null;
-    program_type: string | null; // nullable
-    permit_number: string | null; // nullable
+    program_type: string | null;
+    permit_number: string | null;
     institution: Institution;
 }
 
@@ -89,24 +89,11 @@ export default function ProgramIndex({
     const getProgramTypeColor = (type: string | null) => {
         switch (type) {
             case 'Board':
-                return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100';
+                return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300';
             case 'Non-Board':
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
             default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
-        }
-    };
-
-    const getInstitutionTypeColor = (type: string | null) => {
-        switch (type) {
-            case 'Private':
-                return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
-            case 'SUCs':
-                return 'bg-green-100 text-green-800 hover:bg-green-100';
-            case 'LUCs':
-                return 'bg-purple-100 text-purple-800 hover:bg-purple-100';
-            default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
         }
     };
 
@@ -134,47 +121,58 @@ export default function ProgramIndex({
                         <CardDescription>
                             {selectedInstCode
                                 ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
-                                    filteredPrograms.length !== 1 ? 's' : ''
-                                }`
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`
                                 : `Total of ${filteredPrograms.length} program${
-                                    filteredPrograms.length !== 1 ? 's' : ''
-                                 }`}
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`}
                         </CardDescription>
-                        {/* no inline error here to avoid duplicating the toast */}
                     </CardHeader>
 
                     <CardContent>
                         {/* Institution selector + Search */}
-                        <div className="mb-4 flex flex-col gap-3 md:flex-row">
-                            <div className="w-full md:w-96">
+                        <div className="mb-4 flex flex-col gap-3 lg:flex-row">
+                            {/* Institution Dropdown */}
+                            <div className="w-full lg:w-2/3">
                                 <Select
                                     value={selectedInstCode ?? ''}
                                     onValueChange={onSelectInst}
                                 >
-                                    <SelectTrigger aria-label="Choose institution">
+                                    <SelectTrigger
+                                        aria-label="Choose institution"
+                                        className="w-full"
+                                    >
                                         <SelectValue placeholder="Choose an institution…" />
                                     </SelectTrigger>
-                                    <SelectContent className="max-h-80">
+                                    <SelectContent className="max-h-80 max-w-[800px]">
                                         {hei.map((h) => (
                                             <SelectItem
                                                 key={h.instCode}
                                                 value={h.instCode}
+                                                className="py-2.5"
                                             >
-                                                {h.instCode} — {h.instName}
+                                                <span className="whitespace-nowrap">
+                                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                        {h.instCode}
+                                                    </span>
+                                                    <span className="text-muted-foreground"> — </span>
+                                                    <span>{h.instName}</span>
+                                                </span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <div className="relative md:flex-1">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                            {/* Search Input */}
+                            <div className="relative w-full lg:w-1/3">
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                                 <Input
                                     type="text"
                                     placeholder="Search by program name, institution, or permit number..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-10"
+                                    className="w-full pl-10"
                                     aria-label="Search programs"
                                 />
                             </div>
@@ -198,7 +196,7 @@ export default function ProgramIndex({
                                         <TableRow>
                                             <TableCell
                                                 colSpan={6}
-                                                className="py-8 text-center text-gray-500"
+                                                className="py-8 text-center text-gray-500 dark:text-gray-400"
                                             >
                                                 No programs available
                                             </TableCell>
@@ -207,44 +205,19 @@ export default function ProgramIndex({
                                         filteredPrograms.map((program) => (
                                             <TableRow
                                                 key={program.id}
-                                                className="hover:bg-gray-50"
+                                                className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                             >
-                                                <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-sm font-medium">
-                                                            {
-                                                                program
-                                                                    .institution
-                                                                    .name
-                                                            }
-                                                        </span>
-                                                        <Badge
-                                                            className={getInstitutionTypeColor(
-                                                                program
-                                                                    .institution
-                                                                    .type ??
-                                                                    null,
-                                                            )}
-                                                            variant="outline"
-                                                        >
-                                                            {fmt(
-                                                                program
-                                                                    .institution
-                                                                    .type,
-                                                            )}
-                                                        </Badge>
-                                                    </div>
+                                                {/* FIXED: Removed badge, just showing institution name */}
+                                                <TableCell className="font-medium">
+                                                    {program.institution.name}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-sm text-gray-600">
-                                                    {
-                                                        program.institution
-                                                            .institution_code
-                                                    }
+                                                <TableCell className="font-mono text-sm text-gray-600 dark:text-gray-400">
+                                                    {program.institution.institution_code}
                                                 </TableCell>
                                                 <TableCell className="font-medium">
                                                     {program.program_name}
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-600">
+                                                <TableCell className="text-sm text-gray-600 dark:text-gray-400">
                                                     {program.major || '-'}
                                                 </TableCell>
                                                 <TableCell>
@@ -254,12 +227,10 @@ export default function ProgramIndex({
                                                                 program.program_type,
                                                             )}
                                                         >
-                                                            {
-                                                                program.program_type
-                                                            }
+                                                            {program.program_type}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-sm text-gray-600">
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">
                                                             -
                                                         </span>
                                                     )}
