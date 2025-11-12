@@ -1,7 +1,7 @@
 import AppLayoutTemplate from '@/layouts/app/app-header-layout';
 import { type BreadcrumbItem } from '@/types';
 import { type ReactNode } from 'react';
-import { Toaster } from 'sonner'; // ⟵ add this
+import { Toaster } from '@/components/ui/sonner'; // ⟵ CORRECT: Toaster from shadcn wrapper
 
 interface AppLayoutProps {
     children: ReactNode;
@@ -19,7 +19,6 @@ export default function AppLayout({
                 {children}
             </AppLayoutTemplate>
 
-            {/* Mount once at the root of your app UI */}
             <Toaster richColors position="top-right" />
         </>
     );
