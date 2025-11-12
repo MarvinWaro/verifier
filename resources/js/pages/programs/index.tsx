@@ -38,15 +38,15 @@ interface HeiItem {
 interface Institution {
     institution_code: string;
     name: string;
-    type: string | null; // placeholder from server may be '-' or null
+    type: string | null;
 }
 
 interface Program {
     id: number;
     program_name: string;
     major: string | null;
-    program_type: string | null; // nullable
-    permit_number: string | null; // nullable
+    program_type: string | null;
+    permit_number: string | null;
     institution: Institution;
 }
 
@@ -134,47 +134,58 @@ export default function ProgramIndex({
                         <CardDescription>
                             {selectedInstCode
                                 ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
-                                    filteredPrograms.length !== 1 ? 's' : ''
-                                }`
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`
                                 : `Total of ${filteredPrograms.length} program${
-                                    filteredPrograms.length !== 1 ? 's' : ''
-                                 }`}
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`}
                         </CardDescription>
-                        {/* no inline error here to avoid duplicating the toast */}
                     </CardHeader>
 
                     <CardContent>
                         {/* Institution selector + Search */}
-                        <div className="mb-4 flex flex-col gap-3 md:flex-row">
-                            <div className="w-full md:w-96">
+                        <div className="mb-4 flex flex-col gap-3 lg:flex-row">
+                            {/* Institution Dropdown - BLUE CODE, theme-aware */}
+                            <div className="w-full lg:w-2/3">
                                 <Select
                                     value={selectedInstCode ?? ''}
                                     onValueChange={onSelectInst}
                                 >
-                                    <SelectTrigger aria-label="Choose institution">
+                                    <SelectTrigger
+                                        aria-label="Choose institution"
+                                        className="w-full"
+                                    >
                                         <SelectValue placeholder="Choose an institution…" />
                                     </SelectTrigger>
-                                    <SelectContent className="max-h-80">
+                                    <SelectContent className="max-h-80 max-w-[800px]">
                                         {hei.map((h) => (
                                             <SelectItem
                                                 key={h.instCode}
                                                 value={h.instCode}
+                                                className="py-2.5"
                                             >
-                                                {h.instCode} — {h.instName}
+                                                <span className="whitespace-nowrap">
+                                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                        {h.instCode}
+                                                    </span>
+                                                    <span className="text-muted-foreground"> — </span>
+                                                    <span>{h.instName}</span>
+                                                </span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            <div className="relative md:flex-1">
+                            {/* Search Input */}
+                            <div className="relative w-full lg:w-1/3">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                 <Input
                                     type="text"
                                     placeholder="Search by program name, institution, or permit number..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-10"
+                                    className="w-full pl-10"
                                     aria-label="Search programs"
                                 />
                             </div>
