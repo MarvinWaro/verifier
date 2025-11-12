@@ -20,7 +20,8 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { ChevronDown, GraduationCap, Search } from 'lucide-react';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Program {
     id: number;
@@ -68,6 +69,12 @@ export default function InstitutionIndex({ institutions, error }: Props) {
 
     // one controller per instCode to avoid overlapping requests
     const controllersRef = useRef<Record<string, AbortController>>({});
+
+    useEffect(() => {
+        if (error) {
+            toast.error('Failed to load institutions', { description: error });
+        }
+    }, [error]);
 
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
@@ -133,6 +140,9 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                 [instCode]: 'Unable to load programs.',
             }));
             setLoadedPrograms((s) => ({ ...s, [instCode]: [] }));
+            toast.error('Unable to load programs', {
+                description: 'Please try again.',
+            });
         } finally {
             setLoading((s) => ({ ...s, [instCode]: false }));
         }
@@ -143,8 +153,6 @@ export default function InstitutionIndex({ institutions, error }: Props) {
         setExpandedId(newId);
         if (newId === row.id) {
             void loadPrograms(row.institution_code);
-        } else {
-            // collapse: do nothing; we keep the cache
         }
     };
 

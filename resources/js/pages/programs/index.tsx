@@ -27,7 +27,8 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 interface HeiItem {
     instCode: string;
@@ -65,8 +66,15 @@ export default function ProgramIndex({
     programs,
     hei,
     selectedInstCode,
+    error,
 }: Props) {
     const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        if (error) {
+            toast.error('Failed to load programs', { description: error });
+        }
+    }, [error]);
 
     const filteredPrograms = useMemo(() => {
         const q = search.toLowerCase();
@@ -127,6 +135,9 @@ export default function ProgramIndex({
                                       filteredPrograms.length !== 1 ? 's' : ''
                                   }`}
                         </CardDescription>
+                        {error ? (
+                            <p className="mt-2 text-sm text-red-600">{error}</p>
+                        ) : null}
                     </CardHeader>
                     <CardContent>
                         {/* Institution selector + Search */}
