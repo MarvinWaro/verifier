@@ -28,7 +28,7 @@ interface Program {
     program_name: string;
     major: string | null;
     program_type: string | null;
-    permit_number: string;
+    permit_number: string | null; // <— nullable: API can return empty
 }
 
 interface Institution {
@@ -168,10 +168,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                             Total of {institutions.length} institution
                             {institutions.length !== 1 ? 's' : ''} registered
                         </CardDescription>
-
-                        {error ? (
-                            <p className="mt-2 text-sm text-red-600">{error}</p>
-                        ) : null}
+                        {/* Inline error removed to avoid duplicate with toast */}
                     </CardHeader>
 
                     <CardContent>
@@ -185,6 +182,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-10"
+                                    aria-label="Search institutions"
                                 />
                             </div>
                         </div>
@@ -201,7 +199,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                         <TableHead>X</TableHead>
                                         <TableHead>Y</TableHead>
                                         <TableHead className="w-12 text-right">
-                                            {/* chevron only */}
+                                            {/* chevron button only */}
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -228,14 +226,12 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                             const errText =
                                                 loadError[instCode] || null;
 
+                                            const isExpanded =
+                                                expandedId === row.id;
+
                                             return (
                                                 <React.Fragment key={row.id}>
-                                                    <TableRow
-                                                        className="cursor-pointer hover:bg-gray-50"
-                                                        onClick={() =>
-                                                            onRowToggle(row)
-                                                        }
-                                                    >
+                                                    <TableRow className="hover:bg-gray-50">
                                                         <TableCell className="font-medium">
                                                             {
                                                                 row.institution_code
@@ -265,18 +261,35 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            <ChevronDown
-                                                                className={`mx-auto h-4 w-4 transition-transform ${
-                                                                    expandedId ===
-                                                                    row.id
-                                                                        ? 'rotate-180'
-                                                                        : ''
-                                                                }`}
-                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    onRowToggle(
+                                                                        row,
+                                                                    )
+                                                                }
+                                                                aria-label={
+                                                                    isExpanded
+                                                                        ? 'Collapse programs list'
+                                                                        : 'Expand programs list'
+                                                                }
+                                                                aria-expanded={
+                                                                    isExpanded
+                                                                }
+                                                                className="inline-flex items-center justify-center rounded p-1 hover:bg-gray-100"
+                                                            >
+                                                                <ChevronDown
+                                                                    className={`mx-auto h-4 w-4 transition-transform ${
+                                                                        isExpanded
+                                                                            ? 'rotate-180'
+                                                                            : ''
+                                                                    }`}
+                                                                />
+                                                            </button>
                                                         </TableCell>
                                                     </TableRow>
 
-                                                    {expandedId === row.id && (
+                                                    {isExpanded && (
                                                         <TableRow>
                                                             <TableCell
                                                                 colSpan={7}

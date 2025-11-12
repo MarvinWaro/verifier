@@ -38,15 +38,15 @@ interface HeiItem {
 interface Institution {
     institution_code: string;
     name: string;
-    type: string;
+    type: string | null; // placeholder from server may be '-' or null
 }
 
 interface Program {
     id: number;
     program_name: string;
     major: string | null;
-    program_type: string;
-    permit_number: string;
+    program_type: string | null; // nullable
+    permit_number: string | null; // nullable
     institution: Institution;
 }
 
@@ -86,7 +86,7 @@ export default function ProgramIndex({
         );
     }, [programs, search]);
 
-    const getProgramTypeColor = (type: string) => {
+    const getProgramTypeColor = (type: string | null) => {
         switch (type) {
             case 'Board':
                 return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100';
@@ -97,7 +97,7 @@ export default function ProgramIndex({
         }
     };
 
-    const getInstitutionTypeColor = (type: string) => {
+    const getInstitutionTypeColor = (type: string | null) => {
         switch (type) {
             case 'Private':
                 return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
@@ -118,6 +118,11 @@ export default function ProgramIndex({
         );
     };
 
+    const fmt = (v: string | number | null | undefined) =>
+        v === null || v === undefined || String(v).trim() === ''
+            ? '-'
+            : String(v);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Programs" />
@@ -129,16 +134,15 @@ export default function ProgramIndex({
                         <CardDescription>
                             {selectedInstCode
                                 ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
-                                      filteredPrograms.length !== 1 ? 's' : ''
-                                  }`
+                                    filteredPrograms.length !== 1 ? 's' : ''
+                                }`
                                 : `Total of ${filteredPrograms.length} program${
-                                      filteredPrograms.length !== 1 ? 's' : ''
-                                  }`}
+                                    filteredPrograms.length !== 1 ? 's' : ''
+                                 }`}
                         </CardDescription>
-                        {error ? (
-                            <p className="mt-2 text-sm text-red-600">{error}</p>
-                        ) : null}
+                        {/* no inline error here to avoid duplicating the toast */}
                     </CardHeader>
+
                     <CardContent>
                         {/* Institution selector + Search */}
                         <div className="mb-4 flex flex-col gap-3 md:flex-row">
@@ -147,7 +151,7 @@ export default function ProgramIndex({
                                     value={selectedInstCode ?? ''}
                                     onValueChange={onSelectInst}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger aria-label="Choose institution">
                                         <SelectValue placeholder="Choose an institution…" />
                                     </SelectTrigger>
                                     <SelectContent className="max-h-80">
@@ -171,6 +175,7 @@ export default function ProgramIndex({
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-10"
+                                    aria-label="Search programs"
                                 />
                             </div>
                         </div>
@@ -217,15 +222,16 @@ export default function ProgramIndex({
                                                             className={getInstitutionTypeColor(
                                                                 program
                                                                     .institution
-                                                                    .type,
+                                                                    .type ??
+                                                                    null,
                                                             )}
                                                             variant="outline"
                                                         >
-                                                            {
+                                                            {fmt(
                                                                 program
                                                                     .institution
-                                                                    .type
-                                                            }
+                                                                    .type,
+                                                            )}
                                                         </Badge>
                                                     </div>
                                                 </TableCell>
@@ -242,17 +248,24 @@ export default function ProgramIndex({
                                                     {program.major || '-'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge
-                                                        className={getProgramTypeColor(
-                                                            program.program_type,
-                                                        )}
-                                                    >
-                                                        {program.program_type}
-                                                    </Badge>
+                                                    {program.program_type ? (
+                                                        <Badge
+                                                            className={getProgramTypeColor(
+                                                                program.program_type,
+                                                            )}
+                                                        >
+                                                            {
+                                                                program.program_type
+                                                            }
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-600">
+                                                            -
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="font-mono text-sm">
-                                                    {program.permit_number ||
-                                                        '-'}
+                                                    {fmt(program.permit_number)}
                                                 </TableCell>
                                             </TableRow>
                                         ))
