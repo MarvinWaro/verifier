@@ -20,7 +20,8 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { ChevronDown, GraduationCap, Search } from 'lucide-react';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Program {
     id: number;
@@ -35,19 +36,17 @@ interface Institution {
     institution_code: string;
     name: string;
 
-    ownership_sector: string | null;
-    ownership_type: string | null;
-    x_coordinate: string | null;
-    y_coordinate: string | null;
+    ownership_sector: string | null; // "PUBLIC" | "PRIVATE"
+    ownership_type: string | null; // "SUC" | "LUC" | etc.
+    x_coordinate: string | null; // latitude
+    y_coordinate: string | null; // longitude
 
-    // programs are NOT preloaded (lazy)
-    programs: Program[];
+    programs: Program[]; // not preloaded
 }
 
 interface Props {
     institutions: Institution[];
-    // optional error from server (shown as a banner if present)
-    error?: string;
+    error?: string | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -59,7 +58,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
-    // cache of loaded programs per instCode
+    // cache loaded program lists & loading/error flags per instCode
     const [loadedPrograms, setLoadedPrograms] = useState<
         Record<string, Program[]>
     >({});
@@ -68,8 +67,14 @@ export default function InstitutionIndex({ institutions, error }: Props) {
         {},
     );
 
-    // track active requests so we can abort on collapse / navigation
+    // one controller per instCode to avoid overlapping requests
     const controllersRef = useRef<Record<string, AbortController>>({});
+
+    useEffect(() => {
+        if (error) {
+            toast.error('Failed to load institutions', { description: error });
+        }
+    }, [error]);
 
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
@@ -91,10 +96,9 @@ export default function InstitutionIndex({ institutions, error }: Props) {
             : String(v);
 
     async function loadPrograms(instCode: string) {
-        // already loaded or actively loading => skip
         if (loadedPrograms[instCode] || loading[instCode]) return;
 
-        // make sure any previous controller is cleared
+        // abort any in-flight for this inst
         if (controllersRef.current[instCode]) {
             try {
                 controllersRef.current[instCode].abort();
@@ -103,6 +107,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
 
         const controller = new AbortController();
         controllersRef.current[instCode] = controller;
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s
 
         try {
             setLoading((s) => ({ ...s, [instCode]: true }));
@@ -116,53 +121,37 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                 },
             );
 
+            clearTimeout(timeoutId);
+
             if (!res.ok) {
-                // backend may return JSON with message
-                let message = `Request failed (${res.status})`;
-                try {
-                    const j = await res.json();
-                    if (j?.message) message = j.message;
-                } catch {}
-                throw new Error(message);
+                const text = await res.text().catch(() => '');
+                throw new Error(text || `Request failed (${res.status})`);
             }
 
-            const json = await res.json();
+            const json = await res.json().catch(() => ({ data: [] }));
             const items: Program[] = json?.data ?? [];
             setLoadedPrograms((s) => ({ ...s, [instCode]: items }));
-        } catch (err: any) {
-            // ignore abort noise
-            if (err?.name === 'AbortError') return;
-            console.error(err);
+        } catch (e: any) {
+            clearTimeout(timeoutId);
+            if (e?.name === 'AbortError') return;
+            console.error(e);
             setLoadError((s) => ({
                 ...s,
-                [instCode]: err?.message || 'Failed to load programs.',
+                [instCode]: 'Unable to load programs.',
             }));
             setLoadedPrograms((s) => ({ ...s, [instCode]: [] }));
+            toast.error('Unable to load programs', {
+                description: 'Please try again.',
+            });
         } finally {
             setLoading((s) => ({ ...s, [instCode]: false }));
-            // cleanup controller for this instCode
-            delete controllersRef.current[instCode];
         }
     }
 
     const onRowToggle = (row: Institution) => {
-        const opening = expandedId !== row.id;
-        const newId = opening ? row.id : null;
-
-        // if closing, abort any in-flight request for this instCode
-        if (!opening) {
-            const c = controllersRef.current[row.institution_code];
-            if (c) {
-                try {
-                    c.abort();
-                } catch {}
-                delete controllersRef.current[row.institution_code];
-            }
-        }
-
+        const newId = expandedId === row.id ? null : row.id;
         setExpandedId(newId);
-
-        if (opening) {
+        if (newId === row.id) {
             void loadPrograms(row.institution_code);
         }
     };
@@ -180,11 +169,9 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                             {institutions.length !== 1 ? 's' : ''} registered
                         </CardDescription>
 
-                        {error && (
-                            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                {error}
-                            </div>
-                        )}
+                        {error ? (
+                            <p className="mt-2 text-sm text-red-600">{error}</p>
+                        ) : null}
                     </CardHeader>
 
                     <CardContent>
@@ -214,7 +201,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                         <TableHead>X</TableHead>
                                         <TableHead>Y</TableHead>
                                         <TableHead className="w-12 text-right">
-                                            {/* arrow only (no count) */}
+                                            {/* chevron only */}
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -232,16 +219,14 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                         </TableRow>
                                     ) : (
                                         filtered.map((row) => {
+                                            const instCode =
+                                                row.institution_code;
                                             const progs =
-                                                loadedPrograms[
-                                                    row.institution_code
-                                                ];
+                                                loadedPrograms[instCode];
                                             const isLoading =
-                                                loading[
-                                                    row.institution_code
-                                                ] === true;
-                                            const errMsg =
-                                                loadError[row.institution_code];
+                                                loading[instCode] === true;
+                                            const errText =
+                                                loadError[instCode] || null;
 
                                             return (
                                                 <React.Fragment key={row.id}>
@@ -303,10 +288,10 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                             Loading
                                                                             programs…
                                                                         </p>
-                                                                    ) : errMsg ? (
+                                                                    ) : errText ? (
                                                                         <p className="text-sm text-red-600">
                                                                             {
-                                                                                errMsg
+                                                                                errText
                                                                             }
                                                                         </p>
                                                                     ) : !progs ||

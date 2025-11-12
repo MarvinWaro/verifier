@@ -27,7 +27,8 @@ import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 interface HeiItem {
     instCode: string;
@@ -53,6 +54,7 @@ interface Props {
     programs: Program[];
     hei: HeiItem[];
     selectedInstCode: string | null;
+    error?: string | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -64,8 +66,15 @@ export default function ProgramIndex({
     programs,
     hei,
     selectedInstCode,
+    error,
 }: Props) {
     const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        if (error) {
+            toast.error('Failed to load programs', { description: error });
+        }
+    }, [error]);
 
     const filteredPrograms = useMemo(() => {
         const q = search.toLowerCase();
@@ -102,14 +111,10 @@ export default function ProgramIndex({
     };
 
     const onSelectInst = (val: string) => {
-        // No Ziggy; use a plain path
         router.get(
             '/programs',
             { instCode: val },
-            {
-                preserveScroll: true,
-                preserveState: true,
-            },
+            { preserveScroll: true, preserveState: true },
         );
     };
 
@@ -123,9 +128,16 @@ export default function ProgramIndex({
                         <CardTitle>All Programs</CardTitle>
                         <CardDescription>
                             {selectedInstCode
-                                ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${filteredPrograms.length !== 1 ? 's' : ''}`
-                                : `Total of ${filteredPrograms.length} program${filteredPrograms.length !== 1 ? 's' : ''}`}
+                                ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`
+                                : `Total of ${filteredPrograms.length} program${
+                                      filteredPrograms.length !== 1 ? 's' : ''
+                                  }`}
                         </CardDescription>
+                        {error ? (
+                            <p className="mt-2 text-sm text-red-600">{error}</p>
+                        ) : null}
                     </CardHeader>
                     <CardContent>
                         {/* Institution selector + Search */}
