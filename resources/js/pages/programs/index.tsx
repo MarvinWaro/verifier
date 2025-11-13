@@ -143,8 +143,8 @@ export default function ProgramIndex({
                     </CardHeader>
 
                     <CardContent>
-                        {/* Institution selector + Search */}
-                        <div className="mb-4 flex flex-col gap-3 lg:flex-row">
+                        {/* Institution selector + Search - IMPROVED SPACING */}
+                        <div className="mb-6 flex flex-col gap-3 lg:flex-row">
                             {/* Institution Dropdown with Search */}
                             <div className="w-full lg:w-2/3">
                                 <Popover open={open} onOpenChange={setOpen}>
@@ -154,9 +154,9 @@ export default function ProgramIndex({
                                             role="combobox"
                                             aria-expanded={open}
                                             aria-label="Choose institution"
-                                            className="w-full justify-between"
+                                            className="h-10 w-full justify-between"
                                         >
-                                            <span className="truncate">
+                                            <span className="truncate text-left">
                                                 {selectedInstitution ? (
                                                     <>
                                                         <span className="font-semibold text-blue-600 dark:text-blue-400">
@@ -174,11 +174,11 @@ export default function ProgramIndex({
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[600px] p-0" align="start">
+                                    <PopoverContent className="w-[650px] p-0" align="start">
                                         <Command>
                                             <CommandInput
                                                 placeholder="Search institutions..."
-                                                className="h-9"
+                                                className="h-10"
                                             />
                                             <CommandList>
                                                 <CommandEmpty>No institution found.</CommandEmpty>
@@ -188,25 +188,23 @@ export default function ProgramIndex({
                                                             key={h.instCode}
                                                             value={`${h.instCode} ${h.instName}`}
                                                             onSelect={() => onSelectInst(h.instCode)}
-                                                            className="flex items-center justify-between"
+                                                            className="flex items-center gap-3 py-3"
                                                         >
-                                                            <div className="flex items-center gap-2">
-                                                                <Check
-                                                                    className={cn(
-                                                                        'h-4 w-4',
-                                                                        selectedInstCode === h.instCode
-                                                                            ? 'opacity-100'
-                                                                            : 'opacity-0',
-                                                                    )}
-                                                                />
-                                                                <span>
-                                                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                                        {h.instCode}
-                                                                    </span>
-                                                                    <span className="text-muted-foreground"> — </span>
-                                                                    <span>{h.instName}</span>
+                                                            <Check
+                                                                className={cn(
+                                                                    'h-4 w-4 shrink-0',
+                                                                    selectedInstCode === h.instCode
+                                                                        ? 'opacity-100'
+                                                                        : 'opacity-0',
+                                                                )}
+                                                            />
+                                                            <span className="flex-1">
+                                                                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                                    {h.instCode}
                                                                 </span>
-                                                            </div>
+                                                                <span className="text-muted-foreground"> — </span>
+                                                                <span>{h.instName}</span>
+                                                            </span>
                                                         </CommandItem>
                                                     ))}
                                                 </CommandGroup>
@@ -216,31 +214,31 @@ export default function ProgramIndex({
                                 </Popover>
                             </div>
 
-                            {/* Search Input */}
+                            {/* Search Input - MATCHED HEIGHT */}
                             <div className="relative w-full lg:w-1/3">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Search by program name, institution, or permit number..."
+                                    placeholder="Search programs..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full pl-10"
+                                    className="h-10 w-full pl-10"
                                     aria-label="Search programs"
                                 />
                             </div>
                         </div>
 
-                        {/* Table */}
+                        {/* Table - IMPROVED SPACING */}
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Institution</TableHead>
-                                        <TableHead>Institution Code</TableHead>
-                                        <TableHead>Program Name</TableHead>
-                                        <TableHead>Major</TableHead>
-                                        <TableHead>Program Type</TableHead>
-                                        <TableHead>Permit Number</TableHead>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="h-12">Institution</TableHead>
+                                        <TableHead className="h-12">Institution Code</TableHead>
+                                        <TableHead className="h-12">Program Name</TableHead>
+                                        <TableHead className="h-12">Major</TableHead>
+                                        <TableHead className="h-12">Program Type</TableHead>
+                                        <TableHead className="h-12">Permit Number</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -248,7 +246,7 @@ export default function ProgramIndex({
                                         <TableRow>
                                             <TableCell
                                                 colSpan={6}
-                                                className="py-8 text-center text-gray-500 dark:text-gray-400"
+                                                className="h-32 text-center text-gray-500 dark:text-gray-400"
                                             >
                                                 No programs available
                                             </TableCell>
@@ -259,19 +257,19 @@ export default function ProgramIndex({
                                                 key={program.id}
                                                 className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                             >
-                                                <TableCell className="font-medium">
+                                                <TableCell className="py-4 font-medium">
                                                     {program.institution.name}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-sm text-gray-600 dark:text-gray-400">
+                                                <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
                                                     {program.institution.institution_code}
                                                 </TableCell>
-                                                <TableCell className="font-medium">
+                                                <TableCell className="py-4 font-medium">
                                                     {program.program_name}
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                                                <TableCell className="py-4 text-sm text-gray-600 dark:text-gray-400">
                                                     {program.major || '-'}
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="py-4">
                                                     {program.program_type ? (
                                                         <Badge
                                                             className={getProgramTypeColor(
@@ -286,7 +284,7 @@ export default function ProgramIndex({
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-sm">
+                                                <TableCell className="py-4 font-mono text-sm">
                                                     {fmt(program.permit_number)}
                                                 </TableCell>
                                             </TableRow>
