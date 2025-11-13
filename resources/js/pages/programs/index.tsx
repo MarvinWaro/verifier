@@ -6,14 +6,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import {
     Table,
     TableBody,
@@ -22,13 +28,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Search } from 'lucide-react';
+import { Check, ChevronsUpDown, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface HeiItem {
     instCode: string;
@@ -69,6 +77,7 @@ export default function ProgramIndex({
     error,
 }: Props) {
     const [search, setSearch] = useState('');
+    const [open, setOpen] = useState(false);
 
     useEffect(() => {
         if (error) {
@@ -98,6 +107,7 @@ export default function ProgramIndex({
     };
 
     const onSelectInst = (val: string) => {
+        setOpen(false);
         router.get(
             '/programs',
             { instCode: val },
@@ -109,6 +119,9 @@ export default function ProgramIndex({
         v === null || v === undefined || String(v).trim() === ''
             ? '-'
             : String(v);
+
+    // Get selected institution display name
+    const selectedInstitution = hei.find((h) => h.instCode === selectedInstCode);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -130,65 +143,102 @@ export default function ProgramIndex({
                     </CardHeader>
 
                     <CardContent>
-                        {/* Institution selector + Search */}
-                        <div className="mb-4 flex flex-col gap-3 lg:flex-row">
-                            {/* Institution Dropdown */}
+                        {/* Institution selector + Search - IMPROVED SPACING */}
+                        <div className="mb-6 flex flex-col gap-3 lg:flex-row">
+                            {/* Institution Dropdown with Search */}
                             <div className="w-full lg:w-2/3">
-                                <Select
-                                    value={selectedInstCode ?? ''}
-                                    onValueChange={onSelectInst}
-                                >
-                                    <SelectTrigger
-                                        aria-label="Choose institution"
-                                        className="w-full"
-                                    >
-                                        <SelectValue placeholder="Choose an institution…" />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-h-80 max-w-[800px]">
-                                        {hei.map((h) => (
-                                            <SelectItem
-                                                key={h.instCode}
-                                                value={h.instCode}
-                                                className="py-2.5"
-                                            >
-                                                <span className="whitespace-nowrap">
-                                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                        {h.instCode}
+                                <Popover open={open} onOpenChange={setOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={open}
+                                            aria-label="Choose institution"
+                                            className="h-10 w-full justify-between"
+                                        >
+                                            <span className="truncate text-left">
+                                                {selectedInstitution ? (
+                                                    <>
+                                                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                            {selectedInstitution.instCode}
+                                                        </span>
+                                                        <span className="text-muted-foreground"> — </span>
+                                                        <span>{selectedInstitution.instName}</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-muted-foreground">
+                                                        Choose an institution…
                                                     </span>
-                                                    <span className="text-muted-foreground"> — </span>
-                                                    <span>{h.instName}</span>
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                                )}
+                                            </span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[650px] p-0" align="start">
+                                        <Command>
+                                            <CommandInput
+                                                placeholder="Search institutions..."
+                                                className="h-10"
+                                            />
+                                            <CommandList>
+                                                <CommandEmpty>No institution found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {hei.map((h) => (
+                                                        <CommandItem
+                                                            key={h.instCode}
+                                                            value={`${h.instCode} ${h.instName}`}
+                                                            onSelect={() => onSelectInst(h.instCode)}
+                                                            className="flex items-center gap-3 py-3"
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    'h-4 w-4 shrink-0',
+                                                                    selectedInstCode === h.instCode
+                                                                        ? 'opacity-100'
+                                                                        : 'opacity-0',
+                                                                )}
+                                                            />
+                                                            <span className="flex-1">
+                                                                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                                                    {h.instCode}
+                                                                </span>
+                                                                <span className="text-muted-foreground"> — </span>
+                                                                <span>{h.instName}</span>
+                                                            </span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
 
-                            {/* Search Input */}
+                            {/* Search Input - MATCHED HEIGHT */}
                             <div className="relative w-full lg:w-1/3">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                                 <Input
                                     type="text"
-                                    placeholder="Search by program name, institution, or permit number..."
+                                    placeholder="Search programs..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full pl-10"
+                                    className="h-10 w-full pl-10"
                                     aria-label="Search programs"
                                 />
                             </div>
                         </div>
 
-                        {/* Table */}
+                        {/* Table - IMPROVED SPACING */}
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Institution</TableHead>
-                                        <TableHead>Institution Code</TableHead>
-                                        <TableHead>Program Name</TableHead>
-                                        <TableHead>Major</TableHead>
-                                        <TableHead>Program Type</TableHead>
-                                        <TableHead>Permit Number</TableHead>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="h-12">Institution</TableHead>
+                                        <TableHead className="h-12">Institution Code</TableHead>
+                                        <TableHead className="h-12">Program Name</TableHead>
+                                        <TableHead className="h-12">Major</TableHead>
+                                        <TableHead className="h-12">Program Type</TableHead>
+                                        <TableHead className="h-12">Permit Number</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -196,7 +246,7 @@ export default function ProgramIndex({
                                         <TableRow>
                                             <TableCell
                                                 colSpan={6}
-                                                className="py-8 text-center text-gray-500 dark:text-gray-400"
+                                                className="h-32 text-center text-gray-500 dark:text-gray-400"
                                             >
                                                 No programs available
                                             </TableCell>
@@ -207,20 +257,19 @@ export default function ProgramIndex({
                                                 key={program.id}
                                                 className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                             >
-                                                {/* FIXED: Removed badge, just showing institution name */}
-                                                <TableCell className="font-medium">
+                                                <TableCell className="py-4 font-medium">
                                                     {program.institution.name}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-sm text-gray-600 dark:text-gray-400">
+                                                <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
                                                     {program.institution.institution_code}
                                                 </TableCell>
-                                                <TableCell className="font-medium">
+                                                <TableCell className="py-4 font-medium">
                                                     {program.program_name}
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                                                <TableCell className="py-4 text-sm text-gray-600 dark:text-gray-400">
                                                     {program.major || '-'}
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="py-4">
                                                     {program.program_type ? (
                                                         <Badge
                                                             className={getProgramTypeColor(
@@ -235,7 +284,7 @@ export default function ProgramIndex({
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="font-mono text-sm">
+                                                <TableCell className="py-4 font-mono text-sm">
                                                     {fmt(program.permit_number)}
                                                 </TableCell>
                                             </TableRow>

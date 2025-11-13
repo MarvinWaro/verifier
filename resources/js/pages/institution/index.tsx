@@ -28,20 +28,18 @@ interface Program {
     program_name: string;
     major: string | null;
     program_type: string | null;
-    permit_number: string | null; // <— nullable: API can return empty
+    permit_number: string | null;
 }
 
 interface Institution {
     id: number;
     institution_code: string;
     name: string;
-
-    ownership_sector: string | null; // "PUBLIC" | "PRIVATE"
-    ownership_type: string | null; // "SUC" | "LUC" | etc.
-    x_coordinate: string | null; // latitude
-    y_coordinate: string | null; // longitude
-
-    programs: Program[]; // not preloaded
+    ownership_sector: string | null;
+    ownership_type: string | null;
+    x_coordinate: string | null;
+    y_coordinate: string | null;
+    programs: Program[];
 }
 
 interface Props {
@@ -57,8 +55,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function InstitutionIndex({ institutions, error }: Props) {
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
-
-    // cache loaded program lists & loading/error flags per instCode
     const [loadedPrograms, setLoadedPrograms] = useState<
         Record<string, Program[]>
     >({});
@@ -67,7 +63,6 @@ export default function InstitutionIndex({ institutions, error }: Props) {
         {},
     );
 
-    // one controller per instCode to avoid overlapping requests
     const controllersRef = useRef<Record<string, AbortController>>({});
 
     useEffect(() => {
@@ -76,19 +71,63 @@ export default function InstitutionIndex({ institutions, error }: Props) {
         }
     }, [error]);
 
+    useEffect(() => {
+        return () => {
+            Object.values(controllersRef.current).forEach((controller) => {
+                try {
+                    controller.abort();
+                } catch {}
+            });
+        };
+    }, []);
+
     const filtered = useMemo(() => {
         const q = search.toLowerCase();
         return institutions.filter(
             (i) =>
                 i.name.toLowerCase().includes(q) ||
-                i.institution_code.includes(search),
+                i.institution_code.toLowerCase().includes(q),
         );
     }, [institutions, search]);
 
-    const getProgramTypeColor = (type: string | null) =>
-        type === 'Board'
-            ? 'bg-green-100 text-green-800'
-            : 'bg-gray-100 text-gray-800';
+    const getProgramTypeColor = (type: string | null) => {
+        switch (type) {
+            case 'Board':
+                return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300';
+            case 'Non-Board':
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
+            default:
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
+        }
+    };
+
+    const getOwnershipSectorBadge = (sector: string | null) => {
+        if (!sector) return null;
+        const colors =
+            sector === 'PUBLIC'
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+        return (
+            <Badge className={colors} variant="outline">
+                {sector}
+            </Badge>
+        );
+    };
+
+    const getOwnershipTypeBadge = (type: string | null) => {
+        if (!type) return null;
+        const colors =
+            type === 'SUC'
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300'
+                : type === 'LUC'
+                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+        return (
+            <Badge className={colors} variant="outline">
+                {type}
+            </Badge>
+        );
+    };
 
     const fmt = (v: string | number | null | undefined) =>
         v === null || v === undefined || String(v).trim() === ''
@@ -98,7 +137,6 @@ export default function InstitutionIndex({ institutions, error }: Props) {
     async function loadPrograms(instCode: string) {
         if (loadedPrograms[instCode] || loading[instCode]) return;
 
-        // abort any in-flight for this inst
         if (controllersRef.current[instCode]) {
             try {
                 controllersRef.current[instCode].abort();
@@ -107,7 +145,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
 
         const controller = new AbortController();
         controllersRef.current[instCode] = controller;
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         try {
             setLoading((s) => ({ ...s, [instCode]: true }));
@@ -168,47 +206,48 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                             Total of {institutions.length} institution
                             {institutions.length !== 1 ? 's' : ''} registered
                         </CardDescription>
-                        {/* Inline error removed to avoid duplicate with toast */}
                     </CardHeader>
 
                     <CardContent>
-                        {/* Search */}
-                        <div className="mb-4">
+                        <div className="mb-6">
                             <div className="relative">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                                 <Input
                                     type="text"
                                     placeholder="Search by institution code or name..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    className="pl-10"
+                                    className="h-10 pl-10"
                                     aria-label="Search institutions"
                                 />
                             </div>
                         </div>
 
-                        {/* Table */}
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Institution Code</TableHead>
-                                        <TableHead>Institution Name</TableHead>
-                                        <TableHead>Ownership Sector</TableHead>
-                                        <TableHead>Ownership Type</TableHead>
-                                        <TableHead>X</TableHead>
-                                        <TableHead>Y</TableHead>
-                                        <TableHead className="w-12 text-right">
-                                            {/* chevron button only */}
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="h-12">
+                                            Institution Code
                                         </TableHead>
+                                        <TableHead className="h-12">
+                                            Institution Name
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Ownership
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Coordinates
+                                        </TableHead>
+                                        <TableHead className="h-12 w-12 text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filtered.length === 0 ? (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={7}
-                                                className="py-8 text-center text-gray-500"
+                                                colSpan={5}
+                                                className="h-32 text-center text-gray-500 dark:text-gray-400"
                                             >
                                                 {search
                                                     ? 'No institutions found'
@@ -225,42 +264,37 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                 loading[instCode] === true;
                                             const errText =
                                                 loadError[instCode] || null;
-
                                             const isExpanded =
                                                 expandedId === row.id;
 
                                             return (
                                                 <React.Fragment key={row.id}>
-                                                    <TableRow className="hover:bg-gray-50">
-                                                        <TableCell className="font-medium">
+                                                    <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                        <TableCell className="py-4 font-mono font-medium text-blue-600 dark:text-blue-400">
                                                             {
                                                                 row.institution_code
                                                             }
                                                         </TableCell>
-                                                        <TableCell>
+                                                        <TableCell className="py-4 font-medium">
                                                             {row.name}
                                                         </TableCell>
-                                                        <TableCell>
-                                                            {fmt(
-                                                                row.ownership_sector,
-                                                            )}
+                                                        <TableCell className="py-4">
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {getOwnershipSectorBadge(
+                                                                    row.ownership_sector,
+                                                                )}
+                                                                {getOwnershipTypeBadge(
+                                                                    row.ownership_type,
+                                                                )}
+                                                            </div>
                                                         </TableCell>
-                                                        <TableCell>
-                                                            {fmt(
-                                                                row.ownership_type,
-                                                            )}
+                                                        <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
+                                                            {row.x_coordinate &&
+                                                            row.y_coordinate
+                                                                ? `${parseFloat(row.x_coordinate).toFixed(2)}, ${parseFloat(row.y_coordinate).toFixed(2)}`
+                                                                : '-'}
                                                         </TableCell>
-                                                        <TableCell className="font-mono text-sm">
-                                                            {fmt(
-                                                                row.x_coordinate,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="font-mono text-sm">
-                                                            {fmt(
-                                                                row.y_coordinate,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right">
+                                                        <TableCell className="py-4 text-right">
                                                             <button
                                                                 type="button"
                                                                 onClick={() =>
@@ -276,33 +310,30 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                 aria-expanded={
                                                                     isExpanded
                                                                 }
-                                                                className="inline-flex items-center justify-center rounded p-1 hover:bg-gray-100"
+                                                                className="inline-flex items-center justify-center rounded p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                             >
                                                                 <ChevronDown
-                                                                    className={`mx-auto h-4 w-4 transition-transform ${
-                                                                        isExpanded
-                                                                            ? 'rotate-180'
-                                                                            : ''
-                                                                    }`}
+                                                                    className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                                                                 />
                                                             </button>
                                                         </TableCell>
                                                     </TableRow>
 
+                                                    {/* REVERTED: Back to original row format */}
                                                     {isExpanded && (
                                                         <TableRow>
                                                             <TableCell
-                                                                colSpan={7}
-                                                                className="bg-gray-50 p-0"
+                                                                colSpan={5}
+                                                                className="bg-gray-50 p-0 dark:bg-gray-900"
                                                             >
                                                                 <div className="p-6">
                                                                     {isLoading ? (
-                                                                        <p className="text-sm text-gray-500">
+                                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                                                             Loading
                                                                             programs…
                                                                         </p>
                                                                     ) : errText ? (
-                                                                        <p className="text-sm text-red-600">
+                                                                        <p className="text-sm text-red-600 dark:text-red-400">
                                                                             {
                                                                                 errText
                                                                             }
@@ -310,7 +341,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                     ) : !progs ||
                                                                       progs.length ===
                                                                           0 ? (
-                                                                        <p className="text-sm text-gray-500">
+                                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                                                             No
                                                                             programs
                                                                             available
@@ -331,7 +362,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                                             key={
                                                                                                 program.id
                                                                                             }
-                                                                                            className="rounded-md border bg-white p-3 shadow-sm"
+                                                                                            className="rounded-md border bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
                                                                                         >
                                                                                             <div className="flex items-start justify-between">
                                                                                                 <div className="flex-1">
@@ -341,7 +372,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                                                         }
                                                                                                     </p>
                                                                                                     {program.major && (
-                                                                                                        <p className="mt-1 text-xs text-gray-600">
+                                                                                                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                                                                                                             Major:{' '}
                                                                                                             {
                                                                                                                 program.major
@@ -387,9 +418,8 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                             </Table>
                         </div>
 
-                        {/* results note */}
                         {search && (
-                            <p className="mt-4 text-sm text-gray-600">
+                            <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                                 Showing {filtered.length} of{' '}
                                 {institutions.length} institutions
                             </p>
