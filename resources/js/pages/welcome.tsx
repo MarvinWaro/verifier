@@ -2,7 +2,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
 import ProgramsList from '@/components/welcome/programs-list';
 import GraduateViewModal from '@/components/welcome/view-modal';
@@ -38,7 +43,7 @@ interface Graduate {
     lrn: string | null;
     philsysId: string | null;
     program?: {
-        id: number;
+        id: number | null; // match Program interface
         name: string;
         major: string | null;
         copNumber: string | null;
@@ -52,7 +57,7 @@ interface Graduate {
 }
 
 interface Program {
-    id: number;
+    id: number | null; // can be null for portal-only programs
     name: string;
     major: string | null;
     copNumber: string | null;
@@ -67,7 +72,7 @@ interface Program {
 }
 
 interface Institution {
-    id: number;
+    id: number | null; // match institution-results-list.tsx
     code: string;
     name: string;
     type: 'public' | 'private';
@@ -87,12 +92,8 @@ export default function PRCCheckLanding({ stats }: Props) {
     const [institutions, setInstitutions] = useState<Institution[]>([]);
     const [selectedInstitution, setSelectedInstitution] =
         useState<Institution | null>(null);
-    const [selectedProgram, setSelectedProgram] = useState<Program | null>(
-        null,
-    );
-    const [selectedGraduate, setSelectedGraduate] = useState<Graduate | null>(
-        null,
-    );
+    const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+    const [selectedGraduate, setSelectedGraduate] = useState<Graduate | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [loadingProgramId, setLoadingProgramId] = useState<number | null>(null);
 
@@ -133,6 +134,13 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     const handleProgramClick = async (program: Program) => {
+        // If there's no local program id (portal-only program), just show details,
+        // because /api/program/{id} would fail.
+        if (!program.id) {
+            setSelectedProgram(program);
+            return;
+        }
+
         setLoadingProgramId(program.id);
         try {
             const response = await axios.get(`/api/program/${program.id}`);
@@ -230,13 +238,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     />
                                 </div>
                             </div>
-                            <h1 className="mb-1 text-3xl font-semibold text-gray-900 md:text-4xl dark:text-white">
+                            <h1 className="mb-1 text-3xl font-semibold text-gray-900 dark:text-white md:text-4xl">
                                 Commission on Higher Education
                             </h1>
                             <p className="mt-1 mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">
                                 Regional Office XII
                             </p>
-                            <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-blue-900 md:text-5xl dark:text-blue-300">
+                            <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-blue-900 dark:text-blue-300 md:text-5xl">
                                 CHECK with CHED
                             </h2>
                             <p className="mt-3 text-base text-gray-600 dark:text-gray-400">
@@ -259,13 +267,14 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 Search by Institution
                                             </h2>
                                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                Find schools and programs offered by educational institutions
+                                                Find schools and programs offered by educational
+                                                institutions
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Search Input */}
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
                                         <div className="relative flex-1">
                                             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
                                                 <div className="grid h-10 w-10 place-items-center rounded-full bg-gray-100 dark:bg-gray-700/60">
@@ -278,15 +287,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 placeholder="Enter institution code or name..."
                                                 value={searchTerm}
                                                 onChange={(e) =>
-                                                    setSearchTerm(
-                                                        e.target.value,
-                                                    )
+                                                    setSearchTerm(e.target.value)
                                                 }
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'Enter')
                                                         handleInstitutionSearch();
                                                 }}
-                                                className="h-14 rounded-full border border-gray-200 bg-white pr-4 pl-16 text-base shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-300 focus:outline-none dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-blue-500"
+                                                className="h-14 rounded-full border border-gray-200 bg-white pl-16 pr-4 text-base shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-blue-500"
                                                 disabled={isSearching}
                                             />
                                         </div>
@@ -295,8 +302,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             onClick={handleInstitutionSearch}
                                             className="h-14 rounded-full bg-blue-600 px-8 text-base font-semibold shadow-md transition-all hover:bg-blue-700 hover:shadow-lg disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
                                             disabled={
-                                                isSearching ||
-                                                !searchTerm.trim()
+                                                isSearching || !searchTerm.trim()
                                             }
                                         >
                                             {isSearching ? (
@@ -354,17 +360,16 @@ export default function PRCCheckLanding({ stats }: Props) {
                             </Card>
 
                             {/* Results list */}
-                            {institutions.length > 0 &&
-                                !selectedInstitution && (
-                                    <div className="mt-6">
-                                        <InstitutionResultsList
-                                            institutions={institutions}
-                                            onSelectInstitution={
-                                                setSelectedInstitution
-                                            }
-                                        />
-                                    </div>
-                                )}
+                            {institutions.length > 0 && !selectedInstitution && (
+                                <div className="mt-6">
+                                    <InstitutionResultsList
+                                        institutions={institutions}
+                                        onSelectInstitution={(institution) =>
+                                            setSelectedInstitution(institution)
+                                        }
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -439,7 +444,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 </h2>
                                                 <div className="mt-2 flex flex-wrap items-center gap-3">
                                                     <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                                        Code: {selectedInstitution.code}
+                                                        Code:{' '}
+                                                        {selectedInstitution.code}
                                                     </span>
                                                     <Badge
                                                         variant={
@@ -484,7 +490,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                 </h2>
                                                 {selectedProgram.major && (
                                                     <p className="mt-1 text-base text-gray-600 dark:text-gray-400">
-                                                        <span className="font-medium">Major:</span>{' '}
+                                                        <span className="font-medium">
+                                                            Major:
+                                                        </span>{' '}
                                                         {selectedProgram.major}
                                                     </p>
                                                 )}
@@ -494,8 +502,14 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             variant="outline"
                                                             className="border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300"
                                                         >
-                                                            <span className="font-medium">COP:</span>{' '}
-                                                            <span className="ml-1 font-mono">{selectedProgram.copNumber}</span>
+                                                            <span className="font-medium">
+                                                                COP:
+                                                            </span>{' '}
+                                                            <span className="ml-1 font-mono">
+                                                                {
+                                                                    selectedProgram.copNumber
+                                                                }
+                                                            </span>
                                                         </Badge>
                                                     )}
                                                     {selectedProgram.grNumber && (
@@ -503,14 +517,26 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             variant="outline"
                                                             className="border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
                                                         >
-                                                            <span className="font-medium">GR:</span>{' '}
-                                                            <span className="ml-1 font-mono">{selectedProgram.grNumber}</span>
+                                                            <span className="font-medium">
+                                                                GR:
+                                                            </span>{' '}
+                                                            <span className="ml-1 font-mono">
+                                                                {
+                                                                    selectedProgram.grNumber
+                                                                }
+                                                            </span>
                                                         </Badge>
                                                     )}
                                                     {selectedProgram.institution && (
                                                         <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
                                                             <School className="h-4 w-4" />
-                                                            <span>{selectedProgram.institution.name}</span>
+                                                            <span>
+                                                                {
+                                                                    selectedProgram
+                                                                        .institution
+                                                                        .name
+                                                                }
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -537,7 +563,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </div>
 
                                         {/* PDF Preview Area */}
-                                        <div className="relative min-h-[600px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 dark:border-gray-600">
+                                        <div className="relative min-h-[600px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:border-gray-600 dark:from-gray-900 dark:to-gray-800">
                                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
                                             <div className="relative flex h-[600px] flex-col items-center justify-center p-8 text-center">
                                                 {/* Placeholder Icon with animation */}
@@ -583,7 +609,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                                 Major:
                                                             </span>
                                                             <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                                {selectedProgram.major}
+                                                                {
+                                                                    selectedProgram.major
+                                                                }
                                                             </span>
                                                         </div>
                                                     )}
@@ -601,13 +629,18 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         </span>
                                                         <Badge
                                                             variant={
-                                                                selectedProgram.institution?.type === 'public'
+                                                                selectedProgram
+                                                                    .institution
+                                                                    ?.type ===
+                                                                'public'
                                                                     ? 'default'
                                                                     : 'secondary'
                                                             }
                                                             className="dark:bg-gray-700 dark:text-gray-200"
                                                         >
-                                                            {selectedProgram.institution?.type === 'public'
+                                                            {selectedProgram
+                                                                .institution
+                                                                ?.type === 'public'
                                                                 ? 'Public'
                                                                 : 'Private'}
                                                         </Badge>
@@ -636,7 +669,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             Document Preview Placeholder
                                                         </p>
                                                         <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
-                                                            The actual permit document (PDF) will be displayed here once uploaded to the system.
+                                                            The actual permit document
+                                                            (PDF) will be displayed here
+                                                            once uploaded to the system.
                                                         </p>
                                                     </div>
                                                 </div>
@@ -652,11 +687,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                     <Footer />
                 </>
             )}
-
-            <GraduateViewModal
-                graduate={selectedGraduate}
-                onClose={() => setSelectedGraduate(null)}
-            />
         </div>
     );
 }
