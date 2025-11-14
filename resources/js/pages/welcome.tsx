@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/tooltip';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
 import ProgramsList from '@/components/welcome/programs-list';
-import GraduateViewModal from '@/components/welcome/view-modal';
 import Footer from '@/components/footer';
 import { useAppearance } from '@/hooks/use-appearance';
 import axios from 'axios';
@@ -43,7 +42,7 @@ interface Graduate {
     lrn: string | null;
     philsysId: string | null;
     program?: {
-        id: number | null; // match Program interface
+        id: number | null;
         name: string;
         major: string | null;
         copNumber: string | null;
@@ -57,7 +56,7 @@ interface Graduate {
 }
 
 interface Program {
-    id: number | null; // can be null for portal-only programs
+    id: number | null;
     name: string;
     major: string | null;
     copNumber: string | null;
@@ -72,7 +71,7 @@ interface Program {
 }
 
 interface Institution {
-    id: number | null; // match institution-results-list.tsx
+    id: number | null;
     code: string;
     name: string;
     type: 'public' | 'private';
@@ -90,14 +89,13 @@ interface Props {
 export default function PRCCheckLanding({ stats }: Props) {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [institutions, setInstitutions] = useState<Institution[]>([]);
-    const [selectedInstitution, setSelectedInstitution] =
-        useState<Institution | null>(null);
+    const [selectedInstitution, setSelectedInstitution] = useState<Institution | null>(null);
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [selectedGraduate, setSelectedGraduate] = useState<Graduate | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [loadingProgramId, setLoadingProgramId] = useState<number | null>(null);
+    const [loadingPrograms, setLoadingPrograms] = useState(false);
 
-    // Use the appearance hook
     const { appearance, updateAppearance } = useAppearance();
 
     const resetFilters = () => {
@@ -127,15 +125,35 @@ export default function PRCCheckLanding({ stats }: Props) {
             }
         } catch (error) {
             console.error('Search failed:', error);
-            alert('Search failed. Please check console for details.');
+            alert('Search failed. Please try again.');
         } finally {
             setIsSearching(false);
         }
     };
 
+    const handleInstitutionClick = async (institution: Institution) => {
+        setLoadingPrograms(true);
+        try {
+            const response = await axios.get(
+                `/api/institution/${institution.code}/programs`
+            );
+
+            const institutionWithPrograms = {
+                ...institution,
+                programs: response.data.programs,
+            };
+
+            setSelectedInstitution(institutionWithPrograms);
+        } catch (error) {
+            console.error('Failed to load programs:', error);
+            alert('Failed to load programs. Please try again.');
+            setSelectedInstitution(institution);
+        } finally {
+            setLoadingPrograms(false);
+        }
+    };
+
     const handleProgramClick = async (program: Program) => {
-        // If there's no local program id (portal-only program), just show details,
-        // because /api/program/{id} would fail.
         if (!program.id) {
             setSelectedProgram(program);
             return;
@@ -153,7 +171,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
-    // Theme toggle function
     const toggleTheme = () => {
         switch (appearance) {
             case 'light':
@@ -167,7 +184,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
-    // Get theme icon and tooltip
     const getThemeIcon = () => {
         switch (appearance) {
             case 'light':
@@ -185,17 +201,14 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     return (
         <div className="relative min-h-screen overflow-hidden bg-gray-50 font-sans dark:bg-gray-900">
-            {/* Background Image with Overlay */}
             <div
                 className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-18 dark:opacity-10"
                 style={{ backgroundImage: 'url(/assets/img/bg-ched.jpg)' }}
             />
             <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/65" />
 
-            {/* Header with Login and Dark Mode Toggle */}
             <header className="absolute top-0 right-0 z-20 p-6">
                 <div className="flex items-center gap-4">
-                    {/* Dark Mode Toggle with Tooltip */}
                     <TooltipProvider delayDuration={0}>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -213,7 +226,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                         </Tooltip>
                     </TooltipProvider>
 
-                    {/* Login Link */}
+                    {/* FIXED: proper opening <a> tag */}
                     <a
                         href="/login"
                         className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-100 hover:shadow-md dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
@@ -223,11 +236,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                 </div>
             </header>
 
-            {/* Landing view (no institution/program selected) */}
             {!selectedInstitution && !selectedProgram && (
                 <div className="relative z-10 flex min-h-screen flex-col px-4 pt-8 pb-16 sm:px-6 lg:px-8">
                     <div className="mx-auto w-full max-w-5xl">
-                        {/* Hero Section */}
                         <div className="mb-8 pt-4 text-center">
                             <div className="mb-4 flex justify-center">
                                 <div className="rounded-full bg-white/50 p-2 shadow-lg dark:bg-gray-800/50">
@@ -253,7 +264,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                         </div>
                     </div>
 
-                    {/* Search Card */}
                     <div className="mt-4 flex flex-1 items-start justify-center">
                         <div className="mx-auto w-full max-w-3xl">
                             <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md transition-all hover:shadow-3xl dark:bg-gray-800/90">
@@ -273,7 +283,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </div>
                                     </div>
 
-                                    {/* Search Input */}
                                     <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
                                         <div className="relative flex-1">
                                             <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
@@ -316,7 +325,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </Button>
                                     </div>
 
-                                    {/* Search Results Banner */}
                                     {institutions.length > 0 && (
                                         <div className="mt-5 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 p-4 transition-all dark:border-blue-700 dark:bg-blue-900/30">
                                             <div className="flex items-center gap-2">
@@ -359,26 +367,21 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 </CardContent>
                             </Card>
 
-                            {/* Results list */}
                             {institutions.length > 0 && !selectedInstitution && (
                                 <div className="mt-6">
                                     <InstitutionResultsList
                                         institutions={institutions}
-                                        onSelectInstitution={(institution) =>
-                                            setSelectedInstitution(institution)
-                                        }
+                                        onSelectInstitution={handleInstitutionClick}
                                     />
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Footer - Only show on landing view */}
                     <Footer />
                 </div>
             )}
 
-            {/* Selected institution or program view */}
             {(selectedInstitution || selectedProgram) && (
                 <>
                     <main className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -393,7 +396,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                             ← Back to Search
                         </Button>
 
-                        {/* Breadcrumb */}
                         <Card className="mb-6 border-0 bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:bg-gray-800/90">
                             <CardContent className="p-4">
                                 <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -429,7 +431,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                             </CardContent>
                         </Card>
 
-                        {/* Institution Details */}
                         {selectedInstitution && !selectedProgram && (
                             <>
                                 <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:shadow-xl dark:bg-gray-800/90">
@@ -467,15 +468,27 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </CardContent>
                                 </Card>
 
-                                <ProgramsList
-                                    programs={selectedInstitution.programs}
-                                    onProgramClick={handleProgramClick}
-                                    loadingProgramId={loadingProgramId}
-                                />
+                                {loadingPrograms ? (
+                                    <Card className="border-0 bg-white/90 shadow-lg backdrop-blur-sm dark:bg-gray-800/90">
+                                        <CardContent className="p-12">
+                                            <div className="flex flex-col items-center justify-center gap-4">
+                                                <Loader2 className="h-12 w-12 animate-spin text-blue-600 dark:text-blue-400" />
+                                                <p className="text-center text-gray-600 dark:text-gray-400">
+                                                    Loading programs...
+                                                </p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    <ProgramsList
+                                        programs={selectedInstitution.programs}
+                                        onProgramClick={handleProgramClick}
+                                        loadingProgramId={loadingProgramId}
+                                    />
+                                )}
                             </>
                         )}
 
-                        {/* Program Details */}
                         {selectedProgram && (
                             <>
                                 <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:shadow-xl dark:bg-gray-800/90">
@@ -545,7 +558,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </CardContent>
                                 </Card>
 
-                                {/* PDF Permit Viewer */}
                                 <Card className="mb-6 border-0 bg-white/90 shadow-lg backdrop-blur-sm dark:bg-gray-800/90">
                                     <CardContent className="p-6">
                                         <div className="mb-4 flex items-center justify-between">
@@ -562,11 +574,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             </Badge>
                                         </div>
 
-                                        {/* PDF Preview Area */}
                                         <div className="relative min-h-[600px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:border-gray-600 dark:from-gray-900 dark:to-gray-800">
                                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
                                             <div className="relative flex h-[600px] flex-col items-center justify-center p-8 text-center">
-                                                {/* Placeholder Icon with animation */}
                                                 <div className="mb-6 animate-pulse rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
                                                     <svg
                                                         className="h-16 w-16 text-blue-600 dark:text-blue-400"
@@ -583,7 +593,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                     </svg>
                                                 </div>
 
-                                                {/* Placeholder Text */}
                                                 <h4 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
                                                     Permit Document Preview
                                                 </h4>
@@ -593,7 +602,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         : `GR Number: ${selectedProgram.grNumber}`}
                                                 </p>
 
-                                                {/* Document Details */}
                                                 <div className="mb-6 w-full max-w-md space-y-3 rounded-lg bg-white p-4 shadow-md dark:bg-gray-800/90">
                                                     <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
                                                         <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -647,7 +655,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                     </div>
                                                 </div>
 
-                                                {/* Info Message */}
                                                 <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-4 text-left dark:bg-blue-900/30">
                                                     <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/40">
                                                         <svg
@@ -683,7 +690,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                         )}
                     </main>
 
-                    {/* Footer - Also show on detail views */}
                     <Footer />
                 </>
             )}
