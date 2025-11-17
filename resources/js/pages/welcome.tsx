@@ -8,6 +8,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
 import Footer from '@/components/footer';
 import { useAppearance } from '@/hooks/use-appearance';
@@ -98,8 +99,9 @@ export default function PRCCheckLanding({ stats }: Props) {
         Record<string, string | null>
     >({});
 
-    // Selected program (for permit preview)
+    // Selected program for permit preview dialog
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+    const [permitDialogOpen, setPermitDialogOpen] = useState(false);
 
     const [isSearching, setIsSearching] = useState(false);
     const [loadingProgramId, setLoadingProgramId] = useState<number | null>(null);
@@ -116,6 +118,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         setInstitutionProgramsLoading({});
         setInstitutionProgramsError({});
         setSelectedProgram(null);
+        setPermitDialogOpen(false);
         setSearchMessage(null);
         setSearchMessageType(null);
     };
@@ -127,6 +130,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         setSearchMessage(null);
         setSearchMessageType(null);
         setSelectedProgram(null);
+        setPermitDialogOpen(false);
         setExpandedInstitutionCode(null);
 
         const trimmed = searchTerm.trim();
@@ -141,9 +145,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         const isNumeric = /^\d+$/.test(trimmed);
         if (isNumeric && trimmed.length < 4) {
             setInstitutions([]);
-            setSearchMessage(
-                'For institution codes, please enter at least 4 digits (e.g., 1201).'
-            );
+            setSearchMessage('For institution codes, please enter at least 4 digits (e.g., 1201).');
             setSearchMessageType('warning');
             return;
         }
@@ -164,7 +166,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
             if (result.length === 0) {
                 setSearchMessage(
-                    `No institution found for "${trimmed}". Please check the code or name.`
+                    `No institution found for "${trimmed}". Please check the code or name.`,
                 );
                 setSearchMessageType('warning');
             } else {
@@ -196,9 +198,10 @@ export default function PRCCheckLanding({ stats }: Props) {
             const programs: Program[] = response.data.programs ?? [];
 
             setInstitutionPrograms((s) => ({ ...s, [code]: programs }));
-            // also patch institutions array so counts update
+
+            // also patch institutions array so counts update after load
             setInstitutions((prev) =>
-                prev.map((inst) => (inst.code === code ? { ...inst, programs } : inst))
+                prev.map((inst) => (inst.code === code ? { ...inst, programs } : inst)),
             );
         } catch (error) {
             console.error('Failed to load programs:', error);
@@ -218,6 +221,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         setExpandedInstitutionCode(nextCode);
         setSelectedProgram(null); // clear program preview when switching HEI
+        setPermitDialogOpen(false);
 
         if (!isSame) {
             void loadProgramsForInstitution(institution);
@@ -225,12 +229,13 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     // ------------------------------
-    // Program click -> load details & show permit preview
+    // Program click -> load details & open permit dialog
     // ------------------------------
     const handleProgramClick = async (program: Program) => {
+        // Portal-only program (no local ID)
         if (!program.id) {
-            // portal-only program – no local record
             setSelectedProgram(program);
+            setPermitDialogOpen(true);
             return;
         }
 
@@ -238,6 +243,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         try {
             const response = await axios.get(`/api/program/${program.id}`);
             setSelectedProgram(response.data.program);
+            setPermitDialogOpen(true);
         } catch (error) {
             console.error('Failed to load program:', error);
             alert('Failed to load program details. Please try again.');
@@ -530,210 +536,182 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 </Card>
                             </div>
                         )}
-
-                        {/* Selected program permit preview */}
-                        {selectedProgram && (
-                            <div className="mt-10 space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
-                                        Selected Program
-                                    </h3>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setSelectedProgram(null)}
-                                        className="text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                                    >
-                                        Clear selection
-                                    </Button>
-                                </div>
-
-                                <Card className="border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:shadow-xl dark:bg-gray-800/90">
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start gap-4">
-                                            <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/40">
-                                                <GraduationCap className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                                    {selectedProgram.name}
-                                                </h2>
-                                                {selectedProgram.major && (
-                                                    <p className="mt-1 text-base text-gray-600 dark:text-gray-400">
-                                                        <span className="font-medium">Major:</span>{' '}
-                                                        {selectedProgram.major}
-                                                    </p>
-                                                )}
-                                                <div className="mt-3 flex flex-wrap items-center gap-3">
-                                                    {selectedProgram.copNumber && (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300"
-                                                        >
-                                                            <span className="font-medium">COP:</span>{' '}
-                                                            <span className="ml-1 font-mono">
-                                                                {selectedProgram.copNumber}
-                                                            </span>
-                                                        </Badge>
-                                                    )}
-                                                    {selectedProgram.grNumber && (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                                                        >
-                                                            <span className="font-medium">GR:</span>{' '}
-                                                            <span className="ml-1 font-mono">
-                                                                {selectedProgram.grNumber}
-                                                            </span>
-                                                        </Badge>
-                                                    )}
-                                                    {selectedProgram.institution && (
-                                                        <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
-                                                            <School className="h-4 w-4" />
-                                                            <span>
-                                                                {selectedProgram.institution.name}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="border-0 bg-white/90 shadow-lg backdrop-blur-sm dark:bg-gray-800/90">
-                                    <CardContent className="p-6">
-                                        <div className="mb-4 flex items-center justify-between">
-                                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                                                Program Permit Document
-                                            </h3>
-                                            <Badge
-                                                variant="outline"
-                                                className="dark:border-gray-600 dark:text-gray-300"
-                                            >
-                                                {selectedProgram.copNumber
-                                                    ? 'COPC Document'
-                                                    : 'GR Document'}
-                                            </Badge>
-                                        </div>
-
-                                        <div className="relative min-h-[600px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:border-gray-600 dark:from-gray-900 dark:to-gray-800">
-                                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
-                                            <div className="relative flex h-[600px] flex-col items-center justify-center p-8 text-center">
-                                                <div className="mb-6 animate-pulse rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
-                                                    <svg
-                                                        className="h-16 w-16 text-blue-600 dark:text-blue-400"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                                                        />
-                                                    </svg>
-                                                </div>
-
-                                                <h4 className="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
-                                                    Permit Document Preview
-                                                </h4>
-                                                <p className="mb-6 max-w-md text-gray-600 dark:text-gray-400">
-                                                    {selectedProgram.copNumber
-                                                        ? `COPC Number: ${selectedProgram.copNumber}`
-                                                        : `GR Number: ${selectedProgram.grNumber}`}
-                                                </p>
-
-                                                <div className="mb-6 w-full max-w-md space-y-3 rounded-lg bg-white p-4 shadow-md dark:bg-gray-800/90">
-                                                    <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
-                                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                                            Program:
-                                                        </span>
-                                                        <span className="text-sm font-semibold text-gray-900 dark:text:white">
-                                                            {selectedProgram.name}
-                                                        </span>
-                                                    </div>
-                                                    {selectedProgram.major && (
-                                                        <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
-                                                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                                                Major:
-                                                            </span>
-                                                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                                {selectedProgram.major}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {selectedProgram.institution && (
-                                                        <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
-                                                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                                                Institution:
-                                                            </span>
-                                                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                                {selectedProgram.institution.name}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {selectedProgram.institution && (
-                                                        <div className="flex justify-between">
-                                                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                                                Type:
-                                                            </span>
-                                                            <Badge
-                                                                variant={
-                                                                    selectedProgram.institution.type ===
-                                                                    'public'
-                                                                        ? 'default'
-                                                                        : 'secondary'
-                                                                }
-                                                                className="dark:bg-gray-700 dark:text-gray-200"
-                                                            >
-                                                                {selectedProgram.institution.type ===
-                                                                'public'
-                                                                    ? 'Public'
-                                                                    : 'Private'}
-                                                            </Badge>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-4 text-left dark:bg-blue-900/30">
-                                                    <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/40">
-                                                        <svg
-                                                            className="h-5 w-5 text-blue-600 dark:text-blue-400"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                strokeWidth={2}
-                                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                            />
-                                                        </svg>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">
-                                                            Document Preview Placeholder
-                                                        </p>
-                                                        <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
-                                                            The actual permit document (PDF) will be
-                                                            displayed here once uploaded to the system.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
                     </div>
                 </div>
 
                 <Footer />
             </div>
+
+            {/* Permit Preview Dialog */}
+            <Dialog
+                open={permitDialogOpen && !!selectedProgram}
+                onOpenChange={(open) => {
+                    setPermitDialogOpen(open);
+                    if (!open) {
+                        setSelectedProgram(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-w-4xl">
+                    {selectedProgram && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-3">
+                                    <div className="rounded-lg bg-purple-100 p-3 dark:bg-purple-900/40">
+                                        <GraduationCap className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <span>{selectedProgram.name}</span>
+                                </DialogTitle>
+                            </DialogHeader>
+
+                            <div className="mt-4 space-y-6">
+                                {/* Program summary */}
+                                <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800/60">
+                                    {selectedProgram.major && (
+                                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                                            <span className="font-medium">Major:</span>{' '}
+                                            {selectedProgram.major}
+                                        </p>
+                                    )}
+                                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                                        {selectedProgram.copNumber && (
+                                            <Badge
+                                                variant="outline"
+                                                className="border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300"
+                                            >
+                                                <span className="font-medium">COP:</span>{' '}
+                                                <span className="ml-1 font-mono">
+                                                    {selectedProgram.copNumber}
+                                                </span>
+                                            </Badge>
+                                        )}
+                                        {selectedProgram.grNumber && (
+                                            <Badge
+                                                variant="outline"
+                                                className="border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                                            >
+                                                <span className="font-medium">GR:</span>{' '}
+                                                <span className="ml-1 font-mono">
+                                                    {selectedProgram.grNumber}
+                                                </span>
+                                            </Badge>
+                                        )}
+                                        {selectedProgram.institution && (
+                                            <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+                                                <School className="h-4 w-4" />
+                                                <span>{selectedProgram.institution.name}</span>
+                                                <Badge
+                                                    variant={
+                                                        selectedProgram.institution.type === 'public'
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                    className="ml-2 dark:bg-gray-700 dark:text-gray-200"
+                                                >
+                                                    {selectedProgram.institution.type === 'public'
+                                                        ? 'Public'
+                                                        : 'Private'}
+                                                </Badge>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Permit placeholder */}
+                                <div className="relative min-h-[420px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:border-gray-600 dark:from-gray-900 dark:to-gray-800">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
+                                    <div className="relative flex h-full flex-col items-center justify-center p-8 text-center">
+                                        <div className="mb-6 animate-pulse rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
+                                            <svg
+                                                className="h-14 w-14 text-blue-600 dark:text-blue-400"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                        </div>
+
+                                        <h4 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">
+                                            Permit Document Preview
+                                        </h4>
+                                        <p className="mb-6 max-w-md text-sm text-gray-600 dark:text-gray-400">
+                                            {selectedProgram.copNumber
+                                                ? `COPC Number: ${selectedProgram.copNumber}`
+                                                : selectedProgram.grNumber
+                                                  ? `GR Number: ${selectedProgram.grNumber}`
+                                                  : 'No permit number available for this program.'}
+                                        </p>
+
+                                        <div className="mb-6 w-full max-w-md space-y-3 rounded-lg bg-white p-4 shadow-md dark:bg-gray-800/90">
+                                            <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
+                                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                                    Program:
+                                                </span>
+                                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                    {selectedProgram.name}
+                                                </span>
+                                            </div>
+                                            {selectedProgram.major && (
+                                                <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
+                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                                        Major:
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {selectedProgram.major}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {selectedProgram.institution && (
+                                                <div className="flex justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
+                                                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                                        Institution:
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {selectedProgram.institution.name}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-4 text-left dark:bg-blue-900/30">
+                                            <div className="rounded-full bg-blue-100 p-2 dark:bg-blue-900/40">
+                                                <svg
+                                                    className="h-5 w-5 text-blue-600 dark:text-blue-400"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                                                    Document Preview Placeholder
+                                                </p>
+                                                <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
+                                                    The actual permit document (PDF) will be displayed here
+                                                    once uploaded to the system.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

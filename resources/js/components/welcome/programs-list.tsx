@@ -1,19 +1,20 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, GraduationCap, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { GraduationCap, Loader2 } from 'lucide-react';
 
 interface Program {
-    id: number | null;              // null for portal-only programs
+    id: number | null; // null for portal-only programs
     name: string;
     major: string | null;
     copNumber: string | null;
     grNumber: string | null;
-    graduates_count?: number;       // still allowed in data, just not shown
+    graduates_count?: number; // still allowed in data, just not shown
 }
 
 interface ProgramsListProps {
     programs: Program[];
-    onProgramClick: (program: Program) => void;
+    onProgramClick: (program: Program) => void; // triggers dialog open in parent
     loadingProgramId?: number | null;
 }
 
@@ -44,11 +45,10 @@ export default function ProgramsList({
                                 program.id ??
                                 `${program.name}-${program.major ?? 'nomajor'}-${index}`
                             }
-                            className="group cursor-pointer border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01] hover:shadow-xl dark:bg-gray-800/90 disabled:cursor-not-allowed disabled:opacity-50"
-                            onClick={() => !isLoading && onProgramClick(program)}
+                            className="group border-0 bg-white/90 shadow-lg backdrop-blur-sm transition-all hover:scale-[1.01] hover:shadow-xl dark:bg-gray-800/90"
                         >
                             <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between gap-4">
                                     <div className="flex flex-1 items-start gap-4">
                                         <div className="rounded-lg bg-purple-100 p-3 transition-colors group-hover:bg-purple-200 dark:bg-purple-900/40 dark:group-hover:bg-purple-900/60">
                                             {isLoading ? (
@@ -102,13 +102,21 @@ export default function ProgramsList({
                                         </div>
                                     </div>
 
-                                    {isLoading ? (
-                                        <span className="ml-4 flex-shrink-0 text-sm text-gray-500 dark:text-gray-400">
-                                            Loading...
-                                        </span>
-                                    ) : (
-                                        <ChevronRight className="ml-4 h-5 w-5 flex-shrink-0 text-gray-400 transition-transform group-hover:translate-x-1 dark:text-gray-500" />
-                                    )}
+                                    {/* View permit button */}
+                                    <div className="flex flex-col items-end">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isLoading}
+                                            onClick={() => !isLoading && onProgramClick(program)}
+                                            className="mt-1"
+                                        >
+                                            {isLoading && (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            )}
+                                            {isLoading ? 'Loading…' : 'View permit'}
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
