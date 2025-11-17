@@ -29,10 +29,8 @@ class WelcomeController extends Controller
         $stats = [
             'institutions' => $institutionsCount,
             'programs'     => Program::count(),
-            // Only count graduates with Board programs as eligible
-            'graduates'    => Graduate::whereHas('program', function ($query) {
-                $query->where('program_type', 'Board');
-            })->count(),
+            // 👇 removed graduates count – no longer needed on landing page
+            // 'graduates'    => ...
         ];
 
         return Inertia::render('welcome', [
@@ -43,7 +41,7 @@ class WelcomeController extends Controller
     /**
      * POST /api/search-institution
      *
-     * ✅ OPTIMIZED: Returns institutions WITHOUT programs initially
+     * ✅ Returns institutions WITHOUT programs initially
      * Programs are loaded lazily when user clicks on an institution
      */
     public function searchInstitution(Request $request, PortalService $portal)
@@ -114,7 +112,7 @@ class WelcomeController extends Controller
     /**
      * GET /api/institution/{instCode}/programs
      *
-     * ✅ NEW: Lazy load programs when user clicks on institution
+     * ✅ Lazy load programs when user clicks on institution
      * This prevents the heavy queries in searchInstitution()
      */
     public function getInstitutionPrograms(string $instCode, PortalService $portal)
@@ -130,9 +128,22 @@ class WelcomeController extends Controller
 
             $localPrograms = $localInstitution ? $localInstitution->programs : collect();
 
+            // 2b. Precompute graduates count per local program (avoid N+1)
+            $graduatesCounts = collect();
+            if ($localPrograms->isNotEmpty()) {
+                $programIds = $localPrograms->pluck('id')->filter()->all();
+
+                if (!empty($programIds)) {
+                    $graduatesCounts = Graduate::whereIn('program_id', $programIds)
+                        ->selectRaw('program_id, COUNT(*) as aggregate')
+                        ->groupBy('program_id')
+                        ->pluck('aggregate', 'program_id');
+                }
+            }
+
             // 3. Determine if public/private from portal data
-            $hei = collect($portal->fetchAllHEI())
-                ->firstWhere('instCode', $instCode);
+            $heiArray = $portal->fetchAllHEI();
+            $hei = collect($heiArray)->firstWhere('instCode', $instCode) ?? [];
 
             $sector = strtoupper(trim((string) ($hei['ownershipSector'] ?? '')));
             $heiType = strtoupper(trim((string) ($hei['ownershipHei_type'] ?? '')));
@@ -171,10 +182,13 @@ class WelcomeController extends Controller
                 });
 
                 $localId = $matchingLocal?->id;
-                $graduatesCount = $matchingLocal
-                    ? Graduate::where('program_id', $localId)->count()
-                    : null;
                 $hasPermitNumber = !empty($p['permit_number']);
+
+                $graduatesCount = null;
+                if ($matchingLocal && $localId) {
+                    // Use precomputed counts; default to 0 if not present
+                    $graduatesCount = (int) ($graduatesCounts[$localId] ?? 0);
+                }
 
                 $programsPayload[] = [
                     'id'              => $localId,
@@ -301,7 +315,7 @@ class WelcomeController extends Controller
             // Add your student search implementation here
             return response()->json([
                 'students' => [],
-                'message' => 'Student search not yet implemented',
+                'message'  => 'Student search not yet implemented',
             ]);
         } catch (\Throwable $e) {
             Log::error('Search student error', [
