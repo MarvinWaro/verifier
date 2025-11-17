@@ -9,6 +9,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
 import Footer from '@/components/footer';
 import { useAppearance } from '@/hooks/use-appearance';
@@ -217,7 +218,7 @@ export default function PRCCheckLanding({ stats }: Props) {
     const handleInstitutionToggle = (institution: Institution) => {
         const code = institution.code;
         const isSame = expandedInstitutionCode === code;
-        const nextCode = isSame ? null : code;
+        const nextCode = isSame ? null : code; // ✅ fixed
 
         setExpandedInstitutionCode(nextCode);
         setSelectedProgram(null); // clear program preview when switching HEI
@@ -227,6 +228,7 @@ export default function PRCCheckLanding({ stats }: Props) {
             void loadProgramsForInstitution(institution);
         }
     };
+
 
     // ------------------------------
     // Program click -> load details & open permit dialog
@@ -504,6 +506,38 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 </Card>
                             </div>
                         </div>
+
+                        {/* Search results skeleton – when searching and no results yet */}
+                        {isSearching && institutions.length === 0 && (
+                            <div className="mt-8">
+                                <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/95">
+                                    <CardContent className="p-6 sm:p-8">
+                                        <div className="mb-4 space-y-2">
+                                            <Skeleton className="h-4 w-40" />
+                                            <Skeleton className="h-3 w-28" />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {[1, 2, 3].map((i) => (
+                                                <div
+                                                    key={i}
+                                                    className="flex items-start gap-4 rounded-lg border bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-800/80"
+                                                >
+                                                    <Skeleton className="h-10 w-10 rounded-xl" />
+                                                    <div className="flex-1 space-y-2">
+                                                        <Skeleton className="h-4 w-1/2" />
+                                                        <div className="flex gap-2">
+                                                            <Skeleton className="h-3 w-20" />
+                                                            <Skeleton className="h-3 w-24" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
 
                         {/* Full-width results under the grid */}
                         {institutions.length > 0 && (
