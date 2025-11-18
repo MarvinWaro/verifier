@@ -9,12 +9,16 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WelcomeController;
 
+use App\Http\Controllers\MapController;
+
 /*
 |--------------------------------------------------------------------------
 | Public
 |--------------------------------------------------------------------------
 */
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
+
+Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 
 /*
 |--------------------------------------------------------------------------

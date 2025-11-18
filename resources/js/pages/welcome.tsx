@@ -1,3 +1,5 @@
+// resources/js/pages/welcome.tsx
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -16,7 +18,7 @@ import Footer from '@/components/footer';
 import { useAppearance } from '@/hooks/use-appearance';
 import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Graduate {
     id: number;
@@ -70,6 +72,17 @@ interface Institution {
     programs: Program[];
 }
 
+interface HeiLocation {
+    instCode: string;
+    instName: string;
+    latitude: number;
+    longitude: number;
+    ownershipSector?: string | null;
+    ownershipHei_type?: string | null;
+    province?: string | null;
+    municipalityCity?: string | null;
+}
+
 interface Props {
     stats: {
         institutions: number;
@@ -101,6 +114,13 @@ export default function PRCCheckLanding({ stats }: Props) {
     const [searchMessage, setSearchMessage] = useState<string | null>(null);
     const [searchMessageType, setSearchMessageType] = useState<'warning' | 'error' | null>(null);
 
+    // HEI map state
+    const [heiMapLoading, setHeiMapLoading] = useState(false);
+    const [heiMapError, setHeiMapError] = useState<string | null>(null);
+    const [heiMapCenter, setHeiMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+    const [heiMapZoom, setHeiMapZoom] = useState<number>(8);
+    const [heiLocations, setHeiLocations] = useState<HeiLocation[]>([]);
+
     const { appearance, updateAppearance } = useAppearance();
 
     const resetAll = () => {
@@ -122,16 +142,87 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     // ------------------------------
-    // Search institutions
+    // HEI map load (once on mount)
     // ------------------------------
-    const handleInstitutionSearch = async () => {
+    const loadHeiMap = async () => {
+        setHeiMapLoading(true);
+        setHeiMapError(null);
+
+        try {
+            const response = await axios.get('/hei-map');
+            const data = response.data ?? {};
+
+            const centerRaw = data.center ?? {};
+            const center = {
+                lat: Number(centerRaw.lat ?? 6.5),
+                lng: Number(centerRaw.lng ?? 124.5),
+            };
+
+            const zoom = Number(data.zoom ?? 8);
+
+            const heisRaw: any[] = Array.isArray(data.heis) ? data.heis : [];
+
+            const normalized: HeiLocation[] = heisRaw
+                .map((item) => {
+                    // Try to be flexible with backend keys
+                    const lat = Number(
+                        item.latitude ??
+                            item.lat ??
+                            item.xCoordinate ??
+                            item.yCoordinate ??
+                            NaN,
+                    );
+                    const lng = Number(
+                        item.longitude ??
+                            item.lng ??
+                            item.yCoordinate ??
+                            item.xCoordinate ??
+                            NaN,
+                    );
+
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        return null;
+                    }
+
+                    return {
+                        instCode: String(item.instCode ?? ''),
+                        instName: String(item.instName ?? 'Unknown HEI'),
+                        latitude: lat,
+                        longitude: lng,
+                        ownershipSector: item.ownershipSector ?? item.instOwnership ?? null,
+                        ownershipHei_type: item.ownershipHei_type ?? null,
+                        province: item.province ?? null,
+                        municipalityCity: item.municipalityCity ?? null,
+                    } as HeiLocation;
+                })
+                .filter((v): v is HeiLocation => v !== null && v.instCode !== '');
+
+            setHeiMapCenter(center);
+            setHeiMapZoom(zoom);
+            setHeiLocations(normalized);
+        } catch (error) {
+            console.error('Failed to load HEI map:', error);
+            setHeiMapError('Unable to load HEI locations at the moment.');
+        } finally {
+            setHeiMapLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        void loadHeiMap();
+    }, []);
+
+    // ------------------------------
+    // Search institutions (core logic)
+    // ------------------------------
+    const performInstitutionSearch = async (rawSearch: string) => {
         setSearchMessage(null);
         setSearchMessageType(null);
         setSelectedProgram(null);
         setPermitDialogOpen(false);
         setExpandedInstitutionCode(null);
 
-        const trimmed = searchTerm.trim();
+        const trimmed = rawSearch.trim();
 
         if (!trimmed) {
             setInstitutions([]);
@@ -178,6 +269,16 @@ export default function PRCCheckLanding({ stats }: Props) {
         } finally {
             setIsSearching(false);
         }
+    };
+
+    const handleInstitutionSearch = () => {
+        void performInstitutionSearch(searchTerm);
+    };
+
+    // Trigger search when clicking a marker on the map
+    const handleHeiMarkerClick = (instCode: string) => {
+        setSearchTerm(instCode);
+        void performInstitutionSearch(instCode);
     };
 
     // ------------------------------
@@ -331,8 +432,15 @@ export default function PRCCheckLanding({ stats }: Props) {
                     {/* grid: map (8) + search (4) */}
                     <div className="mt-2 flex-1">
                         <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
-                            {/* Map placeholder – 8/12 */}
-                            <WelcomeLeaflet />
+                            {/* Map – 8/12 */}
+                            <WelcomeLeaflet
+                                center={heiMapCenter}
+                                zoom={heiMapZoom}
+                                heis={heiLocations}
+                                isLoading={heiMapLoading}
+                                error={heiMapError}
+                                onHeiClick={handleHeiMarkerClick}
+                            />
 
                             {/* Search card – 4/12 */}
                             <div className="flex flex-col gap-4 lg:col-span-4">
