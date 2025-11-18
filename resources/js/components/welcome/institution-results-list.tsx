@@ -1,5 +1,8 @@
+// resources/js/components/welcome/institution-results-list.tsx
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import ProgramsList from '@/components/welcome/programs-list';
 import { Building2, ChevronDown } from 'lucide-react';
 
@@ -52,15 +55,12 @@ export default function InstitutionResultsList({
 
                     // Use loaded programs if present, otherwise fall back to the
                     // institution's inline programs array (usually empty from search)
-                    const programs =
-                        loadedPrograms ?? institution.programs ?? [];
+                    const programs = loadedPrograms ?? institution.programs ?? [];
 
                     const isLoading = programsLoading[institution.code] === true;
                     const errorText = programsError[institution.code] ?? null;
 
                     // Has this institution ever had its programs loaded at least once?
-                    // - Before first click: undefined  -> false  -> show "Tap to view programs"
-                    // - After first fetch: [] or [...]-> true   -> show "X programs loaded"
                     const hasLoadedOnce = loadedPrograms !== undefined;
 
                     return (
@@ -158,9 +158,29 @@ export default function InstitutionResultsList({
                                     {isExpanded && (
                                         <div className="border-t pt-4">
                                             {isLoading ? (
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    Loading programs…
-                                                </p>
+                                                // SKELETON LOADING STATE
+                                                <div className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <Skeleton className="h-4 w-40" />
+                                                        <Skeleton className="h-4 w-16" />
+                                                    </div>
+
+                                                    {[1, 2, 3].map((i) => (
+                                                        <div
+                                                            key={i}
+                                                            className="rounded-lg border bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-800/80"
+                                                        >
+                                                            <div className="flex items-start gap-4">
+                                                                <Skeleton className="h-10 w-10 rounded-xl" />
+                                                                <div className="flex-1 space-y-2">
+                                                                    <Skeleton className="h-4 w-1/2" />
+                                                                    <Skeleton className="h-3 w-1/3" />
+                                                                    <Skeleton className="h-3 w-24" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             ) : errorText ? (
                                                 <p className="text-sm text-red-600 dark:text-red-400">
                                                     {errorText}
