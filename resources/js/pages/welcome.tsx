@@ -433,14 +433,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                     <div className="mt-2 flex-1">
                         <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
                             {/* Map – 8/12 */}
-                            <WelcomeLeaflet
-                                center={heiMapCenter}
-                                zoom={heiMapZoom}
-                                heis={heiLocations}
-                                isLoading={heiMapLoading}
-                                error={heiMapError}
-                                onHeiClick={handleHeiMarkerClick}
-                            />
+                            <WelcomeLeaflet />
 
                             {/* Search card – 4/12 */}
                             <div className="flex flex-col gap-4 lg:col-span-4">
