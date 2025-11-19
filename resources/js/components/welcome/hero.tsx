@@ -19,7 +19,7 @@ export default function WelcomeHero() {
                 Regional Office XII
             </p>
             <h2 className="mt-4 text-4xl font-extrabold tracking-tight text-blue-900 dark:text-blue-300 md:text-5xl">
-                Check with Rody
+                CHECK with CHED
             </h2>
             <p className="mt-3 text-base text-gray-600 dark:text-gray-400">
                 Verify institutional programs and permits
