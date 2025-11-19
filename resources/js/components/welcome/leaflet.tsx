@@ -1,6 +1,6 @@
 // resources/js/components/welcome/leaflet.tsx
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
 
@@ -30,12 +30,6 @@ interface WelcomeLeafletProps {
 
 /**
  * Province config so colors + legend come from one place.
- * Colors roughly follow common Region XII maps:
- * - Cotabato        → green
- * - Sultan Kudarat  → purple
- * - South Cotabato  → light green / yellow
- * - Sarangani       → red
- * - Others          → gray
  */
 const PROVINCE_CONFIG = {
     cotabato: {
@@ -133,6 +127,9 @@ export default function WelcomeLeaflet({
         };
     }, []);
 
+    // Legend show/hide state
+    const [legendVisible, setLegendVisible] = useState(true);
+
     return (
         <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/90 lg:col-span-8">
             <CardContent className="p-0">
@@ -222,35 +219,58 @@ export default function WelcomeLeaflet({
                     {/* subtle grid overlay (z-10) */}
                     <div className="pointer-events-none absolute inset-0 z-10 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,#00000011_1px,transparent_0)] [background-size:22px_22px] dark:opacity-15" />
 
-                    {/* Legend (z-20), bottom-left */}
-                    <div className="pointer-events-none absolute bottom-4 left-4 z-20 w-64 rounded-lg bg-white/90 p-3 text-left text-[11px] shadow-md dark:bg-gray-900/90">
-                        <p className="mb-1 font-semibold text-gray-800 dark:text-gray-100">
-                            Legend (by Province)
-                        </p>
-                        <ul className="space-y-1 text-gray-600 dark:text-gray-400">
-                            {(
-                                [
-                                    'cotabato',
-                                    'sultan_kudarat',
-                                    'south_cotabato',
-                                    'sarangani',
-                                    'others',
-                                ] as ProvinceKey[]
-                            ).map((key) => {
-                                const cfg = PROVINCE_CONFIG[key];
-                                return (
-                                    <li key={key} className="flex items-center gap-2">
-                                        <span
-                                            className={`inline-block h-2.5 w-2.5 rounded-full ${cfg.legendColorClass}`}
-                                        />
-                                        <span>{cfg.label}</span>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                        <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-500">
-                            Click a marker to view HEI details and search its programs.
-                        </p>
+                    {/* Legend + toggle (z-20), bottom-left */}
+                    <div className="absolute bottom-4 left-4 z-20 space-y-2">
+                        {legendVisible && (
+                            <div className="pointer-events-auto w-60 rounded-lg bg-white/90 p-3 text-[11px] shadow-md dark:bg-gray-900/90">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <p className="font-semibold text-gray-800 dark:text-gray-100">
+                                        Legend (by Province)
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setLegendVisible(false)}
+                                        className="text-[10px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    >
+                                        Hide
+                                    </button>
+                                </div>
+
+                                <ul className="space-y-1 text-gray-600 dark:text-gray-400">
+                                    {(
+                                        [
+                                            'cotabato',
+                                            'sultan_kudarat',
+                                            'south_cotabato',
+                                            'sarangani',
+                                        ] as ProvinceKey[]
+                                    ).map((key) => {
+                                        const cfg = PROVINCE_CONFIG[key];
+                                        return (
+                                            <li key={key} className="flex items-center gap-2">
+                                                <span
+                                                    className={`inline-block h-2 w-2 rounded-full ${cfg.legendColorClass}`}
+                                                />
+                                                <span>{cfg.label}</span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                                <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-500">
+                                    Click a marker to view HEI details and search its programs.
+                                </p>
+                            </div>
+                        )}
+
+                        {!legendVisible && (
+                            <button
+                                type="button"
+                                onClick={() => setLegendVisible(true)}
+                                className="pointer-events-auto inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-700 shadow-md hover:bg-white dark:bg-gray-900/90 dark:text-gray-200"
+                            >
+                                Show legend
+                            </button>
+                        )}
                     </div>
 
                     {/* Status badges (z-30) */}
