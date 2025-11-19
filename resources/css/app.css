@@ -143,3 +143,62 @@
 }
 
 
+/* Base wrapper for our custom Leaflet divIcon */
+.hei-marker {
+    background: transparent;
+    border: none;
+}
+
+/* Generic marker "dot" */
+.hei-pin {
+    width: 18px;
+    height: 18px;
+    border-radius: 9999px;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45); /* slate-900-ish */
+    transform: translateY(-4px);
+}
+
+/* Hover effect (optional) */
+.leaflet-marker-icon .hei-pin {
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.leaflet-marker-icon:hover .hei-pin {
+    transform: translateY(-6px) scale(1.05);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.55);
+}
+
+/* Exact province colors – aligned with the legend Tailwind colors */
+
+/* Cotabato – roughly emerald-500 (#22c55e) */
+.hei-pin-cotabato {
+    background-color: #22c55e;
+}
+
+/* Sultan Kudarat – roughly purple-500 (#a855f7) */
+.hei-pin-sultan-kudarat {
+    background-color: #a855f7;
+}
+
+/* South Cotabato – blue-800 (#1e40af) */
+.hei-pin-south-cotabato {
+    background-color: #1e40af;
+}
+
+/* Sarangani – roughly red-500 (#ef4444) */
+.hei-pin-sarangani {
+    background-color: #ef4444;
+}
+
+/* Other provinces / cities – gray-400 (#9ca3af) */
+.hei-pin-others {
+    background-color: #9ca3af;
+}
+
+
+
+
+
+
+
