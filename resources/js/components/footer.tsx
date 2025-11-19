@@ -34,7 +34,7 @@ const Footer: React.FC<FooterProps> = ({
         alt: 'CHED Logo',
         title: 'CHED - Regional Office XII',
     },
-    tagline = 'Empowering Higher Education for the Future.',
+    tagline = 'lorem',
     menuItems = [
         {
             title: 'About',
