@@ -143,58 +143,70 @@
 }
 
 
-/* Base wrapper for our custom Leaflet divIcon */
+/* ==== Custom Leaflet HEI pins ==== */
+
+/* Base container for all custom markers */
 .hei-marker {
-    background: transparent;
-    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* Generic marker "dot" */
+/* Main pin shape */
 .hei-pin {
     width: 18px;
     height: 18px;
+    position: relative;
+    border-radius: 50% 50% 50% 0;        /* circle with one sharp corner */
+    transform: rotate(-45deg);           /* sharp corner points down = pin tip */
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.9),
+        0 4px 8px rgba(15, 23, 42, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* white inner dot perfectly centered */
+.hei-pin::after {
+    content: '';
+    position: absolute;
+    width: 7px;
+    height: 7px;
     border-radius: 9999px;
-    border: 2px solid #ffffff;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45); /* slate-900-ish */
-    transform: translateY(-4px);
+    background: #ffffff;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
-/* Hover effect (optional) */
-.leaflet-marker-icon .hei-pin {
-    transition: transform 150ms ease, box-shadow 150ms ease;
-}
+/* === Province colors === */
 
-.leaflet-marker-icon:hover .hei-pin {
-    transform: translateY(-6px) scale(1.05);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.55);
-}
-
-/* Exact province colors – aligned with the legend Tailwind colors */
-
-/* Cotabato – roughly emerald-500 (#22c55e) */
+/* Cotabato – emerald-500 */
 .hei-pin-cotabato {
     background-color: #22c55e;
 }
 
-/* Sultan Kudarat – roughly purple-500 (#a855f7) */
+/* Sultan Kudarat – purple-500 */
 .hei-pin-sultan-kudarat {
     background-color: #a855f7;
 }
 
-/* South Cotabato – blue-800 (#1e40af) */
+/* South Cotabato – blue-800 */
 .hei-pin-south-cotabato {
     background-color: #1e40af;
 }
 
-/* Sarangani – roughly red-500 (#ef4444) */
+/* Sarangani – red-500 */
 .hei-pin-sarangani {
     background-color: #ef4444;
 }
 
-/* Other provinces / cities – gray-400 (#9ca3af) */
+/* Other provinces / cities – gray-400 */
 .hei-pin-others {
     background-color: #9ca3af;
 }
+
 
 
 
