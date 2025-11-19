@@ -1,12 +1,12 @@
 // resources/js/components/welcome/leaflet.tsx
 
-import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 
 export interface HeiLocation {
     instCode: string;
@@ -27,6 +27,15 @@ interface WelcomeLeafletProps {
     error?: string | null;
     onHeiClick?: (instCode: string) => void;
 }
+
+/**
+ * CHED Regional Office XII coordinates (Koronadal area)
+ * x = latitude, y = longitude based on your previous mapping
+ */
+const CHED_OFFICE = {
+    lat: 6.4522717,
+    lng: 124.8781319,
+};
 
 /**
  * Province config so colors + legend come from one place.
@@ -92,6 +101,33 @@ function getProvinceKey(hei: HeiLocation): ProvinceKey {
     return 'others';
 }
 
+/**
+ * Haversine distance in kilometers between two lat/lng points.
+ */
+function computeDistanceKm(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number,
+): number {
+    const R = 6371; // Earth radius in km
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+            Math.cos(toRad(lat2)) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+}
+
 export default function WelcomeLeaflet({
     center,
     zoom,
@@ -127,14 +163,27 @@ export default function WelcomeLeaflet({
         };
     }, []);
 
+    // Separate icon for CHED office
+    const chedIcon = useMemo(
+        () =>
+            L.divIcon({
+                className: 'hei-marker',
+                html: '<div class="hei-pin hei-pin-ched"></div>',
+                iconSize: [22, 30],
+                iconAnchor: [11, 30],
+                popupAnchor: [0, -28],
+            }),
+        [],
+    );
+
     // Legend show/hide state
     const [legendVisible, setLegendVisible] = useState(true);
 
     return (
-        <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/90 lg:col-span-8 p-1">
+        <Card className="border-0 bg-white/95 p-1 shadow-2xl backdrop-blur-md lg:col-span-8 dark:bg-gray-800/90">
             <CardContent className="p-0">
                 {/* Stacking context */}
-                <div className="relative h-[360px] overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 sm:h-[420px] lg:h-[520px]">
+                <div className="relative h-[360px] overflow-hidden rounded-xl border border-gray-200 sm:h-[420px] lg:h-[520px] dark:border-gray-700">
                     {/* Map at z-0 */}
                     <MapContainer
                         {...({
@@ -142,7 +191,7 @@ export default function WelcomeLeaflet({
                             zoom: mapZoom,
                             scrollWheelZoom: true,
                         } as any)}
-                        className="h-full w-full z-0"
+                        className="z-0 h-full w-full"
                         style={{ zIndex: 0 }}
                     >
                         <TileLayer
@@ -153,9 +202,38 @@ export default function WelcomeLeaflet({
                             } as any)}
                         />
 
+                        {/* CHED Regional Office marker */}
+                        <Marker
+                            position={[CHED_OFFICE.lat, CHED_OFFICE.lng]}
+                            icon={chedIcon}
+                        >
+                            <Popup>
+                                <div className="space-y-1">
+                                    <p className="text-sm font-semibold">
+                                        CHED Regional Office XII
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                        Reference point for distance to HEIs.
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        Lat: {CHED_OFFICE.lat.toFixed(5)}, Lng:{' '}
+                                        {CHED_OFFICE.lng.toFixed(5)}
+                                    </p>
+                                </div>
+                            </Popup>
+                        </Marker>
+
+                        {/* HEI markers */}
                         {heis.map((hei) => {
                             const provinceKey = getProvinceKey(hei);
                             const icon = provinceIcons[provinceKey];
+
+                            const distanceKm = computeDistanceKm(
+                                CHED_OFFICE.lat,
+                                CHED_OFFICE.lng,
+                                hei.latitude,
+                                hei.longitude,
+                            );
 
                             return (
                                 <Marker
@@ -165,7 +243,8 @@ export default function WelcomeLeaflet({
                                     eventHandlers={
                                         onHeiClick
                                             ? {
-                                                  click: () => onHeiClick(hei.instCode),
+                                                  click: () =>
+                                                      onHeiClick(hei.instCode),
                                               }
                                             : undefined
                                     }
@@ -176,7 +255,7 @@ export default function WelcomeLeaflet({
                                                 {hei.instName}
                                             </p>
                                             <p className="text-xs text-gray-600">
-                                                Institution Code:{' '}
+                                                Code:{' '}
                                                 <span className="font-mono">
                                                     {hei.instCode}
                                                 </span>
@@ -184,12 +263,25 @@ export default function WelcomeLeaflet({
                                             {hei.municipalityCity && (
                                                 <p className="text-xs text-gray-600">
                                                     {hei.municipalityCity}
-                                                    {hei.province ? `, ${hei.province}` : ''}
+                                                    {hei.province
+                                                        ? `, ${hei.province}`
+                                                        : ''}
+                                                </p>
+                                            )}
+                                            {/* Distance from CHED XII office */}
+                                            {Number.isFinite(distanceKm) && (
+                                                <p className="text-xs text-gray-600">
+                                                    Distance from CHED XII RO:{' '}
+                                                    <span className="font-semibold">
+                                                        {distanceKm.toFixed(1)}{' '}
+                                                        km
+                                                    </span>
                                                 </p>
                                             )}
                                             {hei.ownershipSector && (
                                                 <p className="text-xs text-gray-600">
-                                                    Sector: {hei.ownershipSector}
+                                                    Sector:{' '}
+                                                    {hei.ownershipSector}
                                                     {hei.ownershipHei_type
                                                         ? ` (${hei.ownershipHei_type})`
                                                         : ''}
@@ -202,7 +294,9 @@ export default function WelcomeLeaflet({
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
-                                                        onHeiClick(hei.instCode);
+                                                        onHeiClick(
+                                                            hei.instCode,
+                                                        );
                                                     }}
                                                     className="mt-2 inline-flex items-center rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
                                                 >
@@ -217,7 +311,7 @@ export default function WelcomeLeaflet({
                     </MapContainer>
 
                     {/* subtle grid overlay (z-10) */}
-                    <div className="pointer-events-none absolute inset-0 z-10 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,#00000011_1px,transparent_0)] [background-size:22px_22px] dark:opacity-15" />
+                    <div className="pointer-events-none absolute inset-0 z-10 [background-image:radial-gradient(circle_at_1px_1px,#00000011_1px,transparent_0)] [background-size:22px_22px] opacity-20 dark:opacity-15" />
 
                     {/* Legend + toggle (z-20), bottom-left */}
                     <div className="absolute bottom-4 left-4 z-20 space-y-2">
@@ -247,7 +341,10 @@ export default function WelcomeLeaflet({
                                     ).map((key) => {
                                         const cfg = PROVINCE_CONFIG[key];
                                         return (
-                                            <li key={key} className="flex items-center gap-2">
+                                            <li
+                                                key={key}
+                                                className="flex items-center gap-2"
+                                            >
                                                 <span
                                                     className={`inline-block h-2 w-2 rounded-full ${cfg.legendColorClass}`}
                                                 />
@@ -255,9 +352,18 @@ export default function WelcomeLeaflet({
                                             </li>
                                         );
                                     })}
+
+                                    {/* CHED Regional Office XII entry */}
+                                    <li className="flex items-center gap-2">
+                                        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+                                        <span>CHED Regional Office XII</span>
+                                    </li>
                                 </ul>
+
                                 <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-500">
-                                    Click a marker to view HEI details and search its programs.
+                                    Click a marker to view HEI details, permits,
+                                    and distance from the CHED XII Regional
+                                    Office.
                                 </p>
                             </div>
                         )}
@@ -297,8 +403,9 @@ export default function WelcomeLeaflet({
                                     HEI Map
                                 </p>
                                 <p className="max-w-xs text-xs text-gray-600 dark:text-gray-400">
-                                    No HEI coordinates available yet. Once the API returns
-                                    locations, markers will appear here.
+                                    No HEI coordinates available yet. Once the
+                                    API returns locations, markers will appear
+                                    here.
                                 </p>
                             </div>
                         </div>
