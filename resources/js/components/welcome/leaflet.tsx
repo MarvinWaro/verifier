@@ -131,7 +131,7 @@ export default function WelcomeLeaflet({
     const [legendVisible, setLegendVisible] = useState(true);
 
     return (
-        <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/90 lg:col-span-8">
+        <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/90 lg:col-span-8 p-1">
             <CardContent className="p-0">
                 {/* Stacking context */}
                 <div className="relative h-[360px] overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 sm:h-[420px] lg:h-[520px]">
@@ -176,7 +176,7 @@ export default function WelcomeLeaflet({
                                                 {hei.instName}
                                             </p>
                                             <p className="text-xs text-gray-600">
-                                                Code:{' '}
+                                                Institution Code:{' '}
                                                 <span className="font-mono">
                                                     {hei.instCode}
                                                 </span>
