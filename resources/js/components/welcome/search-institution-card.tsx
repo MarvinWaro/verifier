@@ -25,7 +25,7 @@ export default function SearchInstitutionCard({
     onClear,
 }: SearchInstitutionCardProps) {
     return (
-        <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md transition-all hover:shadow-3xl dark:bg-gray-800/90">
+        <Card className="border-0 bg-white/95 ring ring-gray-300 shadow-md backdrop-blur-md transition-all hover:shadow-3xl dark:bg-gray-800/90">
             <CardContent className="p-6 sm:p-8">
                 <div className="mb-6 flex items-center gap-3">
                     <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/30">
