@@ -175,10 +175,10 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                             <AppLogoIcon className="h-10 w-10 fill-current text-white" />
                             <div className="flex flex-col">
                                 <h1 className="text-sm font-bold uppercase leading-tight text-white md:text-base">
-                                    CHECK with CHED
+                                    CHEDRO XII HEI
                                 </h1>
                                 <p className="hidden text-xs text-blue-100 md:block">
-                                    PRC Verification System
+                                    Programs and Permits Registry
                                 </p>
                             </div>
                         </Link>

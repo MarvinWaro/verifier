@@ -1,21 +1,14 @@
 // resources/js/pages/welcome.tsx
 
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
-import WelcomeHero from '@/components/welcome/hero';
 import WelcomeLeaflet from '@/components/welcome/leaflet';
 import SearchInstitutionCard from '@/components/welcome/search-institution-card';
 import PermitDialog from '@/components/welcome/permit-dialog';
 import Footer from '@/components/footer';
 import { useAppearance } from '@/hooks/use-appearance';
+import WelcomeNav from '@/components/welcome/welcome-nav';
 import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -94,17 +87,17 @@ export default function PRCCheckLanding({ stats }: Props) {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [institutions, setInstitutions] = useState<Institution[]>([]);
 
-    // Accordion state
-    const [expandedInstitutionCode, setExpandedInstitutionCode] = useState<string | null>(null);
-    const [institutionPrograms, setInstitutionPrograms] = useState<Record<string, Program[]>>({});
-    const [institutionProgramsLoading, setInstitutionProgramsLoading] = useState<
-        Record<string, boolean>
+    const [expandedInstitutionCode, setExpandedInstitutionCode] =
+        useState<string | null>(null);
+    const [institutionPrograms, setInstitutionPrograms] = useState<
+        Record<string, Program[]>
     >({});
+    const [institutionProgramsLoading, setInstitutionProgramsLoading] =
+        useState<Record<string, boolean>>({});
     const [institutionProgramsError, setInstitutionProgramsError] = useState<
         Record<string, string | null>
     >({});
 
-    // Selected program for permit preview dialog
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [permitDialogOpen, setPermitDialogOpen] = useState(false);
 
@@ -112,12 +105,16 @@ export default function PRCCheckLanding({ stats }: Props) {
     const [loadingProgramId, setLoadingProgramId] = useState<number | null>(null);
 
     const [searchMessage, setSearchMessage] = useState<string | null>(null);
-    const [searchMessageType, setSearchMessageType] = useState<'warning' | 'error' | null>(null);
+    const [searchMessageType, setSearchMessageType] = useState<
+        'warning' | 'error' | null
+    >(null);
 
-    // HEI map state
     const [heiMapLoading, setHeiMapLoading] = useState(false);
     const [heiMapError, setHeiMapError] = useState<string | null>(null);
-    const [heiMapCenter, setHeiMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+    const [heiMapCenter, setHeiMapCenter] = useState<{
+        lat: number;
+        lng: number;
+    } | null>(null);
     const [heiMapZoom, setHeiMapZoom] = useState<number>(8);
     const [heiLocations, setHeiLocations] = useState<HeiLocation[]>([]);
 
@@ -142,7 +139,7 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     // ------------------------------
-    // HEI map load (once on mount)
+    // HEI map load
     // ------------------------------
     const loadHeiMap = async () => {
         setHeiMapLoading(true);
@@ -159,12 +156,10 @@ export default function PRCCheckLanding({ stats }: Props) {
             };
 
             const zoom = Number(data.zoom ?? 8);
-
             const heisRaw: any[] = Array.isArray(data.heis) ? data.heis : [];
 
             const normalized: HeiLocation[] = heisRaw
                 .map((item) => {
-                    // Try to be flexible with backend keys
                     const lat = Number(
                         item.latitude ??
                             item.lat ??
@@ -213,7 +208,7 @@ export default function PRCCheckLanding({ stats }: Props) {
     }, []);
 
     // ------------------------------
-    // Search institutions (core logic)
+    // Search institutions
     // ------------------------------
     const performInstitutionSearch = async (rawSearch: string) => {
         setSearchMessage(null);
@@ -234,7 +229,9 @@ export default function PRCCheckLanding({ stats }: Props) {
         const isNumeric = /^\d+$/.test(trimmed);
         if (isNumeric && trimmed.length < 4) {
             setInstitutions([]);
-            setSearchMessage('For institution codes, please enter at least 4 digits (e.g., 1201).');
+            setSearchMessage(
+                'For institution codes, please enter at least 4 digits (e.g., 1201).',
+            );
             setSearchMessageType('warning');
             return;
         }
@@ -246,7 +243,7 @@ export default function PRCCheckLanding({ stats }: Props) {
             });
 
             const result: Institution[] = response.data.institutions ?? [];
-            // reset local program caches for a new search
+
             setInstitutions(result);
             setInstitutionPrograms({});
             setInstitutionProgramsLoading({});
@@ -275,14 +272,13 @@ export default function PRCCheckLanding({ stats }: Props) {
         void performInstitutionSearch(searchTerm);
     };
 
-    // Trigger search when clicking a marker on the map
     const handleHeiMarkerClick = (instCode: string) => {
         setSearchTerm(instCode);
         void performInstitutionSearch(instCode);
     };
 
     // ------------------------------
-    // Load programs for a single institution (accordion)
+    // Load programs
     // ------------------------------
     const loadProgramsForInstitution = async (institution: Institution) => {
         const code = institution.code;
@@ -298,7 +294,6 @@ export default function PRCCheckLanding({ stats }: Props) {
 
             setInstitutionPrograms((s) => ({ ...s, [code]: programs }));
 
-            // also patch institutions array so counts update after load
             setInstitutions((prev) =>
                 prev.map((inst) => (inst.code === code ? { ...inst, programs } : inst)),
             );
@@ -319,7 +314,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         const nextCode = isSame ? null : code;
 
         setExpandedInstitutionCode(nextCode);
-        setSelectedProgram(null); // clear program preview when switching HEI
+        setSelectedProgram(null);
         setPermitDialogOpen(false);
 
         if (!isSame) {
@@ -328,10 +323,9 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     // ------------------------------
-    // Program click -> load details & open permit dialog
+    // Program click
     // ------------------------------
     const handleProgramClick = async (program: Program) => {
-        // Portal-only program (no local ID)
         if (!program.id) {
             setSelectedProgram(program);
             setPermitDialogOpen(true);
@@ -382,152 +376,119 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     const { icon: ThemeIcon, tooltip } = getThemeIcon();
 
-    // ------------------------------
-    // Render
-    // ------------------------------
     return (
-        <div className="relative min-h-screen overflow-hidden bg-gray-50 font-sans dark:bg-gray-900">
-            {/* background layers */}
+        <div className="relative min-h-screen bg-gray-50 font-sans dark:bg-gray-950">
+            {/* Top Navbar (extracted component) */}
+            <WelcomeNav ThemeIcon={ThemeIcon} tooltip={tooltip} onToggleTheme={toggleTheme} />
+
+            {/* Soft background */}
             <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-18 dark:opacity-10"
+                className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10 dark:opacity-5"
                 style={{ backgroundImage: 'url(/assets/img/bg-ched.jpg)' }}
             />
-            <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/65" />
-
-            {/* header */}
-            <header className="absolute top-0 right-0 z-20 p-6">
-                <div className="flex items-center gap-4">
-                    <TooltipProvider delayDuration={0}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={toggleTheme}
-                                    className="rounded-full bg-white p-2 shadow-sm transition-all hover:bg-gray-100 hover:shadow-md dark:bg-gray-800 dark:hover:bg-gray-700"
-                                    aria-label="Toggle theme"
-                                >
-                                    <ThemeIcon className="h-5 w-5 text-gray-700 transition-transform hover:rotate-12 dark:text-gray-200" />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{tooltip}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <a
-                        href="/login"
-                        className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-100 hover:shadow-md dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                        Log in
-                    </a>
-                </div>
-            </header>
+            <div className="pointer-events-none absolute inset-0 bg-white/70 dark:bg-gray-950/60" />
 
             {/* MAIN */}
-            <div className="relative z-10 flex min-h-screen flex-col px-4 pt-8 pb-16 sm:px-6 lg:px-8">
-                <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col">
-                    {/* Branding / hero */}
-                    <WelcomeHero />
+            <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+                {/* grid: map (8) + search (4) */}
+                <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
+                    {/* Map – 8/12 */}
+                    <WelcomeLeaflet
+                        center={heiMapCenter}
+                        zoom={heiMapZoom}
+                        heis={heiLocations}
+                        isLoading={heiMapLoading}
+                        error={heiMapError}
+                        onHeiClick={handleHeiMarkerClick}
+                    />
 
-                    {/* grid: map (8) + search (4) */}
-                    <div className="mt-2 flex-1">
-                        <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
-                            {/* Map – 8/12 */}
-                            <WelcomeLeaflet
-                                center={heiMapCenter}
-                                zoom={heiMapZoom}
-                                heis={heiLocations}
-                                isLoading={heiMapLoading}
-                                error={heiMapError}
-                                onHeiClick={handleHeiMarkerClick}
-                            />
-
-                            {/* Search card – 4/12 */}
-                            <div className="flex flex-col gap-4 lg:col-span-4">
-                                <SearchInstitutionCard
-                                    searchTerm={searchTerm}
-                                    onSearchTermChange={handleSearchTermChange}
-                                    isSearching={isSearching}
-                                    onSearch={handleInstitutionSearch}
-                                    searchMessage={searchMessage}
-                                    searchMessageType={searchMessageType}
-                                    institutionsCount={institutions.length}
-                                    onClear={() => {
-                                        setSearchTerm('');
-                                        resetAll();
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Search results skeleton – when searching and no results yet */}
-                        {isSearching && institutions.length === 0 && (
-                            <div className="mt-8">
-                                <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/95">
-                                    <CardContent className="p-6 sm:p-8">
-                                        <div className="mb-4 space-y-2">
-                                            <Skeleton className="h-4 w-40" />
-                                            <Skeleton className="h-3 w-28" />
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            {[1, 2, 3].map((i) => (
-                                                <div
-                                                    key={i}
-                                                    className="flex items-start gap-4 rounded-lg border bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-800/80"
-                                                >
-                                                    <Skeleton className="h-10 w-10 rounded-xl" />
-                                                    <div className="flex-1 space-y-2">
-                                                        <Skeleton className="h-4 w-1/2" />
-                                                        <div className="flex gap-2">
-                                                            <Skeleton className="h-3 w-20" />
-                                                            <Skeleton className="h-3 w-24" />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
-
-                        {/* Full-width results under the grid */}
-                        {institutions.length > 0 && (
-                            <div className="mt-8">
-                                <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-800/95">
-                                    <CardContent className="p-6 sm:p-8">
-                                        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                            <div>
-                                                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                                                    Search Results
-                                                </h3>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    {institutions.length} institution
-                                                    {institutions.length !== 1 ? 's' : ''} found
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <InstitutionResultsList
-                                            institutions={institutions}
-                                            expandedInstitutionCode={expandedInstitutionCode}
-                                            onToggleInstitution={handleInstitutionToggle}
-                                            programsByInstitution={institutionPrograms}
-                                            programsLoading={institutionProgramsLoading}
-                                            programsError={institutionProgramsError}
-                                            onProgramClick={handleProgramClick}
-                                            loadingProgramId={loadingProgramId}
-                                        />
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
+                    {/* Search card – 4/12 */}
+                    <div className="flex flex-col gap-4 lg:col-span-4">
+                        <SearchInstitutionCard
+                            searchTerm={searchTerm}
+                            onSearchTermChange={handleSearchTermChange}
+                            isSearching={isSearching}
+                            onSearch={handleInstitutionSearch}
+                            searchMessage={searchMessage}
+                            searchMessageType={searchMessageType}
+                            institutionsCount={institutions.length}
+                            onClear={() => {
+                                setSearchTerm('');
+                                resetAll();
+                            }}
+                        />
                     </div>
                 </div>
 
-                <Footer />
-            </div>
+                {/* Search results skeleton – when searching and no results yet */}
+                {isSearching && institutions.length === 0 && (
+                    <div className="mt-8">
+                        <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
+                            <CardContent className="p-6 sm:p-8">
+                                <div className="mb-4 space-y-2">
+                                    <Skeleton className="h-4 w-40" />
+                                    <Skeleton className="h-3 w-28" />
+                                </div>
+
+                                <div className="space-y-4">
+                                    {[1, 2, 3].map((i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-start gap-4 rounded-lg border bg-white/80 p-4 dark:border-gray-800 dark:bg-gray-900/80"
+                                        >
+                                            <Skeleton className="h-10 w-10 rounded-xl" />
+                                            <div className="flex-1 space-y-2">
+                                                <Skeleton className="h-4 w-1/2" />
+                                                <div className="flex gap-2">
+                                                    <Skeleton className="h-3 w-20" />
+                                                    <Skeleton className="h-3 w-24" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* Full-width Results */}
+                {institutions.length > 0 && (
+                    <div className="mt-8">
+                        <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
+                            <CardContent className="p-6 sm:p-8">
+                                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                            Search Results
+                                        </h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            {institutions.length} institution
+                                            {institutions.length !== 1 ? 's' : ''} found
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <InstitutionResultsList
+                                    institutions={institutions}
+                                    expandedInstitutionCode={expandedInstitutionCode}
+                                    onToggleInstitution={handleInstitutionToggle}
+                                    programsByInstitution={institutionPrograms}
+                                    programsLoading={institutionProgramsLoading}
+                                    programsError={institutionProgramsError}
+                                    onProgramClick={handleProgramClick}
+                                    loadingProgramId={loadingProgramId}
+                                />
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {/* About / Footer anchor */}
+                <div id="about" className="mt-10">
+                    <Footer />
+                </div>
+            </main>
 
             {/* Permit Preview Dialog */}
             <PermitDialog

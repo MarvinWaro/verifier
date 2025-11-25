@@ -28,7 +28,7 @@ export default function AuthSimpleLayout({
                             </div>
                             <div className="text-center">
                                 <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-400">
-                                    CHECK with CHED
+                                    Programs and Permits Registry
                                 </h2>
                             </div>
                             <span className="sr-only">{title}</span>
