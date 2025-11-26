@@ -15,6 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -76,7 +77,9 @@ export default function InstitutionIndex({ institutions, error }: Props) {
             Object.values(controllersRef.current).forEach((controller) => {
                 try {
                     controller.abort();
-                } catch {}
+                } catch {
+                    // ignore
+                }
             });
         };
     }, []);
@@ -140,7 +143,9 @@ export default function InstitutionIndex({ institutions, error }: Props) {
         if (controllersRef.current[instCode]) {
             try {
                 controllersRef.current[instCode].abort();
-            } catch {}
+            } catch {
+                // ignore
+            }
         }
 
         const controller = new AbortController();
@@ -269,7 +274,12 @@ export default function InstitutionIndex({ institutions, error }: Props) {
 
                                             return (
                                                 <React.Fragment key={row.id}>
-                                                    <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                    <TableRow
+                                                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        onClick={() =>
+                                                            onRowToggle(row)
+                                                        }
+                                                    >
                                                         <TableCell className="py-4 font-mono font-medium text-blue-600 dark:text-blue-400">
                                                             {
                                                                 row.institution_code
@@ -297,11 +307,14 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                         <TableCell className="py-4 text-right">
                                                             <button
                                                                 type="button"
-                                                                onClick={() =>
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.stopPropagation();
                                                                     onRowToggle(
                                                                         row,
-                                                                    )
-                                                                }
+                                                                    );
+                                                                }}
                                                                 aria-label={
                                                                     isExpanded
                                                                         ? 'Collapse programs list'
@@ -313,13 +326,16 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                 className="inline-flex items-center justify-center rounded p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                             >
                                                                 <ChevronDown
-                                                                    className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                                                    className={`h-4 w-4 transition-transform ${
+                                                                        isExpanded
+                                                                            ? 'rotate-180'
+                                                                            : ''
+                                                                    }`}
                                                                 />
                                                             </button>
                                                         </TableCell>
                                                     </TableRow>
 
-                                                    {/* REVERTED: Back to original row format */}
                                                     {isExpanded && (
                                                         <TableRow>
                                                             <TableCell
@@ -328,10 +344,44 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                             >
                                                                 <div className="p-6">
                                                                     {isLoading ? (
-                                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                                            Loading
-                                                                            programs…
-                                                                        </p>
+                                                                        <div
+                                                                            className="space-y-4"
+                                                                            aria-busy="true"
+                                                                            aria-label="Loading programs"
+                                                                        >
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Skeleton className="h-4 w-4 rounded-full" />
+                                                                                <Skeleton className="h-4 w-40" />
+                                                                            </div>
+                                                                            <div className="space-y-2">
+                                                                                {Array.from(
+                                                                                    {
+                                                                                        length: 3,
+                                                                                    },
+                                                                                ).map(
+                                                                                    (
+                                                                                        _,
+                                                                                        i,
+                                                                                    ) => (
+                                                                                        <div
+                                                                                            key={
+                                                                                                i
+                                                                                            }
+                                                                                            className="rounded-md border bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                                                                                        >
+                                                                                            <div className="flex items-start justify-between gap-3">
+                                                                                                <div className="flex-1 space-y-2">
+                                                                                                    <Skeleton className="h-4 w-56" />
+                                                                                                    <Skeleton className="h-3 w-40" />
+                                                                                                    <Skeleton className="h-3 w-32" />
+                                                                                                </div>
+                                                                                                <Skeleton className="h-6 w-20 rounded-full" />
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ),
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
                                                                     ) : errText ? (
                                                                         <p className="text-sm text-red-600 dark:text-red-400">
                                                                             {
