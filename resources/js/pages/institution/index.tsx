@@ -274,7 +274,12 @@ export default function InstitutionIndex({ institutions, error }: Props) {
 
                                             return (
                                                 <React.Fragment key={row.id}>
-                                                    <TableRow className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                                                    <TableRow
+                                                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        onClick={() =>
+                                                            onRowToggle(row)
+                                                        }
+                                                    >
                                                         <TableCell className="py-4 font-mono font-medium text-blue-600 dark:text-blue-400">
                                                             {
                                                                 row.institution_code
@@ -302,11 +307,14 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                         <TableCell className="py-4 text-right">
                                                             <button
                                                                 type="button"
-                                                                onClick={() =>
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.stopPropagation();
                                                                     onRowToggle(
                                                                         row,
-                                                                    )
-                                                                }
+                                                                    );
+                                                                }}
                                                                 aria-label={
                                                                     isExpanded
                                                                         ? 'Collapse programs list'
@@ -336,7 +344,6 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                             >
                                                                 <div className="p-6">
                                                                     {isLoading ? (
-                                                                        // Skeleton loader for programs
                                                                         <div
                                                                             className="space-y-4"
                                                                             aria-busy="true"
