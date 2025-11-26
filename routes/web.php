@@ -8,8 +8,8 @@ use App\Http\Controllers\GraduateController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WelcomeController;
-
 use App\Http\Controllers\MapController;
+use App\Http\Controllers\ProgramCatalogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +52,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Program Catalog (Board / Non-Board classification)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('programs/catalog', [ProgramCatalogController::class, 'index'])
+        ->name('programs.catalog');
+
+    Route::patch('programs/catalog/{catalog}', [ProgramCatalogController::class, 'update'])
+        ->name('programs.catalog.update');
 
     /*
     |--------------------------------------------------------------------------

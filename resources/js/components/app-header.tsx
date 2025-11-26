@@ -48,6 +48,11 @@ const mainNavItems: NavItem[] = [
         icon: Ribbon,
     },
     {
+        title: 'Program Catalog',
+        href: '/programs/catalog',
+        icon: Ribbon, // or another icon you like
+    },
+    {
         title: 'Graduates',
         href: '/graduates',
         icon: GraduationCap,
