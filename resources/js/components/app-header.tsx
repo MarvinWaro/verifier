@@ -6,6 +6,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuTrigger,
+    DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import {
     NavigationMenu,
@@ -19,7 +20,12 @@ import {
     SheetTitle,
     SheetTrigger,
 } from '@/components/ui/sheet';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { useAppearance } from '@/hooks/use-appearance';
@@ -27,8 +33,19 @@ import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { LayoutGrid, Building2, Ribbon, GraduationCap, Import, Menu, Moon, Sun, Monitor, Users } from 'lucide-react';
-import AppLogo from './app-logo';
+import {
+    LayoutGrid,
+    Building2,
+    Ribbon,
+    GraduationCap,
+    Import,
+    Menu,
+    Moon,
+    Sun,
+    Monitor,
+    Users,
+    ChevronDown,
+} from 'lucide-react';
 import AppLogoIcon from './app-logo-icon';
 
 const mainNavItems: NavItem[] = [
@@ -74,7 +91,6 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const getInitials = useInitials();
     const { appearance, updateAppearance } = useAppearance();
 
-    // Function to cycle through themes
     const toggleTheme = () => {
         switch (appearance) {
             case 'light':
@@ -91,7 +107,6 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
         }
     };
 
-    // Get current icon and tooltip text based on appearance
     const getThemeIcon = () => {
         switch (appearance) {
             case 'light':
@@ -106,6 +121,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     };
 
     const { icon: ThemeIcon, tooltip } = getThemeIcon();
+
+    const isProgramsActive = page.url.startsWith('/programs');
 
     return (
         <>
@@ -139,26 +156,90 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                         <div className="flex h-full flex-col justify-between text-sm">
                                             <div className="flex flex-col space-y-4">
-                                                {mainNavItems.map((item) => (
-                                                    <Link
-                                                        key={item.title}
-                                                        href={item.href}
-                                                        className={cn(
-                                                            'flex items-center space-x-2 rounded-md px-3 py-2 font-medium transition-colors',
-                                                            page.url === item.href
-                                                                ? 'bg-[#1e40af] text-white'
-                                                                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
-                                                        )}
-                                                    >
-                                                        {item.icon && (
-                                                            <Icon
-                                                                iconNode={item.icon}
-                                                                className="h-5 w-5"
-                                                            />
-                                                        )}
-                                                        <span>{item.title}</span>
-                                                    </Link>
-                                                ))}
+                                                {mainNavItems.map((item) => {
+                                                    const isPrograms =
+                                                        item.title ===
+                                                        'Programs';
+
+                                                    if (!isPrograms) {
+                                                        return (
+                                                            <Link
+                                                                key={
+                                                                    item.title
+                                                                }
+                                                                href={
+                                                                    item.href
+                                                                }
+                                                                className={cn(
+                                                                    'flex items-center space-x-2 rounded-md px-3 py-2 font-medium transition-colors',
+                                                                    page.url ===
+                                                                        item.href
+                                                                        ? 'bg-[#1e40af] text-white'
+                                                                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
+                                                                )}
+                                                            >
+                                                                {item.icon && (
+                                                                    <Icon
+                                                                        iconNode={
+                                                                            item.icon
+                                                                        }
+                                                                        className="h-5 w-5"
+                                                                    />
+                                                                )}
+                                                                <span>
+                                                                    {
+                                                                        item.title
+                                                                    }
+                                                                </span>
+                                                            </Link>
+                                                        );
+                                                    }
+
+                                                    // Mobile: Programs + nested Program Catalog
+                                                    return (
+                                                        <div
+                                                            key={item.title}
+                                                            className="flex flex-col space-y-1"
+                                                        >
+                                                            <Link
+                                                                href={
+                                                                    item.href
+                                                                }
+                                                                className={cn(
+                                                                    'flex items-center space-x-2 rounded-md px-3 py-2 font-medium transition-colors',
+                                                                    page.url ===
+                                                                        '/programs'
+                                                                        ? 'bg-[#1e40af] text-white'
+                                                                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
+                                                                )}
+                                                            >
+                                                                {item.icon && (
+                                                                    <Icon
+                                                                        iconNode={
+                                                                            item.icon
+                                                                        }
+                                                                        className="h-5 w-5"
+                                                                    />
+                                                                )}
+                                                                <span>
+                                                                    Programs
+                                                                </span>
+                                                            </Link>
+                                                            <Link
+                                                                href="/programs/catalog"
+                                                                className={cn(
+                                                                    'ml-8 rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                                                                    page.url ===
+                                                                        '/programs/catalog'
+                                                                        ? 'bg-[#1e40af] text-white'
+                                                                        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
+                                                                )}
+                                                            >
+                                                                Program Catalog
+                                                            </Link>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>
@@ -197,7 +278,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                         onClick={toggleTheme}
                                     >
                                         <ThemeIcon className="h-[1.2rem] w-[1.2rem]" />
-                                        <span className="sr-only">Toggle theme</span>
+                                        <span className="sr-only">
+                                            Toggle theme
+                                        </span>
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -224,7 +307,10 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     </Avatar>
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56" align="end">
+                            <DropdownMenuContent
+                                className="w-56"
+                                align="end"
+                            >
                                 <UserMenuContent user={auth.user} />
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -239,37 +325,96 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     <div className="hidden lg:flex h-full items-center">
                         <NavigationMenu className="flex h-full items-stretch">
                             <NavigationMenuList className="flex h-full items-stretch space-x-0">
-                                {mainNavItems.map((item, index) => (
-                                    <NavigationMenuItem
-                                        key={index}
-                                        className="relative flex h-full items-center"
-                                    >
-                                        <Link
-                                            href={item.href}
-                                            className={cn(
-                                                'flex h-full items-center space-x-2 border-b-2 px-4 text-sm font-medium transition-colors',
-                                                page.url === item.href
-                                                    ? 'border-[#1e40af] text-[#1e40af] bg-[#1e40af]/5'
-                                                    : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
-                                            )}
+                                {mainNavItems.map((item, index) => {
+                                    const isPrograms =
+                                        item.title === 'Programs';
+
+                                    if (!isPrograms) {
+                                        return (
+                                            <NavigationMenuItem
+                                                key={index}
+                                                className="relative flex h-full items-center"
+                                            >
+                                                <Link
+                                                    href={item.href}
+                                                    className={cn(
+                                                        'flex h-full items-center space-x-2 border-b-2 px-4 text-sm font-medium transition-colors',
+                                                        page.url ===
+                                                            item.href
+                                                            ? 'border-[#1e40af] text-[#1e40af] bg-[#1e40af]/5'
+                                                            : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                                                    )}
+                                                >
+                                                    {item.icon && (
+                                                        <Icon
+                                                            iconNode={
+                                                                item.icon
+                                                            }
+                                                            className="h-4 w-4"
+                                                        />
+                                                    )}
+                                                    <span>{item.title}</span>
+                                                </Link>
+                                            </NavigationMenuItem>
+                                        );
+                                    }
+
+                                    // Desktop: Programs with shadcn DropdownMenu
+                                    return (
+                                        <NavigationMenuItem
+                                            key={index}
+                                            className="relative flex h-full items-center"
                                         >
-                                            {item.icon && (
-                                                <Icon
-                                                    iconNode={item.icon}
-                                                    className="h-4 w-4"
-                                                />
-                                            )}
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </NavigationMenuItem>
-                                ))}
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button
+                                                        className={cn(
+                                                            'flex h-full items-center space-x-2 border-b-2 px-4 text-sm font-medium outline-none transition-colors',
+                                                            isProgramsActive
+                                                                ? 'border-[#1e40af] text-[#1e40af] bg-[#1e40af]/5'
+                                                                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
+                                                        )}
+                                                    >
+                                                        {item.icon && (
+                                                            <Icon
+                                                                iconNode={
+                                                                    item.icon
+                                                                }
+                                                                className="h-4 w-4"
+                                                            />
+                                                        )}
+                                                        <span>Programs</span>
+                                                        <ChevronDown className="h-3 w-3" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="start"
+                                                    className="w-56"
+                                                >
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href="/programs">
+                                                            All Programs
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href="/programs/catalog">
+                                                            Program Catalog
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </NavigationMenuItem>
+                                    );
+                                })}
                             </NavigationMenuList>
                         </NavigationMenu>
                     </div>
 
                     {/* Breadcrumbs for mobile */}
                     <div className="lg:hidden flex-1">
-                        {breadcrumbs.length > 1 && <Breadcrumbs breadcrumbs={breadcrumbs} />}
+                        {breadcrumbs.length > 1 && (
+                            <Breadcrumbs breadcrumbs={breadcrumbs} />
+                        )}
                     </div>
                 </div>
             </div>

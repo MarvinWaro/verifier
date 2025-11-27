@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\PortalService;
+use App\Models\ProgramCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -28,7 +29,7 @@ class ProgramController extends Controller
         if ($selectedInstCode) {
             $v = Validator::make(
                 ['instCode' => $selectedInstCode],
-                ['instCode' => ['required','string','max:32','regex:/^[A-Za-z0-9\-]+$/']]
+                ['instCode' => ['required', 'string', 'max:32', 'regex:/^[A-Za-z0-9\-]+$/']]
             );
             if ($v->fails()) {
                 $selectedInstCode = null; // ignore bad query & fall back to first
@@ -46,7 +47,7 @@ class ProgramController extends Controller
             } catch (\Throwable $e) {
                 Log::error('Failed to fetch program records', [
                     'instCode' => $selectedInstCode,
-                    'err' => $e->getMessage(),
+                    'err'      => $e->getMessage(),
                 ]);
                 $error = $error ?: 'Unable to load program list.';
             }
@@ -55,22 +56,40 @@ class ProgramController extends Controller
         // friendly name
         $instName = null;
         if ($selectedInstCode) {
-            $hit = collect($hei)->firstWhere('instCode', $selectedInstCode);
+            $hit      = collect($hei)->firstWhere('instCode', $selectedInstCode);
             $instName = $hit['instName'] ?? $selectedInstCode;
         }
 
+        // 🔹 Load catalog classifications once, key by normalized program name
+        $catalog = ProgramCatalog::query()
+            ->select(['program_name', 'program_type'])
+            ->get()
+            ->keyBy(function (ProgramCatalog $row) {
+                return mb_strtoupper(trim($row->program_name));
+            });
+
         // map -> UI shape (dedupe by program+major)
         $programs = collect($records)
-            ->map(function ($r, $i) use ($selectedInstCode, $instName) {
+            ->map(function ($r, $i) use ($selectedInstCode, $instName, $catalog) {
                 $programName = trim((string) ($r['programName'] ?? ''));
-                $majorName   = trim((string) ($r['majorName']   ?? ''));
+                $majorName   = trim((string) ($r['majorName'] ?? ''));
                 $permit4th   = trim((string) ($r['permit_4thyr'] ?? ''));
 
+                // Default classification = Unknown
+                $programType = 'Unknown';
+                if ($programName !== '') {
+                    $key = mb_strtoupper($programName);
+                    $catalogRow = $catalog->get($key);
+                    if ($catalogRow && $catalogRow->program_type) {
+                        $programType = $catalogRow->program_type; // 'Board' or 'Non-Board' or 'Unknown'
+                    }
+                }
+
                 return [
-                    'id'            => $i + 1,
-                    'program_name'  => $programName,
-                    'major'         => $majorName !== '' ? $majorName : null,
-                    'program_type'  => null,                               // placeholder -> null
+                    'id'           => $i + 1,
+                    'program_name' => $programName,
+                    'major'        => $majorName !== '' ? $majorName : null,
+                    'program_type' => $programType, // now comes from ProgramCatalog
                     'permit_number' => $permit4th !== '' ? $permit4th : null,
                     'institution'   => [
                         'institution_code' => $selectedInstCode,
