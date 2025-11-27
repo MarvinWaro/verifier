@@ -60,10 +60,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function ProgramCatalogIndex({ programs, filters }: Props) {
     const [search, setSearch] = useState(filters.q ?? '');
     const [typeFilter, setTypeFilter] = useState<string>(filters.type ?? '');
+    const [items, setItems] = useState<ProgramCatalogItem[]>(programs.data);
 
+    // When Inertia sends new props (pagination / filters), sync local items
     useEffect(() => {
-        // reserved for future success/error messages if needed
-    }, []);
+        setItems(programs.data);
+    }, [programs.data]);
 
     const applyFilters = (nextSearch: string, nextType: string) => {
         router.get(
@@ -85,29 +87,9 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
     };
 
     const handleTypeFilter = (type: string) => {
-        // clicking the same filter again clears it
         const newType = type === typeFilter ? '' : type;
         setTypeFilter(newType);
         applyFilters(search, newType);
-    };
-
-    const handleToggleType = (
-        program: ProgramCatalogItem,
-        checked: boolean,
-    ) => {
-        const newType = checked ? 'Board' : 'Non-Board';
-
-        router.patch(
-            `/programs/catalog/${program.id}`,
-            { program_type: newType },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onError: () => {
-                    toast.error('Failed to update program type');
-                },
-            },
-        );
     };
 
     const getProgramTypeBadgeClasses = (type: string) => {
@@ -120,6 +102,63 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
                 return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300';
         }
     };
+
+    const handleToggleType = async (
+        program: ProgramCatalogItem,
+        checked: boolean,
+    ) => {
+        const previousType = program.program_type;
+        const newType: ProgramCatalogItem['program_type'] = checked
+            ? 'Board'
+            : 'Non-Board';
+
+        // Optimistic update
+        setItems((prev) =>
+            prev.map((p) =>
+                p.id === program.id ? { ...p, program_type: newType } : p,
+            ),
+        );
+
+        try {
+            const tokenElement = document.querySelector(
+                'meta[name="csrf-token"]',
+            ) as HTMLMetaElement | null;
+            const csrfToken = tokenElement?.content;
+
+            const response = await fetch(`/programs/catalog/${program.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+                },
+                body: JSON.stringify({ program_type: newType }),
+            });
+
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                console.error('Toggle update failed:', response.status, text);
+                throw new Error(`Request failed (${response.status})`);
+            }
+
+            // ✅ Success toast
+            toast.success('Program type updated', {
+                description: `${program.program_name} is now marked as ${newType}.`,
+            });
+        } catch (error) {
+            console.error(error);
+            // Revert optimistic update on error
+            setItems((prev) =>
+                prev.map((p) =>
+                    p.id === program.id
+                        ? { ...p, program_type: previousType }
+                        : p,
+                ),
+            );
+            toast.error('Failed to update program type');
+        }
+    };
+
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -238,7 +277,7 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {programs.data.length === 0 ? (
+                                    {items.length === 0 ? (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={3}
@@ -248,7 +287,7 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        programs.data.map((program) => {
+                                        items.map((program) => {
                                             const isBoard =
                                                 program.program_type ===
                                                 'Board';

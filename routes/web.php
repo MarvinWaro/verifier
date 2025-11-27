@@ -59,9 +59,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('programs/catalog', [ProgramCatalogController::class, 'index'])
-        ->name('programs.catalog');
+        ->name('programs.catalog.index');
 
-    Route::patch('programs/catalog/{catalog}', [ProgramCatalogController::class, 'update'])
+    // Route model binding: {programCatalog} -> ProgramCatalog $programCatalog
+    Route::patch('programs/catalog/{programCatalog}', [ProgramCatalogController::class, 'update'])
         ->name('programs.catalog.update');
 
     /*

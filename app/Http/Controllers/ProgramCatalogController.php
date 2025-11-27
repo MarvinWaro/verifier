@@ -4,24 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Models\ProgramCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ProgramCatalogController extends Controller
 {
+    /**
+     * GET /programs/catalog
+     * Show paginated unique program catalog with filters.
+     */
     public function index(Request $request)
     {
-        $search     = $request->query('q');
-        $typeFilter = $request->query('type');
+        $q    = (string) $request->query('q', '');
+        $type = (string) $request->query('type', '');
 
         $query = ProgramCatalog::query();
 
-        if ($search) {
-            $q = trim($search);
-            $query->where('program_name', 'LIKE', "%{$q}%");
+        if ($q !== '') {
+            $query->where('program_name', 'like', '%' . $q . '%');
         }
 
-        if ($typeFilter && in_array($typeFilter, ['Board', 'Non-Board', 'Unknown'], true)) {
-            $query->where('program_type', $typeFilter);
+        if ($type !== '') {
+            $query->where('program_type', $type);
         }
 
         $programs = $query
@@ -30,26 +34,50 @@ class ProgramCatalogController extends Controller
             ->withQueryString();
 
         return Inertia::render('programs/catalog', [
-            'programs' => $programs,
-            'filters'  => [
-                'q'    => $search ?? '',
-                'type' => $typeFilter ?? '',
+            'programs' => $programs->through(function (ProgramCatalog $p) {
+                return [
+                    'id'           => $p->id,
+                    'program_name' => $p->program_name,
+                    'program_type' => $p->program_type ?? 'Unknown',
+                    'notes'        => $p->notes,
+                ];
+            }),
+            'filters' => [
+                'q'    => $q !== '' ? $q : null,
+                'type' => $type !== '' ? $type : null,
             ],
         ]);
     }
 
-    public function update(ProgramCatalog $catalog, Request $request)
+    /**
+     * PATCH /programs/catalog/{programCatalog}
+     * Update board / non-board / unknown flag.
+     * This is called via fetch() from the React page (optimistic update).
+     */
+    public function update(Request $request, ProgramCatalog $programCatalog)
     {
-        $data = $request->validate([
-            'program_type' => ['required', 'in:Board,Non-Board,Unknown'],
+        $validated = $request->validate([
+            'program_type' => [
+                'required',
+                Rule::in(['Board', 'Non-Board', 'Unknown']),
+            ],
         ]);
 
-        $catalog->update($data);
+        $programCatalog->update([
+            'program_type' => $validated['program_type'],
+        ]);
 
-        if ($request->wantsJson()) {
-            return response()->json(['success' => true]);
+        // If called via our fetch() (Accept: application/json), return JSON.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'data' => [
+                    'id'           => $programCatalog->id,
+                    'program_type' => $programCatalog->program_type,
+                ],
+            ], 200);
         }
 
-        return back();
+        // Fallback if someone hits this via a normal form.
+        return back()->with('success', 'Program type updated.');
     }
 }
