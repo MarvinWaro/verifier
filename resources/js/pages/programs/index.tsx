@@ -53,7 +53,7 @@ interface Program {
     id: number;
     program_name: string;
     major: string | null;
-    program_type: string | null;
+    program_type: string | null; // 'Board' | 'Non-Board' | 'Unknown' | null
     permit_number: string | null;
     institution: Institution;
 }
@@ -101,8 +101,9 @@ export default function ProgramIndex({
                 return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300';
             case 'Non-Board':
                 return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
+            case 'Unknown':
             default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
+                return 'bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300';
         }
     };
 
@@ -162,8 +163,13 @@ export default function ProgramIndex({
                                                         <span className="font-semibold text-blue-600 dark:text-blue-400">
                                                             {selectedInstitution.instCode}
                                                         </span>
-                                                        <span className="text-muted-foreground"> — </span>
-                                                        <span>{selectedInstitution.instName}</span>
+                                                        <span className="text-muted-foreground">
+                                                            {' '}
+                                                            —{' '}
+                                                        </span>
+                                                        <span>
+                                                            {selectedInstitution.instName}
+                                                        </span>
                                                     </>
                                                 ) : (
                                                     <span className="text-muted-foreground">
@@ -174,36 +180,55 @@ export default function ProgramIndex({
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent className="w-[650px] p-0" align="start">
+                                    <PopoverContent
+                                        className="w-[650px] p-0"
+                                        align="start"
+                                    >
                                         <Command>
                                             <CommandInput
                                                 placeholder="Search institutions..."
                                                 className="h-10"
                                             />
                                             <CommandList>
-                                                <CommandEmpty>No institution found.</CommandEmpty>
+                                                <CommandEmpty>
+                                                    No institution found.
+                                                </CommandEmpty>
                                                 <CommandGroup>
                                                     {hei.map((h) => (
                                                         <CommandItem
                                                             key={h.instCode}
                                                             value={`${h.instCode} ${h.instName}`}
-                                                            onSelect={() => onSelectInst(h.instCode)}
+                                                            onSelect={() =>
+                                                                onSelectInst(
+                                                                    h.instCode,
+                                                                )
+                                                            }
                                                             className="flex items-center gap-3 py-3"
                                                         >
                                                             <Check
                                                                 className={cn(
                                                                     'h-4 w-4 shrink-0',
-                                                                    selectedInstCode === h.instCode
+                                                                    selectedInstCode ===
+                                                                        h.instCode
                                                                         ? 'opacity-100'
                                                                         : 'opacity-0',
                                                                 )}
                                                             />
                                                             <span className="flex-1">
                                                                 <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                                    {h.instCode}
+                                                                    {
+                                                                        h.instCode
+                                                                    }
                                                                 </span>
-                                                                <span className="text-muted-foreground"> — </span>
-                                                                <span>{h.instName}</span>
+                                                                <span className="text-muted-foreground">
+                                                                    {' '}
+                                                                    —{' '}
+                                                                </span>
+                                                                <span>
+                                                                    {
+                                                                        h.instName
+                                                                    }
+                                                                </span>
                                                             </span>
                                                         </CommandItem>
                                                     ))}
@@ -221,7 +246,9 @@ export default function ProgramIndex({
                                     type="text"
                                     placeholder="Search programs..."
                                     value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
+                                    onChange={(e) =>
+                                        setSearch(e.target.value)
+                                    }
                                     className="h-10 w-full pl-10"
                                     aria-label="Search programs"
                                 />
@@ -233,12 +260,24 @@ export default function ProgramIndex({
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
-                                        <TableHead className="h-12">Institution</TableHead>
-                                        <TableHead className="h-12">Institution Code</TableHead>
-                                        <TableHead className="h-12">Program Name</TableHead>
-                                        <TableHead className="h-12">Major</TableHead>
-                                        <TableHead className="h-12">Program Type</TableHead>
-                                        <TableHead className="h-12">Permit Number</TableHead>
+                                        <TableHead className="h-12">
+                                            Institution
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Institution Code
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Program Name
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Major
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Program Type
+                                        </TableHead>
+                                        <TableHead className="h-12">
+                                            Permit Number
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -252,43 +291,52 @@ export default function ProgramIndex({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredPrograms.map((program) => (
-                                            <TableRow
-                                                key={program.id}
-                                                className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                                            >
-                                                <TableCell className="py-4 font-medium">
-                                                    {program.institution.name}
-                                                </TableCell>
-                                                <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
-                                                    {program.institution.institution_code}
-                                                </TableCell>
-                                                <TableCell className="py-4 font-medium">
-                                                    {program.program_name}
-                                                </TableCell>
-                                                <TableCell className="py-4 text-sm text-gray-600 dark:text-gray-400">
-                                                    {program.major || '-'}
-                                                </TableCell>
-                                                <TableCell className="py-4">
-                                                    {program.program_type ? (
+                                        filteredPrograms.map((program) => {
+                                            const typeLabel =
+                                                program.program_type ||
+                                                'Unknown';
+
+                                            return (
+                                                <TableRow
+                                                    key={program.id}
+                                                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                >
+                                                    <TableCell className="py-4 font-medium">
+                                                        {
+                                                            program.institution
+                                                                .name
+                                                        }
+                                                    </TableCell>
+                                                    <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
+                                                        {
+                                                            program
+                                                                .institution
+                                                                .institution_code
+                                                        }
+                                                    </TableCell>
+                                                    <TableCell className="py-4 font-medium">
+                                                        {program.program_name}
+                                                    </TableCell>
+                                                    <TableCell className="py-4 text-sm text-gray-600 dark:text-gray-400">
+                                                        {program.major || '-'}
+                                                    </TableCell>
+                                                    <TableCell className="py-4">
                                                         <Badge
                                                             className={getProgramTypeColor(
-                                                                program.program_type,
+                                                                typeLabel,
                                                             )}
                                                         >
-                                                            {program.program_type}
+                                                            {typeLabel}
                                                         </Badge>
-                                                    ) : (
-                                                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                                                            -
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="py-4 font-mono text-sm">
-                                                    {fmt(program.permit_number)}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
+                                                    </TableCell>
+                                                    <TableCell className="py-4 font-mono text-sm">
+                                                        {fmt(
+                                                            program.permit_number,
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
                                     )}
                                 </TableBody>
                             </Table>
