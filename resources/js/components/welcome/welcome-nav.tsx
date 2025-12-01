@@ -45,7 +45,7 @@ const WelcomeNav: React.FC<WelcomeNavProps> = ({ ThemeIcon, tooltip, onToggleThe
                         className="h-9 w-9 object-contain"
                     />
                     <div className="leading-tight">
-                        <div className="text-sm font-semibold text-white">CHEDRO XII HEI</div>
+                        <div className="text-sm font-semibold text-white">COMMISSION ON HIGHER EDUCATION - REGIONAL OFFICE XII</div>
                         <div className="text-[11px] text-white/70">
                             Programs and Permits Registry
                         </div>
