@@ -120,18 +120,22 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
         );
 
         try {
+            // 🔐 read CSRF token from the meta tag you added in app.blade.php
             const tokenElement = document.querySelector(
                 'meta[name="csrf-token"]',
             ) as HTMLMetaElement | null;
-            const csrfToken = tokenElement?.content;
+            const csrfToken = tokenElement?.content ?? '';
 
             const response = await fetch(`/programs/catalog/${program.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                     ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
                 },
+                // 👇 very important so Laravel sees your session cookie
+                credentials: 'same-origin',
                 body: JSON.stringify({ program_type: newType }),
             });
 
@@ -141,13 +145,12 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
                 throw new Error(`Request failed (${response.status})`);
             }
 
-            // ✅ Success toast
             toast.success('Program type updated', {
                 description: `${program.program_name} is now marked as ${newType}.`,
             });
         } catch (error) {
             console.error(error);
-            // Revert optimistic update on error
+            // Revert optimistic update if something goes wrong
             setItems((prev) =>
                 prev.map((p) =>
                     p.id === program.id
@@ -158,6 +161,7 @@ export default function ProgramCatalogIndex({ programs, filters }: Props) {
             toast.error('Failed to update program type');
         }
     };
+
 
 
     return (
