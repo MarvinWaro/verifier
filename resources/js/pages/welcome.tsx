@@ -121,8 +121,9 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     const { appearance, updateAppearance } = useAppearance();
 
-    // 🔹 New: ref for auto-scrolling to Search Results card
+    // For auto-scroll to the results section
     const resultsRef = useRef<HTMLDivElement | null>(null);
+    const [shouldScrollToResults, setShouldScrollToResults] = useState(false);
 
     const resetAll = () => {
         setInstitutions([]);
@@ -141,6 +142,30 @@ export default function PRCCheckLanding({ stats }: Props) {
         setSearchMessage(null);
         setSearchMessageType(null);
     };
+
+    // Helper: scroll the viewport so the results card is visible
+    const scrollToResults = () => {
+        if (typeof window === 'undefined' || !resultsRef.current) return;
+
+        const rect = resultsRef.current.getBoundingClientRect();
+        const offset = 96; // adjust if navbar height changes
+        const absoluteTop = window.scrollY + rect.top - offset;
+
+        window.scrollTo({
+            top: absoluteTop,
+            behavior: 'smooth',
+        });
+    };
+
+    // After a successful search, wait for the results card to render,
+    // then scroll down to it (works even on the first search).
+    useEffect(() => {
+        if (!shouldScrollToResults) return;
+        if (!resultsRef.current) return;
+
+        scrollToResults();
+        setShouldScrollToResults(false);
+    }, [shouldScrollToResults]);
 
     // ------------------------------
     // HEI map load
@@ -263,16 +288,8 @@ export default function PRCCheckLanding({ stats }: Props) {
             } else {
                 setSearchMessage(null);
                 setSearchMessageType(null);
-
-                // After new results appear, scroll to the results card
-                if (typeof window !== 'undefined' && resultsRef.current) {
-                    const rect = resultsRef.current.getBoundingClientRect();
-                    const absoluteTop = window.scrollY + rect.top - 96; // adjust for navbar
-                    window.scrollTo({
-                        top: absoluteTop,
-                        behavior: 'smooth',
-                    });
-                }
+                // tell effect to scroll once the results card is rendered
+                setShouldScrollToResults(true);
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -337,17 +354,9 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         if (!isSame) {
             void loadProgramsForInstitution(institution);
-
-            // 🔹 When a school is selected, smoothly scroll to the top
-            // of the Search Results card so the programs panel is visible.
-            if (typeof window !== 'undefined' && resultsRef.current) {
-                const rect = resultsRef.current.getBoundingClientRect();
-                const absoluteTop = window.scrollY + rect.top - 96; // tweak offset as needed
-                window.scrollTo({
-                    top: absoluteTop,
-                    behavior: 'smooth',
-                });
-            }
+            // When a school is selected, scroll to the results card (so the
+            // right-hand programs column is visible even on small screens).
+            scrollToResults();
         }
     };
 
@@ -405,9 +414,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     const { icon: ThemeIcon, tooltip } = getThemeIcon();
 
-    // ------------------------------
-    // Derived: selected institution & programs for right column
-    // ------------------------------
+    // Derived selected institution + programs
     const selectedInstitution =
         expandedInstitutionCode &&
         institutions.find((inst) => inst.code === expandedInstitutionCode)
@@ -430,25 +437,21 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     return (
         <div className="relative min-h-screen bg-gray-50 font-sans dark:bg-gray-950">
-            {/* Top Navbar */}
             <WelcomeNav
                 ThemeIcon={ThemeIcon}
                 tooltip={tooltip}
                 onToggleTheme={toggleTheme}
             />
 
-            {/* Soft background */}
             <div
                 className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10 dark:opacity-5"
                 style={{ backgroundImage: 'url(/assets/img/bg-ched.jpg)' }}
             />
             <div className="pointer-events-none absolute inset-0 bg-white/70 dark:bg-gray-950/60" />
 
-            {/* MAIN */}
             <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-                {/* Map + search grid (8/4) */}
+                {/* Map + search grid */}
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
-                    {/* Map – 8/12 */}
                     <WelcomeLeaflet
                         center={heiMapCenter}
                         zoom={heiMapZoom}
@@ -458,7 +461,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                         onHeiClick={handleHeiMarkerClick}
                     />
 
-                    {/* Search card – 4/12 */}
                     <div className="flex flex-col gap-4 lg:col-span-4">
                         <SearchInstitutionCard
                             searchTerm={searchTerm}
@@ -513,7 +515,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                     <div ref={resultsRef} className="mt-8">
                         <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
                             <CardContent className="p-6 sm:p-8">
-                                {/* Header */}
                                 <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                     <div>
                                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -526,10 +527,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </div>
                                 </div>
 
-                                {/* 2-column layout: institutions list + programs panel */}
-                                <div className="grid gap-6 lg:grid-cols-12">
+                                <div className="grid gap-6 lg:grid-cols-12 lg:h-[460px]">
                                     {/* Left: institutions list */}
-                                    <div className="lg:col-span-6">
+                                    <div className="min-w-0 lg:col-span-6 lg:h-full lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2">
                                         <InstitutionResultsList
                                             institutions={institutions}
                                             expandedInstitutionCode={expandedInstitutionCode}
@@ -543,7 +543,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </div>
 
                                     {/* Right: selected institution programs */}
-                                    <div className="lg:col-span-6">
+                                    <div className="min-w-0 mt-4 lg:col-span-6 lg:mt-0 lg:h-full lg:overflow-y-auto lg:overflow-x-hidden lg:pl-2">
                                         {!selectedInstitution ? (
                                             <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/70 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-400">
                                                 Select an institution on the left to view its
@@ -552,7 +552,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         ) : (
                                             <Card className="border border-gray-100 bg-white/95 shadow-md dark:border-gray-800 dark:bg-gray-900/95">
                                                 <CardContent className="p-5 sm:p-6">
-                                                    <div className="mb-4">
+                                                    <div className="mb-3">
                                                         <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                                             Programs for
                                                         </p>
@@ -622,6 +622,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             programs={selectedPrograms}
                                                             onProgramClick={handleProgramClick}
                                                             loadingProgramId={loadingProgramId}
+                                                            showHeader={false}
                                                         />
                                                     )}
                                                 </CardContent>
@@ -634,13 +635,11 @@ export default function PRCCheckLanding({ stats }: Props) {
                     </div>
                 )}
 
-                {/* About / Footer anchor */}
                 <div id="about" className="mt-10">
                     <Footer />
                 </div>
             </main>
 
-            {/* Permit Preview Dialog */}
             <PermitDialog
                 open={permitDialogOpen && !!selectedProgram}
                 program={selectedProgram}
