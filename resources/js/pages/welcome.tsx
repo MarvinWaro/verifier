@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import InstitutionResultsList from '@/components/welcome/institution-results-list';
+import ProgramsList from '@/components/welcome/programs-list';
 import WelcomeLeaflet from '@/components/welcome/leaflet';
 import SearchInstitutionCard from '@/components/welcome/search-institution-card';
 import PermitDialog from '@/components/welcome/permit-dialog';
@@ -11,7 +12,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import WelcomeNav from '@/components/welcome/welcome-nav';
 import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Graduate {
     id: number;
@@ -120,6 +121,9 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     const { appearance, updateAppearance } = useAppearance();
 
+    // 🔹 New: ref for auto-scrolling to Search Results card
+    const resultsRef = useRef<HTMLDivElement | null>(null);
+
     const resetAll = () => {
         setInstitutions([]);
         setExpandedInstitutionCode(null);
@@ -205,6 +209,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     useEffect(() => {
         void loadHeiMap();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ------------------------------
@@ -258,6 +263,16 @@ export default function PRCCheckLanding({ stats }: Props) {
             } else {
                 setSearchMessage(null);
                 setSearchMessageType(null);
+
+                // After new results appear, scroll to the results card
+                if (typeof window !== 'undefined' && resultsRef.current) {
+                    const rect = resultsRef.current.getBoundingClientRect();
+                    const absoluteTop = window.scrollY + rect.top - 96; // adjust for navbar
+                    window.scrollTo({
+                        top: absoluteTop,
+                        behavior: 'smooth',
+                    });
+                }
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -278,7 +293,7 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     // ------------------------------
-    // Load programs
+    // Load programs for institution
     // ------------------------------
     const loadProgramsForInstitution = async (institution: Institution) => {
         const code = institution.code;
@@ -308,6 +323,9 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
+    // ------------------------------
+    // Institution click / toggle + auto scroll
+    // ------------------------------
     const handleInstitutionToggle = (institution: Institution) => {
         const code = institution.code;
         const isSame = expandedInstitutionCode === code;
@@ -319,11 +337,22 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         if (!isSame) {
             void loadProgramsForInstitution(institution);
+
+            // 🔹 When a school is selected, smoothly scroll to the top
+            // of the Search Results card so the programs panel is visible.
+            if (typeof window !== 'undefined' && resultsRef.current) {
+                const rect = resultsRef.current.getBoundingClientRect();
+                const absoluteTop = window.scrollY + rect.top - 96; // tweak offset as needed
+                window.scrollTo({
+                    top: absoluteTop,
+                    behavior: 'smooth',
+                });
+            }
         }
     };
 
     // ------------------------------
-    // Program click
+    // Program click (permit dialog)
     // ------------------------------
     const handleProgramClick = async (program: Program) => {
         if (!program.id) {
@@ -376,10 +405,37 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     const { icon: ThemeIcon, tooltip } = getThemeIcon();
 
+    // ------------------------------
+    // Derived: selected institution & programs for right column
+    // ------------------------------
+    const selectedInstitution =
+        expandedInstitutionCode &&
+        institutions.find((inst) => inst.code === expandedInstitutionCode)
+            ? institutions.find((inst) => inst.code === expandedInstitutionCode)!
+            : null;
+
+    const selectedPrograms =
+        selectedInstitution &&
+        (institutionPrograms[selectedInstitution.code] ??
+            selectedInstitution.programs ??
+            []);
+
+    const selectedProgramsLoading =
+        selectedInstitution &&
+        institutionProgramsLoading[selectedInstitution.code] === true;
+
+    const selectedProgramsError =
+        selectedInstitution &&
+        (institutionProgramsError[selectedInstitution.code] ?? null);
+
     return (
         <div className="relative min-h-screen bg-gray-50 font-sans dark:bg-gray-950">
-            {/* Top Navbar (extracted component) */}
-            <WelcomeNav ThemeIcon={ThemeIcon} tooltip={tooltip} onToggleTheme={toggleTheme} />
+            {/* Top Navbar */}
+            <WelcomeNav
+                ThemeIcon={ThemeIcon}
+                tooltip={tooltip}
+                onToggleTheme={toggleTheme}
+            />
 
             {/* Soft background */}
             <div
@@ -390,7 +446,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
             {/* MAIN */}
             <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-                {/* grid: map (8) + search (4) */}
+                {/* Map + search grid (8/4) */}
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
                     {/* Map – 8/12 */}
                     <WelcomeLeaflet
@@ -420,7 +476,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                     </div>
                 </div>
 
-                {/* Search results skeleton – when searching and no results yet */}
+                {/* Skeleton while searching and no results yet */}
                 {isSearching && institutions.length === 0 && (
                     <div className="mt-8">
                         <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
@@ -452,14 +508,15 @@ export default function PRCCheckLanding({ stats }: Props) {
                     </div>
                 )}
 
-                {/* Full-width Results */}
+                {/* Search Results + Programs panel */}
                 {institutions.length > 0 && (
-                    <div className="mt-8">
+                    <div ref={resultsRef} className="mt-8">
                         <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
                             <CardContent className="p-6 sm:p-8">
-                                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                {/* Header */}
+                                <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                     <div>
-                                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                                             Search Results
                                         </h3>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -469,16 +526,109 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </div>
                                 </div>
 
-                                <InstitutionResultsList
-                                    institutions={institutions}
-                                    expandedInstitutionCode={expandedInstitutionCode}
-                                    onToggleInstitution={handleInstitutionToggle}
-                                    programsByInstitution={institutionPrograms}
-                                    programsLoading={institutionProgramsLoading}
-                                    programsError={institutionProgramsError}
-                                    onProgramClick={handleProgramClick}
-                                    loadingProgramId={loadingProgramId}
-                                />
+                                {/* 2-column layout: institutions list + programs panel */}
+                                <div className="grid gap-6 lg:grid-cols-12">
+                                    {/* Left: institutions list */}
+                                    <div className="lg:col-span-6">
+                                        <InstitutionResultsList
+                                            institutions={institutions}
+                                            expandedInstitutionCode={expandedInstitutionCode}
+                                            onToggleInstitution={handleInstitutionToggle}
+                                            programsByInstitution={institutionPrograms}
+                                            programsLoading={institutionProgramsLoading}
+                                            programsError={institutionProgramsError}
+                                            onProgramClick={handleProgramClick}
+                                            loadingProgramId={loadingProgramId}
+                                        />
+                                    </div>
+
+                                    {/* Right: selected institution programs */}
+                                    <div className="lg:col-span-6">
+                                        {!selectedInstitution ? (
+                                            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/70 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-400">
+                                                Select an institution on the left to view its
+                                                programs and permits here.
+                                            </div>
+                                        ) : (
+                                            <Card className="border border-gray-100 bg-white/95 shadow-md dark:border-gray-800 dark:bg-gray-900/95">
+                                                <CardContent className="p-5 sm:p-6">
+                                                    <div className="mb-4">
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                                            Programs for
+                                                        </p>
+                                                        <h3 className="mt-1 text-sm font-semibold leading-snug text-gray-900 dark:text-white">
+                                                            {selectedInstitution.name}
+                                                        </h3>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                                            <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 font-medium dark:bg-gray-800">
+                                                                Code:{' '}
+                                                                <span className="ml-1 font-mono">
+                                                                    {selectedInstitution.code}
+                                                                </span>
+                                                            </span>
+                                                            <span className="inline-flex items-center rounded-md bg-gray-900 px-2 py-0.5 font-medium text-white dark:bg-gray-100 dark:text-gray-900">
+                                                                {selectedInstitution.type === 'public'
+                                                                    ? 'Public Institution'
+                                                                    : 'Private Institution'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mb-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                                        <span className="font-semibold">
+                                                            Available Programs
+                                                        </span>
+                                                        <span>
+                                                            {selectedPrograms
+                                                                ? selectedPrograms.length
+                                                                : 0}{' '}
+                                                            program
+                                                            {selectedPrograms &&
+                                                            selectedPrograms.length !== 1
+                                                                ? 's'
+                                                                : ''}
+                                                        </span>
+                                                    </div>
+
+                                                    {selectedProgramsLoading ? (
+                                                        <div className="space-y-3">
+                                                            {[1, 2, 3].map((i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="rounded-lg border bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-800/80"
+                                                                >
+                                                                    <div className="flex items-start gap-4">
+                                                                        <Skeleton className="h-10 w-10 rounded-xl" />
+                                                                        <div className="flex-1 space-y-2">
+                                                                            <Skeleton className="h-4 w-2/3" />
+                                                                            <Skeleton className="h-3 w-1/3" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : selectedProgramsError ? (
+                                                        <p className="text-sm text-red-600 dark:text-red-400">
+                                                            {selectedProgramsError}
+                                                        </p>
+                                                    ) : !selectedPrograms ||
+                                                      selectedPrograms.length === 0 ? (
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                            No programs available for this
+                                                            institution.
+                                                        </p>
+                                                    ) : (
+                                                        <ProgramsList
+                                                            programs={selectedPrograms}
+                                                            onProgramClick={handleProgramClick}
+                                                            loadingProgramId={loadingProgramId}
+                                                        />
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                        )}
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
