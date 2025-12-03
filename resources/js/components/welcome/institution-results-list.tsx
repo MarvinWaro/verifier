@@ -11,6 +11,7 @@ interface Program {
     copNumber: string | null;
     grNumber: string | null;
     graduates_count?: number;
+    permitPdfUrl?: string | null;
 }
 
 interface Institution {

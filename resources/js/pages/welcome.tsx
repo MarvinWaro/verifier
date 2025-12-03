@@ -56,7 +56,11 @@ interface Program {
         name: string;
         type: string;
     };
+
+    // NEW:
+    permitPdfUrl?: string | null;
 }
+
 
 interface Institution {
     id: number | null;
@@ -354,8 +358,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         if (!isSame) {
             void loadProgramsForInstitution(institution);
-            // When a school is selected, scroll to the results card (so the
-            // right-hand programs column is visible even on small screens).
+            // When a school is selected, scroll to the results card
             scrollToResults();
         }
     };

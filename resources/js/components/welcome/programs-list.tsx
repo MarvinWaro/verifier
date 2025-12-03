@@ -1,3 +1,5 @@
+// resources/js/components/welcome/programs-list.tsx
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +12,7 @@ interface Program {
     copNumber: string | null;
     grNumber: string | null;
     graduates_count?: number;
+    permitPdfUrl?: string | null;
 }
 
 interface ProgramsListProps {

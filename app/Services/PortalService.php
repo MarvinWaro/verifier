@@ -12,6 +12,9 @@ class PortalService
     protected string $programsPath = '/fetch-programs';
     protected string $allHeiPath   = '/fetch-all-hei';
 
+    /** Permit viewer base URL (for PDF links) */
+    protected string $permitBaseUrl = '';
+
     /** Config */
     protected int $timeout  = 30;   // seconds
     protected int $retries  = 3;    // attempts
@@ -25,6 +28,12 @@ class PortalService
     {
         // Read from .env (no config file needed)
         $this->apiKey = (string) env('PORTAL_API', '');
+
+        // Base URL to view permit PDFs (e.g. GR-2012-041)
+        $this->permitBaseUrl = (string) env(
+            'PORTAL_PERMIT_BASE_URL',
+            'https://portal.chedro12.com/govt_auth/view_file'
+        );
 
         // Optional: log if missing (helps debugging)
         if ($this->apiKey === '') {
@@ -193,6 +202,22 @@ class PortalService
             report($e);
             return null;
         }
+    }
+
+    /**
+     * Build full URL for a permit PDF based on permit number (e.g. GR-2012-041).
+     */
+    public function buildPermitUrl(?string $permitNumber): ?string
+    {
+        $permitNumber = trim((string) $permitNumber);
+
+        if ($permitNumber === '') {
+            return null;
+        }
+
+        $base = rtrim($this->permitBaseUrl, '/');
+
+        return $base . '/' . urlencode($permitNumber);
     }
 
     /**
