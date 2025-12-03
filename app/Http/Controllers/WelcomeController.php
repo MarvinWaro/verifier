@@ -29,8 +29,6 @@ class WelcomeController extends Controller
         $stats = [
             'institutions' => $institutionsCount,
             'programs'     => Program::count(),
-            // 👇 removed graduates count – no longer needed on landing page
-            // 'graduates'    => ...
         ];
 
         return Inertia::render('welcome', [
@@ -113,13 +111,14 @@ class WelcomeController extends Controller
      * GET /api/institution/{instCode}/programs
      *
      * ✅ Lazy load programs when user clicks on institution
-     * This prevents the heavy queries in searchInstitution()
      */
     public function getInstitutionPrograms(string $instCode, PortalService $portal)
     {
         try {
             // 1. Fetch programs from portal API
             $records = $portal->fetchProgramRecords($instCode);
+
+            error_log(json_encode($records));
 
             // 2. Get local institution data (for graduates count)
             $localInstitution = Institution::with('programs')
@@ -143,9 +142,9 @@ class WelcomeController extends Controller
 
             // 3. Determine if public/private from portal data
             $heiArray = $portal->fetchAllHEI();
-            $hei = collect($heiArray)->firstWhere('instCode', $instCode) ?? [];
+            $hei      = collect($heiArray)->firstWhere('instCode', $instCode) ?? [];
 
-            $sector = strtoupper(trim((string) ($hei['ownershipSector'] ?? '')));
+            $sector  = strtoupper(trim((string) ($hei['ownershipSector'] ?? '')));
             $heiType = strtoupper(trim((string) ($hei['ownershipHei_type'] ?? '')));
             $isPublic = $sector === 'PUBLIC'
                 || in_array($heiType, ['SUC', 'LUC', 'STATE', 'PUBLIC'], true);
@@ -156,11 +155,13 @@ class WelcomeController extends Controller
                     $programName = trim((string) ($r['programName'] ?? ''));
                     $majorName   = trim((string) ($r['majorName'] ?? ''));
                     $permit4th   = trim((string) ($r['permit_4thyr'] ?? ''));
+                    $filename    = trim((string) ($r['filename'] ?? ''));
 
                     return [
                         'program_name'  => $programName,
                         'major'         => $majorName !== '' ? $majorName : null,
                         'permit_number' => $permit4th !== '' ? $permit4th : null,
+                        'filename'      => $filename !== '' ? $filename : null,
                     ];
                 })
                 ->filter(fn ($p) => $p['program_name'] !== '')
@@ -181,7 +182,7 @@ class WelcomeController extends Controller
                     return $lpName === $pName && $lpMajor === $pMajor;
                 });
 
-                $localId = $matchingLocal?->id;
+                $localId         = $matchingLocal?->id;
                 $hasPermitNumber = !empty($p['permit_number']);
 
                 $graduatesCount = null;
@@ -197,6 +198,7 @@ class WelcomeController extends Controller
                     'copNumber'       => ($isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'grNumber'        => (!$isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'graduates_count' => $graduatesCount,
+                    'permitPdfUrl'    => $portal->buildPermitUrl($p['filename'] ?? '') ?? null,
                 ];
             }
 
@@ -221,7 +223,7 @@ class WelcomeController extends Controller
      *
      * Get full program details with graduates list
      */
-    public function getProgram(Request $request, $programId)
+    public function getProgram(Request $request, $programId, PortalService $portal)
     {
         try {
             $program   = Program::with('institution')->findOrFail($programId);
@@ -234,6 +236,11 @@ class WelcomeController extends Controller
 
             $hasPermitNumber = !empty($program->permit_number);
             $isBoard         = ($program->program_type === 'Board');
+
+            // Build permit PDF URL from local permit_number (if any)
+            $permitPdfUrl = $hasPermitNumber
+                ? $portal->buildPermitUrl($program->permit_number)
+                : null;
 
             $graduatesList = [];
 
@@ -282,6 +289,7 @@ class WelcomeController extends Controller
                     'copNumber'    => ($isPublic && $hasPermitNumber) ? $program->permit_number : null,
                     'grNumber'     => (!$isPublic && $hasPermitNumber) ? $program->permit_number : null,
                     'program_type' => $program->program_type,
+                    'permitPdfUrl' => $permitPdfUrl,
                     'institution'  => [
                         'code' => $program->institution->institution_code,
                         'name' => $program->institution->name,
