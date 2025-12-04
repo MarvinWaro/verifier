@@ -55,7 +55,7 @@ const WelcomeNav: React.FC<WelcomeNavProps> = ({ ThemeIcon, tooltip, onToggleThe
                 {/* Right: About + Login + theme toggle */}
                 <div className="flex items-center gap-2">
                     {/* About beside Login */}
-                    <NavItem href="#about" label="About" Icon={Info} />
+                    {/* <NavItem href="#about" label="About" Icon={Info} /> */}
 
                     <a
                         href="/login"
@@ -85,11 +85,11 @@ const WelcomeNav: React.FC<WelcomeNavProps> = ({ ThemeIcon, tooltip, onToggleThe
             </div>
 
             {/* Mobile nav (About only) */}
-            <div className="border-t border-white/10 md:hidden">
+            {/* <div className="border-t border-white/10 md:hidden">
                 <div className="mx-auto flex max-w-7xl items-center gap-1 px-2 py-2">
                     <NavItem href="#about" label="About" Icon={Info} />
                 </div>
-            </div>
+            </div> */}
         </header>
     );
 };
