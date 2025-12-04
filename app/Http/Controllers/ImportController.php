@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+
 class ImportController extends Controller
 {
     public function index()
@@ -18,7 +20,7 @@ class ImportController extends Controller
 
     public function importInstitutions(Request $request)
     {
-        
+
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
         ]);
@@ -140,105 +142,87 @@ class ImportController extends Controller
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
-            // Skip header row
-            array_shift($rows);
+            // SOAIS structure:
+            // Row 1: title
+            // Row 2: main headers
+            // Row 3: sub-headers (semester, academic year, date grad...)
+            array_shift($rows); // remove row 1
+            array_shift($rows); // remove row 2
+            array_shift($rows); // remove row 3
 
             $importedGraduates = 0;
-            $matchedPrograms = 0;
-            $unmatchedPrograms = 0;
-            $errors = [];
+            $skippedRows = 0;
 
             foreach ($rows as $rowIndex => $row) {
-                // Skip empty rows
-                if (empty($row[0]) && empty($row[3])) continue;
-
-                // Based on your database screenshot, the correct column mapping is:
-                $institutionCode = trim($row[0] ?? ''); // Column A: Institution Code (seems to be empty in your data)
-                $studentIdNumber = trim($row[1] ?? ''); // Column B: Student ID Number
-                $dateOfBirth = $row[2] ?? null; // Column C: Date of Birth
-                $lastName = trim($row[3]); // Column D: Last Name
-                $firstName = trim($row[4]); // Column E: First Name
-                $middleName = !empty($row[5]) ? trim($row[5]) : null; // Column F: Middle Name
-                $extensionName = !empty($row[6]) ? trim($row[6]) : null; // Column G: Extension
-                $sex = !empty($row[7]) ? strtoupper(trim($row[7])) : null; // Column H: Sex
-                $dateGraduated = $row[8]; // Column I: Date Graduated
-                $courseFromExcel = trim($row[9]); // Column J: Course
-                $majorFromExcel = !empty($row[10]) ? trim($row[10]) : null; // Column K: Major
-                $soNumber = !empty($row[11]) ? trim($row[11]) : null; // Column L: SO Number
-                $lrn = !empty($row[12]) ? trim($row[12]) : null; // Column M: LRN
-                $philsysId = !empty($row[13]) ? trim($row[13]) : null; // Column N: PhilSys ID
-
-                // Find institution - if institutionCode is empty, try to find by program
-                $institution = null;
-                $program = null;
-
-                if (!empty($institutionCode)) {
-                    $institution = Institution::where('institution_code', $institutionCode)->first();
+                // Skip rows with no HEI UII and no Last Name
+                if (empty($row[3]) && empty($row[5])) {
+                    $skippedRows++;
+                    continue;
                 }
 
-                // If we have an institution, try to match the program
-                if ($institution) {
-                    // Try exact match first
-                    $program = Program::where('institution_id', $institution->id)
-                        ->where('program_name', $courseFromExcel)
-                        ->first();
+                $heiUii        = trim((string)($row[3] ?? ''));  // HEI UII
+                $soNumber      = trim((string)($row[4] ?? ''));  // Special Order Number
+                $lastName      = trim((string)($row[5] ?? ''));  // Last Name
+                $firstName     = trim((string)($row[6] ?? ''));  // First Name
+                $middleName    = trim((string)($row[7] ?? ''));  // Middle Name
+                $extensionName = trim((string)($row[8] ?? ''));  // Extension Name
+                $sexRaw        = strtoupper(trim((string)($row[9] ?? ''))); // Sex
 
-                    // If no exact match, try with major
-                    if (!$program && $majorFromExcel) {
-                        $program = Program::where('institution_id', $institution->id)
-                            ->where('program_name', $courseFromExcel)
-                            ->where('major', $majorFromExcel)
-                            ->first();
-                    }
+                $programName   = trim((string)($row[10] ?? '')); // Program
+                $pscedCode     = trim((string)($row[11] ?? '')); // PSCED Code
+                $majorName     = trim((string)($row[12] ?? '')); // Major
 
-                    // If still no match, try fuzzy search
-                    if (!$program) {
-                        $program = Program::where('institution_id', $institution->id)
-                            ->where(function($query) use ($courseFromExcel) {
-                                $query->where('program_name', 'LIKE', '%' . $courseFromExcel . '%')
-                                    ->orWhere('program_name', 'LIKE', $courseFromExcel . '%')
-                                    ->orWhereRaw('REPLACE(REPLACE(program_name, " ", ""), "-", "") LIKE ?',
-                                        ['%' . str_replace([' ', '-'], '', $courseFromExcel) . '%']);
-                            })
-                            ->first();
-                    }
-                } else {
-                    // If no institution code, try to find institution by program name
-                    $program = Program::whereHas('institution')
-                        ->where('program_name', $courseFromExcel)
-                        ->first();
+                // Date of Graduation
+                $dateGraduatedValue = $row[15] ?? null;
+                $dateGraduated = null;
 
-                    if ($program) {
-                        $institution = $program->institution;
-                    }
+                if ($dateGraduatedValue instanceof \DateTimeInterface) {
+                    $dateGraduated = $dateGraduatedValue->format('Y-m-d');
+                } elseif (is_numeric($dateGraduatedValue)) {
+                    // Excel numeric date
+                    $dateGraduated = ExcelDate::excelToDateTimeObject($dateGraduatedValue)->format('Y-m-d');
+                } elseif (!empty($dateGraduatedValue)) {
+                    $dateGraduated = date('Y-m-d', strtotime($dateGraduatedValue));
                 }
 
-                if ($program) {
-                    $matchedPrograms++;
-                } else {
-                    $unmatchedPrograms++;
-                    $errors[] = "Row " . ($rowIndex + 2) . ": Could not match program '{$courseFromExcel}'" .
-                            ($majorFromExcel ? " - Major: {$majorFromExcel}" : "") .
-                            " for institution code '{$institutionCode}'";
+                // Academic Year – prefer "graduation" AY on col 17, fallback to col 14
+                $academicYear = trim((string)($row[17] ?? ''));
+                if ($academicYear === '' && !empty($row[14])) {
+                    $academicYear = trim((string)$row[14]);
                 }
 
-                // Create graduate record
+                // Normalize sex to MALE/FEMALE
+                $sex = null;
+                if ($sexRaw === 'MALE' || $sexRaw === 'FEMALE') {
+                    $sex = $sexRaw;
+                } elseif ($sexRaw === 'M') {
+                    $sex = 'MALE';
+                } elseif ($sexRaw === 'F') {
+                    $sex = 'FEMALE';
+                }
+
                 \App\Models\Graduate::create([
-                    'institution_id' => $institution ? $institution->id : null,
-                    'program_id' => $program ? $program->id : null,
-                    'student_id_number' => $studentIdNumber,
-                    'date_of_birth' => $dateOfBirth,
-                    'last_name' => $lastName,
-                    'first_name' => $firstName,
-                    'middle_name' => $middleName,
-                    'extension_name' => $extensionName,
-                    'sex' => $sex,
-                    'date_graduated' => $dateGraduated,
-                    'course_from_excel' => $courseFromExcel,
-                    'major_from_excel' => $majorFromExcel,
-                    'so_number' => $soNumber,
-                    'lrn' => $lrn,
-                    'philsys_id' => $philsysId,
+                    'institution_id'    => null,  // Institutions/programs now coming from Portal API
+                    'program_id'        => null,
+
+                    'hei_uii'           => $heiUii,
+                    'so_number'         => $soNumber,
+
+                    'student_id_number' => null,  // not in this SOAIS template
+                    'date_of_birth'     => null,  // not in this SOAIS template
+
+                    'last_name'         => $lastName,
+                    'first_name'        => $firstName,
+                    'middle_name'       => $middleName ?: null,
+                    'extension_name'    => $extensionName ?: null,
+                    'sex'               => $sex,
+
+                    'date_graduated'    => $dateGraduated,
+                    'academic_year'     => $academicYear ?: null,
+
+                    'course_from_excel' => $programName,
+                    'major_from_excel'  => $majorName ?: null,
+                    'psced_code'        => $pscedCode ?: null,
                 ]);
 
                 $importedGraduates++;
@@ -246,29 +230,20 @@ class ImportController extends Controller
 
             DB::commit();
 
-            $message = "Import successful! Imported {$importedGraduates} graduates. ";
-            $message .= "Matched programs: {$matchedPrograms}. ";
-            if ($unmatchedPrograms > 0) {
-                $message .= "Unmatched programs: {$unmatchedPrograms}. ";
-            }
-
             return response()->json([
                 'success' => true,
-                'message' => $message,
+                'message' => "Import successful! Imported {$importedGraduates} graduates. Skipped {$skippedRows} blank rows.",
                 'data' => [
                     'graduates' => $importedGraduates,
-                    'matched' => $matchedPrograms,
-                    'unmatched' => $unmatchedPrograms,
-                    'errors' => array_slice($errors, 0, 10), // Return first 10 errors
-                ]
+                    'skipped'   => $skippedRows,
+                ],
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
                 'success' => false,
-                'message' => 'Import failed: ' . $e->getMessage()
+                'message' => 'Import failed: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -284,14 +259,14 @@ class ImportController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'All graduates cleared successfully'
+                'message' => 'All graduates cleared successfully',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear data: ' . $e->getMessage()
+                'message' => 'Failed to clear data: ' . $e->getMessage(),
             ], 500);
         }
     }
