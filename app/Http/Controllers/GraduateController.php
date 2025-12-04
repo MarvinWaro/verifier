@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Graduate;
+use App\Models\ProgramCatalog;
 use App\Services\PortalService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,9 +15,15 @@ class GraduateController extends Controller
         // Get all HEIs from the Portal once (cached)
         $heiFromPortal = collect($portalService->fetchAllHEI())->keyBy('instCode');
 
+        // 🔗 Load ProgramCatalog once and key by normalized_name
+        $programCatalog = ProgramCatalog::query()
+            ->select('normalized_name', 'program_type')
+            ->get()
+            ->keyBy('normalized_name');
+
         $graduates = Graduate::with(['program.institution', 'institution'])
             ->get()
-            ->map(function ($graduate) use ($heiFromPortal) {
+            ->map(function ($graduate) use ($heiFromPortal, $programCatalog) {
                 $portalHei = $graduate->hei_uii
                     ? $heiFromPortal->get($graduate->hei_uii)
                     : null;
@@ -39,11 +46,26 @@ class GraduateController extends Controller
                     ?? 'Unknown'
                 );
 
+                // 🎯 Decide which program name to use for catalog matching
+                $programNameForCatalog = $graduate->program?->program_name
+                    ?? $graduate->course_from_excel;
+
+                // Normalize and look up program type from catalog
+                $catalogProgramType = 'Unknown';
+                if (!empty($programNameForCatalog)) {
+                    $normalized = ProgramCatalog::normalizeName($programNameForCatalog);
+
+                    if ($programCatalog->has($normalized)) {
+                        $catalogProgramType = $programCatalog->get($normalized)->program_type ?? 'Unknown';
+                    }
+                }
+
                 if ($graduate->program) {
                     $programData = [
                         'program_name' => $graduate->program->program_name,
                         'major'        => $graduate->program->major,
-                        'program_type' => $graduate->program->program_type ?? 'Unknown',
+                        // 💡 Use catalog-derived type here
+                        'program_type' => $catalogProgramType,
                         'permit_number'=> $graduate->program->permit_number,
                         'institution'  => [
                             'institution_code' => $institutionCode,
@@ -52,11 +74,11 @@ class GraduateController extends Controller
                         ],
                     ];
                 } else {
-                    // Fallback: use Excel program info
+                    // Fallback: use Excel program info, but still try to map from catalog
                     $programData = [
                         'program_name' => $graduate->course_from_excel,
                         'major'        => $graduate->major_from_excel,
-                        'program_type' => 'Unknown',
+                        'program_type' => $catalogProgramType,
                         'permit_number'=> 'N/A',
                         'institution'  => [
                             'institution_code' => $institutionCode,

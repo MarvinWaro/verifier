@@ -21,21 +21,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
     Popover,
     PopoverTrigger,
     PopoverContent,
@@ -44,6 +29,9 @@ import { Search, Edit2, Trash2, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import EditGraduateDialog, {
+    GraduateForEdit,
+} from '@/components/graduates/edit-dialog';
 
 interface Institution {
     institution_code: string;
@@ -95,21 +83,10 @@ export default function GraduateIndex({ graduates }: Props) {
     const [search, setSearch] = useState('');
 
     const [editOpen, setEditOpen] = useState(false);
-    const [editLoading, setEditLoading] = useState(false);
-    const [editing, setEditing] = useState<Graduate | null>(null);
+    const [editing, setEditing] = useState<GraduateForEdit | null>(null);
 
-    const [editForm, setEditForm] = useState({
-        last_name: '',
-        first_name: '',
-        middle_name: '',
-        extension_name: '',
-        sex: '',
-        date_graduated: '',
-        academic_year: '',
-        so_number: '',
-        program_name: '',
-        major: '',
-    });
+    // track which delete popover is open
+    const [deleteOpenId, setDeleteOpenId] = useState<number | null>(null);
 
     useEffect(() => {
         setItems(graduates);
@@ -154,77 +131,54 @@ export default function GraduateIndex({ graduates }: Props) {
     };
 
     const openEditDialog = (graduate: Graduate) => {
-        setEditing(graduate);
-        setEditForm({
-            last_name: graduate.last_name,
-            first_name: graduate.first_name,
-            middle_name: graduate.middle_name ?? '',
-            extension_name: graduate.extension_name ?? '',
-            sex: graduate.sex ?? '',
-            date_graduated: graduate.year_graduated ?? '',
-            academic_year: graduate.academic_year ?? '',
-            so_number: graduate.so_number ?? '',
-            program_name: graduate.program.program_name,
-            major: graduate.program.major ?? '',
-        });
+        // cast Graduate -> GraduateForEdit (they have the same shape)
+        setEditing(graduate as GraduateForEdit);
         setEditOpen(true);
     };
 
-    const handleEditChange = (field: keyof typeof editForm, value: string) => {
-        setEditForm((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
-    };
-
-    const handleSaveEdit = async () => {
-        if (!editing) return;
-
-        setEditLoading(true);
-        try {
-            const payload = {
-                ...editForm,
-                sex: editForm.sex || null,
-            };
-
-            await axios.put(`/graduates/${editing.id}`, payload);
-
-            setItems((prev) =>
-                prev.map((g) =>
-                    g.id === editing.id
-                        ? {
-                              ...g,
-                              last_name: editForm.last_name,
-                              first_name: editForm.first_name,
-                              middle_name: editForm.middle_name || null,
-                              extension_name: editForm.extension_name || null,
-                              sex: editForm.sex || null,
-                              year_graduated: editForm.date_graduated || g.year_graduated,
-                              academic_year: editForm.academic_year || null,
-                              so_number: editForm.so_number || null,
-                              program: {
-                                  ...g.program,
-                                  program_name: editForm.program_name,
-                                  major: editForm.major || null,
-                              },
-                          }
-                        : g,
-                ),
-            );
-
-            toast.success('Graduate updated successfully.');
-            setEditOpen(false);
-            setEditing(null);
-        } catch (error: any) {
-            console.error(error);
-            const msg = error?.response?.data?.message ?? 'Failed to update graduate.';
-            toast.error(msg);
-        } finally {
-            setEditLoading(false);
-        }
+    const handleGraduateUpdated = (
+        id: number,
+        updated: {
+            last_name: string;
+            first_name: string;
+            middle_name: string | null;
+            extension_name: string | null;
+            sex: string | null;
+            year_graduated: string;
+            academic_year: string | null;
+            so_number: string | null;
+            program_name: string;
+            major: string | null;
+        },
+    ) => {
+        setItems((prev) =>
+            prev.map((g) =>
+                g.id === id
+                    ? {
+                          ...g,
+                          last_name: updated.last_name,
+                          first_name: updated.first_name,
+                          middle_name: updated.middle_name,
+                          extension_name: updated.extension_name,
+                          sex: updated.sex,
+                          year_graduated: updated.year_graduated,
+                          academic_year: updated.academic_year,
+                          so_number: updated.so_number,
+                          program: {
+                              ...g.program,
+                              program_name: updated.program_name,
+                              major: updated.major,
+                          },
+                      }
+                    : g,
+            ),
+        );
     };
 
     const handleDelete = async (id: number) => {
+        // close popover first
+        setDeleteOpenId(null);
+
         try {
             await axios.delete(`/graduates/${id}`);
             setItems((prev) => prev.filter((g) => g.id !== id));
@@ -371,8 +325,13 @@ export default function GraduateIndex({ graduates }: Props) {
                                                             <span className="hidden md:inline">Edit</span>
                                                         </Button>
 
-                                                        {/* Delete popover */}
-                                                        <Popover>
+                                                        {/* Delete popover (controlled) */}
+                                                        <Popover
+                                                            open={deleteOpenId === graduate.id}
+                                                            onOpenChange={(open) =>
+                                                                setDeleteOpenId(open ? graduate.id : null)
+                                                            }
+                                                        >
                                                             <PopoverTrigger asChild>
                                                                 <Button
                                                                     variant="ghost"
@@ -410,6 +369,7 @@ export default function GraduateIndex({ graduates }: Props) {
                                                                                 variant="outline"
                                                                                 size="sm"
                                                                                 className="h-7 px-3 text-xs"
+                                                                                onClick={() => setDeleteOpenId(null)}
                                                                             >
                                                                                 Cancel
                                                                             </Button>
@@ -445,138 +405,16 @@ export default function GraduateIndex({ graduates }: Props) {
                 </Card>
             </div>
 
-            {/* Edit dialog */}
-            <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Edit Graduate</DialogTitle>
-                        <DialogDescription>
-                            Update basic information for this graduate. Changes are saved immediately to
-                            the database.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-3 mt-2">
-                        {/* Names */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">Last Name</label>
-                                <Input
-                                    value={editForm.last_name}
-                                    onChange={(e) => handleEditChange('last_name', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">First Name</label>
-                                <Input
-                                    value={editForm.first_name}
-                                    onChange={(e) => handleEditChange('first_name', e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Middle / Ext / Sex */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">Middle Name</label>
-                                <Input
-                                    value={editForm.middle_name}
-                                    onChange={(e) => handleEditChange('middle_name', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">Extension</label>
-                                <Input
-                                    value={editForm.extension_name}
-                                    onChange={(e) =>
-                                        handleEditChange('extension_name', e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">Sex</label>
-                                <Select
-                                    value={editForm.sex || ''}
-                                    onValueChange={(value) => handleEditChange('sex', value)}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select sex" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="MALE">MALE</SelectItem>
-                                        <SelectItem value="FEMALE">FEMALE</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        {/* Dates (still half/half) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">Date Graduated</label>
-                                <Input
-                                    type="text"
-                                    placeholder="YYYY-MM-DD"
-                                    value={editForm.date_graduated}
-                                    onChange={(e) =>
-                                        handleEditChange('date_graduated', e.target.value)
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium text-gray-700">Academic Year</label>
-                                <Input
-                                    placeholder="e.g. 2023-2024"
-                                    value={editForm.academic_year}
-                                    onChange={(e) =>
-                                        handleEditChange('academic_year', e.target.value)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        {/* SO number – full width */}
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">SO Number</label>
-                            <Input
-                                value={editForm.so_number}
-                                onChange={(e) => handleEditChange('so_number', e.target.value)}
-                            />
-                        </div>
-
-                        {/* Program – full width */}
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">Program</label>
-                            <Input
-                                value={editForm.program_name}
-                                onChange={(e) => handleEditChange('program_name', e.target.value)}
-                            />
-                        </div>
-
-                        {/* Major – full width */}
-                        <div>
-                            <label className="text-xs font-medium text-gray-700">Major</label>
-                            <Input
-                                value={editForm.major}
-                                onChange={(e) => handleEditChange('major', e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter className="mt-4">
-                        <Button
-                            variant="outline"
-                            onClick={() => setEditOpen(false)}
-                            disabled={editLoading}
-                        >
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSaveEdit} disabled={editLoading}>
-                            {editLoading ? 'Saving...' : 'Save changes'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* Edit dialog component */}
+            <EditGraduateDialog
+                open={editOpen}
+                onOpenChange={(open) => {
+                    setEditOpen(open);
+                    if (!open) setEditing(null);
+                }}
+                graduate={editing}
+                onUpdated={handleGraduateUpdated}
+            />
         </AppLayout>
     );
 }
