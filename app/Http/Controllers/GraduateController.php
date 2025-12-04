@@ -4,26 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Models\Graduate;
 use App\Models\ProgramCatalog;
+use App\Models\ActivityLog;
 use App\Services\PortalService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class GraduateController extends Controller
 {
+    /**
+     * List graduates (Inertia page).
+     * Combines:
+     *  - local graduates table
+     *  - HEI metadata from CHED portal (via PortalService)
+     *  - program type from program_catalogs
+     */
     public function index(PortalService $portalService)
     {
         // Get all HEIs from the Portal once (cached)
         $heiFromPortal = collect($portalService->fetchAllHEI())->keyBy('instCode');
 
-        // 🔗 Load ProgramCatalog once and key by normalized_name
-        $programCatalog = ProgramCatalog::query()
-            ->select('normalized_name', 'program_type')
-            ->get()
-            ->keyBy('normalized_name');
-
         $graduates = Graduate::with(['program.institution', 'institution'])
-            ->get()
-            ->map(function ($graduate) use ($heiFromPortal, $programCatalog) {
+            ->orderBy('last_name')
+            ->paginate(25)                 // 👈 25 per page
+            ->through(function (Graduate $graduate) use ($heiFromPortal) {
                 $portalHei = $graduate->hei_uii
                     ? $heiFromPortal->get($graduate->hei_uii)
                     : null;
@@ -46,47 +49,32 @@ class GraduateController extends Controller
                     ?? 'Unknown'
                 );
 
-                // 🎯 Decide which program name to use for catalog matching
-                $programNameForCatalog = $graduate->program?->program_name
-                    ?? $graduate->course_from_excel;
+                // Base program fields (from relation if present; otherwise from Excel)
+                $programName = $graduate->program?->program_name ?? $graduate->course_from_excel;
+                $major       = $graduate->program?->major ?? $graduate->major_from_excel;
 
-                // Normalize and look up program type from catalog
-                $catalogProgramType = 'Unknown';
-                if (!empty($programNameForCatalog)) {
-                    $normalized = ProgramCatalog::normalizeName($programNameForCatalog);
+                // Look up program type from ProgramCatalog using normalized name
+                $programType = 'Unknown';
+                if ($programName) {
+                    $normalized = ProgramCatalog::normalizeName($programName);
+                    $catalog    = ProgramCatalog::where('normalized_name', $normalized)->first();
 
-                    if ($programCatalog->has($normalized)) {
-                        $catalogProgramType = $programCatalog->get($normalized)->program_type ?? 'Unknown';
+                    if ($catalog) {
+                        $programType = $catalog->program_type ?? 'Unknown';
                     }
                 }
 
-                if ($graduate->program) {
-                    $programData = [
-                        'program_name' => $graduate->program->program_name,
-                        'major'        => $graduate->program->major,
-                        // 💡 Use catalog-derived type here
-                        'program_type' => $catalogProgramType,
-                        'permit_number'=> $graduate->program->permit_number,
-                        'institution'  => [
-                            'institution_code' => $institutionCode,
-                            'name'             => $institutionName,
-                            'type'             => $institutionType,
-                        ],
-                    ];
-                } else {
-                    // Fallback: use Excel program info, but still try to map from catalog
-                    $programData = [
-                        'program_name' => $graduate->course_from_excel,
-                        'major'        => $graduate->major_from_excel,
-                        'program_type' => $catalogProgramType,
-                        'permit_number'=> 'N/A',
-                        'institution'  => [
-                            'institution_code' => $institutionCode,
-                            'name'             => $institutionName,
-                            'type'             => $institutionType,
-                        ],
-                    ];
-                }
+                $programData = [
+                    'program_name'  => $programName,
+                    'major'         => $major,
+                    'program_type'  => $programType,
+                    'permit_number' => $graduate->program?->permit_number,
+                    'institution'   => [
+                        'institution_code' => $institutionCode,
+                        'name'             => $institutionName,
+                        'type'             => $institutionType,
+                    ],
+                ];
 
                 return [
                     'id'                => $graduate->id,
@@ -110,6 +98,10 @@ class GraduateController extends Controller
         ]);
     }
 
+    /**
+     * Update a graduate (called by the edit dialog).
+     * Returns JSON only.
+     */
     public function update(Request $request, Graduate $graduate)
     {
         $validated = $request->validate([
@@ -125,6 +117,21 @@ class GraduateController extends Controller
             'major'          => 'nullable|string|max:500',
         ]);
 
+        // Snapshot BEFORE for logging
+        $before = $graduate->only([
+            'last_name',
+            'first_name',
+            'middle_name',
+            'extension_name',
+            'sex',
+            'date_graduated',
+            'academic_year',
+            'so_number',
+            'course_from_excel',
+            'major_from_excel',
+        ]);
+
+        // --- Update main fields ---
         $graduate->last_name      = $validated['last_name'];
         $graduate->first_name     = $validated['first_name'];
         $graduate->middle_name    = $validated['middle_name'] ?? null;
@@ -134,11 +141,42 @@ class GraduateController extends Controller
         $graduate->academic_year  = $validated['academic_year'] ?? null;
         $graduate->so_number      = $validated['so_number'] ?? null;
 
-        // Update the Excel-backed program fields
+        // Excel-backed program fields (for reference / ProgramCatalog matching)
         $graduate->course_from_excel = $validated['program_name'];
         $graduate->major_from_excel  = $validated['major'] ?? null;
 
         $graduate->save();
+
+        // --- Log the edit (this is where the error came from before) ---
+        ActivityLog::create([
+            'user_id'      => $request->user()?->id,
+            'action'       => 'graduate_update',
+            'subject_type' => Graduate::class,
+            'subject_id'   => $graduate->id,
+            'summary'      => sprintf(
+                'Updated graduate %s %s (SO: %s)',
+                $graduate->first_name,
+                $graduate->last_name,
+                $graduate->so_number ?? 'N/A'
+            ),
+            'properties'   => [
+                'graduate_id' => $graduate->id,
+                'so_number'   => $graduate->so_number,
+                'before'      => $before,
+                'after'       => [
+                    'last_name'         => $graduate->last_name,
+                    'first_name'        => $graduate->first_name,
+                    'middle_name'       => $graduate->middle_name,
+                    'extension_name'    => $graduate->extension_name,
+                    'sex'               => $graduate->sex,
+                    'date_graduated'    => $graduate->date_graduated,
+                    'academic_year'     => $graduate->academic_year,
+                    'so_number'         => $graduate->so_number,
+                    'course_from_excel' => $graduate->course_from_excel,
+                    'major_from_excel'  => $graduate->major_from_excel,
+                ],
+            ],
+        ]);
 
         return response()->json([
             'success' => true,
@@ -146,9 +184,32 @@ class GraduateController extends Controller
         ]);
     }
 
-    public function destroy(Graduate $graduate)
+    /**
+     * Delete a graduate record.
+     */
+    public function destroy(Request $request, Graduate $graduate)
     {
+        $id       = $graduate->id;
+        $soNumber = $graduate->so_number;
+        $name     = trim($graduate->first_name . ' ' . $graduate->last_name);
+
         $graduate->delete();
+
+        ActivityLog::create([
+            'user_id'      => $request->user()?->id,
+            'action'       => 'graduate_delete',
+            'subject_type' => Graduate::class,
+            'subject_id'   => $id,
+            'summary'      => sprintf(
+                'Deleted graduate %s (SO: %s)',
+                $name !== '' ? $name : "ID {$id}",
+                $soNumber ?? 'N/A'
+            ),
+            'properties'   => [
+                'graduate_id' => $id,
+                'so_number'   => $soNumber,
+            ],
+        ]);
 
         return response()->json([
             'success' => true,
