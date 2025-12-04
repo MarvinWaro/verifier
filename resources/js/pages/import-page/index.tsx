@@ -6,7 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, Trash2, CheckCircle, AlertCircle, FileSpreadsheet, Users } from 'lucide-react';
+import {
+    Upload,
+    Trash2,
+    CheckCircle,
+    AlertCircle,
+    FileSpreadsheet,
+    Users,
+} from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
 
@@ -29,14 +36,16 @@ export default function ImportPage() {
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="mb-2">
                     <h1 className="text-2xl font-bold">Import Data</h1>
-                    <p className="text-gray-600">Import institutions, programs, and graduates data from Excel files</p>
+                    <p className="text-gray-600">
+                        Import institutions, programs, and graduates data from Excel files
+                    </p>
                 </div>
 
                 <Tabs defaultValue="institutions" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 max-w-md">
                         <TabsTrigger value="institutions" className="flex items-center gap-2">
                             <FileSpreadsheet className="w-4 h-4" />
-                            Institutions & Programs
+                            Institutions &amp; Programs
                         </TabsTrigger>
                         <TabsTrigger value="graduates" className="flex items-center gap-2">
                             <Users className="w-4 h-4" />
@@ -102,14 +111,21 @@ function InstitutionsImport() {
             }
         } catch (err: any) {
             console.error('Import error:', err);
-            setError('An error occurred during import: ' + (err.response?.data?.message || err.message));
+            setError(
+                'An error occurred during import: ' +
+                    (err.response?.data?.message || err.message),
+            );
         } finally {
             setLoading(false);
         }
     };
 
     const handleClearData = async () => {
-        if (!confirm('Are you sure you want to clear all institutions and programs? This cannot be undone!')) {
+        if (
+            !confirm(
+                'Are you sure you want to clear all institutions and programs? This cannot be undone!',
+            )
+        ) {
             return;
         }
 
@@ -135,7 +151,7 @@ function InstitutionsImport() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Import Institutions & Programs</CardTitle>
+                <CardTitle>Import Institutions &amp; Programs</CardTitle>
                 <CardDescription>
                     Upload an Excel file containing institution codes, names, and their programs
                 </CardDescription>
@@ -174,7 +190,8 @@ function InstitutionsImport() {
                             {result.message}
                             {result.data && (
                                 <div className="mt-2 font-medium">
-                                    • Institutions: {result.data.institutions}<br />
+                                    • Institutions: {result.data.institutions}
+                                    <br />
                                     • Programs: {result.data.programs}
                                 </div>
                             )}
@@ -201,13 +218,41 @@ function InstitutionsImport() {
                                 </tr>
                             </thead>
                             <tbody className="text-gray-600">
-                                <tr><td className="py-1">A</td><td>Institution Code</td><td>✓</td></tr>
-                                <tr><td className="py-1">B</td><td>HEI (Institution Name)</td><td>✓</td></tr>
-                                <tr><td className="py-1">C</td><td>Programs</td><td>✓</td></tr>
-                                <tr><td className="py-1">D</td><td>Program Type (Board/Non-Board)</td><td>-</td></tr>
-                                <tr><td className="py-1">E</td><td>Major</td><td>-</td></tr>
-                                <tr><td className="py-1">F</td><td>Permit Number</td><td>✓</td></tr>
-                                <tr><td className="py-1">G</td><td>Type (Private/SUCs/LUCs)</td><td>✓</td></tr>
+                                <tr>
+                                    <td className="py-1">A</td>
+                                    <td>Institution Code</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">B</td>
+                                    <td>HEI (Institution Name)</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">C</td>
+                                    <td>Programs</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">D</td>
+                                    <td>Program Type (Board/Non-Board)</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">E</td>
+                                    <td>Major</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">F</td>
+                                    <td>Permit Number</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">G</td>
+                                    <td>Type (Private/SUCs/LUCs)</td>
+                                    <td>✓</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -221,7 +266,7 @@ function InstitutionsImport() {
                         className="flex items-center gap-2"
                     >
                         <Trash2 className="w-4 h-4" />
-                        Clear All Institutions & Programs
+                        Clear All Institutions &amp; Programs
                     </Button>
                     <p className="text-xs text-gray-500 mt-2">
                         Warning: This will permanently delete all institutions and their programs
@@ -277,7 +322,10 @@ function GraduatesImport() {
             }
         } catch (err: any) {
             console.error('Import error:', err);
-            setError('An error occurred during import: ' + (err.response?.data?.message || err.message));
+            setError(
+                'An error occurred during import: ' +
+                    (err.response?.data?.message || err.message),
+            );
         } finally {
             setLoading(false);
         }
@@ -312,7 +360,8 @@ function GraduatesImport() {
             <CardHeader>
                 <CardTitle>Import Graduates</CardTitle>
                 <CardDescription>
-                    Upload an Excel file containing graduate information
+                    Upload the SOAIS Excel file (MASTERLIST OF APPROVED SPECIAL ORDER APPLICATIONS).
+                    The system will read only the required columns.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -349,23 +398,9 @@ function GraduatesImport() {
                             {result.message}
                             {result.data && (
                                 <div className="mt-2 font-medium">
-                                    • Graduates Imported: {result.data.graduates}<br />
-                                    • Programs Matched: {result.data.matched}<br />
-                                    {result.data.unmatched > 0 && (
-                                        <span className="text-orange-700">
-                                            • Unmatched Programs: {result.data.unmatched}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                            {result.data && result.data.errors && result.data.errors.length > 0 && (
-                                <div className="mt-3 text-xs">
-                                    <p className="font-semibold mb-1">First few errors:</p>
-                                    <ul className="list-disc list-inside space-y-1">
-                                        {result.data.errors.map((err: string, idx: number) => (
-                                            <li key={idx}>{err}</li>
-                                        ))}
-                                    </ul>
+                                    • Graduates Imported: {result.data.graduates}
+                                    <br />
+                                    • Blank Rows Skipped: {result.data.skipped}
                                 </div>
                             )}
                         </AlertDescription>
@@ -380,7 +415,10 @@ function GraduatesImport() {
                 )}
 
                 <div className="pt-4 border-t">
-                    <h3 className="text-sm font-medium mb-3">Excel Format Requirements:</h3>
+                    <h3 className="text-sm font-medium mb-3">Excel Format (SOAIS Template):</h3>
+                    <p className="text-xs text-gray-600 mb-2">
+                        Use the official SOAIS export. The system will read the following columns:
+                    </p>
                     <div className="bg-gray-50 p-4 rounded-lg">
                         <table className="text-xs w-full">
                             <thead>
@@ -391,23 +429,73 @@ function GraduatesImport() {
                                 </tr>
                             </thead>
                             <tbody className="text-gray-600">
-                                <tr><td className="py-1">A</td><td>Institution Code</td><td>-</td></tr>
-                                <tr><td className="py-1">B</td><td>Student ID Number</td><td>✓</td></tr>
-                                <tr><td className="py-1">C</td><td>Date of Birth</td><td>-</td></tr>
-                                <tr><td className="py-1">D</td><td>Last Name</td><td>✓</td></tr>
-                                <tr><td className="py-1">E</td><td>First Name</td><td>✓</td></tr>
-                                <tr><td className="py-1">F</td><td>Middle Name</td><td>-</td></tr>
-                                <tr><td className="py-1">G</td><td>Extension Name</td><td>-</td></tr>
-                                <tr><td className="py-1">H</td><td>Sex</td><td>-</td></tr>
-                                <tr><td className="py-1">I</td><td>Date Graduated</td><td>✓</td></tr>
-                                <tr><td className="py-1">J</td><td>Course</td><td>✓</td></tr>
-                                <tr><td className="py-1">K</td><td>Major</td><td>-</td></tr>
-                                <tr><td className="py-1">L</td><td>SO Number</td><td>-</td></tr>
-                                <tr><td className="py-1">M</td><td>LRN</td><td>-</td></tr>
-                                <tr><td className="py-1">N</td><td>PhilSys ID</td><td>-</td></tr>
+                                <tr>
+                                    <td className="py-1">D</td>
+                                    <td>HEI UII</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">E</td>
+                                    <td>Special Order Number</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">F</td>
+                                    <td>Last Name</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">G</td>
+                                    <td>First Name</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">H</td>
+                                    <td>Middle Name</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">I</td>
+                                    <td>Extension Name (II, Jr., etc.)</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">J</td>
+                                    <td>Sex (Male/Female)</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">K</td>
+                                    <td>Program</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">L</td>
+                                    <td>PSCED Code</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">M</td>
+                                    <td>Major</td>
+                                    <td>-</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">P</td>
+                                    <td>Date of Graduation</td>
+                                    <td>✓</td>
+                                </tr>
+                                <tr>
+                                    <td className="py-1">R</td>
+                                    <td>Last Enrollment Academic Year (used as Academic Year)</td>
+                                    <td>-</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                        Note: Other columns in the SOAIS file (e.g. Region, Province, Started Semester)
+                        are ignored by the system.
+                    </p>
                 </div>
 
                 <div className="pt-4 border-t">

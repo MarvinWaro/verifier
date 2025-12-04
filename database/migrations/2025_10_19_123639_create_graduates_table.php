@@ -10,35 +10,46 @@ return new class extends Migration
     {
         Schema::create('graduates', function (Blueprint $table) {
             $table->id();
+
             $table->foreignId('institution_id')->nullable()->constrained()->onDelete('set null');
             $table->foreignId('program_id')->nullable()->constrained()->onDelete('set null');
 
-            // Student Information
-            $table->string('student_id_number')->nullable(); // Column B
-            $table->string('date_of_birth')->nullable(); // Column C - ADD THIS!
-            $table->string('last_name'); // Column D
-            $table->string('first_name'); // Column E
-            $table->string('middle_name')->nullable(); // Column F
-            $table->string('extension_name')->nullable(); // Column G
-            $table->enum('sex', ['MALE', 'FEMALE'])->nullable(); // Column H
-            $table->string('date_graduated'); // Column I
+            // Keys from SOAIS / Excel
+            $table->string('hei_uii')->nullable();          // HEI UII (instCode)
+            $table->string('so_number')->nullable();        // Special Order Number
 
-            // Course/Program from Excel (for reference/debugging)
-            $table->text('course_from_excel'); // Column J - Store original course name
-            $table->text('major_from_excel')->nullable(); // Column K - Store original major
+            // Optional IDs (not in SOAIS now but kept for future)
+            $table->string('student_id_number')->nullable();
+            $table->string('date_of_birth')->nullable();
 
-            // Additional IDs
-            $table->string('so_number')->nullable(); // Column L - SO Number
-            $table->string('lrn')->nullable(); // Column M - LRN
-            $table->string('philsys_id')->nullable(); // Column N - PhilSys ID
+            // Student name
+            $table->string('last_name');
+            $table->string('first_name');
+            $table->string('middle_name')->nullable();
+            $table->string('extension_name')->nullable();
+
+            // Sex
+            $table->enum('sex', ['MALE', 'FEMALE'])->nullable();
+
+            // Graduation info
+            $table->string('date_graduated');        // from Excel "Date of Graduation"
+            $table->string('academic_year')->nullable(); // from Excel "Academic Year"
+
+            // Program info from Excel
+            $table->text('course_from_excel');           // Program
+            $table->text('major_from_excel')->nullable(); // Major
+            $table->string('psced_code')->nullable();    // PSCED Code
 
             $table->timestamps();
 
-            // Indexes for faster searching
+            // Indexes
             $table->index('institution_id');
             $table->index('program_id');
             $table->index('last_name');
             $table->index('student_id_number');
+            $table->index('hei_uii');
+            $table->index('so_number');
+            $table->index('psced_code');
         });
     }
 

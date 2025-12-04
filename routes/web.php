@@ -67,10 +67,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Graduates (page)
+    | Graduates (page + update/delete)
     |--------------------------------------------------------------------------
     */
-    Route::get('graduates', [GraduateController::class, 'index'])->name('graduates.index');
+    Route::prefix('graduates')->name('graduates.')->group(function () {
+        Route::get('/', [GraduateController::class, 'index'])->name('index');
+        Route::put('{graduate}', [GraduateController::class, 'update'])->name('update');
+        Route::delete('{graduate}', [GraduateController::class, 'destroy'])->name('destroy');
+    });
 
     /*
     |--------------------------------------------------------------------------
