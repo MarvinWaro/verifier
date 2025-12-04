@@ -11,7 +11,7 @@ class GraduateController extends Controller
 {
     public function index(PortalService $portalService)
     {
-        // Get all HEIs from the Portal once (cached by PortalService)
+        // Get all HEIs from the Portal once (cached)
         $heiFromPortal = collect($portalService->fetchAllHEI())->keyBy('instCode');
 
         $graduates = Graduate::with(['program.institution', 'institution'])
@@ -21,7 +21,7 @@ class GraduateController extends Controller
                     ? $heiFromPortal->get($graduate->hei_uii)
                     : null;
 
-                // Institution display data (prefer Portal data, then local DB, then fallback)
+                // Institution display data (prefer Portal)
                 $institutionCode = $graduate->program?->institution?->institution_code
                     ?? $graduate->institution?->institution_code
                     ?? $graduate->hei_uii
@@ -85,6 +85,52 @@ class GraduateController extends Controller
 
         return Inertia::render('graduates/index', [
             'graduates' => $graduates,
+        ]);
+    }
+
+    public function update(Request $request, Graduate $graduate)
+    {
+        $validated = $request->validate([
+            'last_name'      => 'required|string|max:255',
+            'first_name'     => 'required|string|max:255',
+            'middle_name'    => 'nullable|string|max:255',
+            'extension_name' => 'nullable|string|max:255',
+            'sex'            => 'nullable|in:MALE,FEMALE',
+            'date_graduated' => 'nullable|string|max:20',
+            'academic_year'  => 'nullable|string|max:20',
+            'so_number'      => 'nullable|string|max:255',
+            'program_name'   => 'required|string|max:500',
+            'major'          => 'nullable|string|max:500',
+        ]);
+
+        $graduate->last_name      = $validated['last_name'];
+        $graduate->first_name     = $validated['first_name'];
+        $graduate->middle_name    = $validated['middle_name'] ?? null;
+        $graduate->extension_name = $validated['extension_name'] ?? null;
+        $graduate->sex            = $validated['sex'] ?? null;
+        $graduate->date_graduated = $validated['date_graduated'] ?: $graduate->date_graduated;
+        $graduate->academic_year  = $validated['academic_year'] ?? null;
+        $graduate->so_number      = $validated['so_number'] ?? null;
+
+        // Update the Excel-backed program fields
+        $graduate->course_from_excel = $validated['program_name'];
+        $graduate->major_from_excel  = $validated['major'] ?? null;
+
+        $graduate->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Graduate updated successfully.',
+        ]);
+    }
+
+    public function destroy(Graduate $graduate)
+    {
+        $graduate->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Graduate removed successfully.',
         ]);
     }
 }
