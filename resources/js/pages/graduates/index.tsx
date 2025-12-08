@@ -63,20 +63,23 @@ interface Graduate {
     so_number: string | null;
 }
 
-interface PaginationLink {
-    url: string | null;
-    label: string;
-    active: boolean;
-}
-
 interface Pagination<T> {
     data: T[];
-    links: PaginationLink[];
+    links: {
+        url: string | null;
+        label: string;
+        active: boolean;
+    }[];
     total?: number;
+}
+
+interface Filters {
+    q?: string | null;
 }
 
 interface Props {
     graduates: Pagination<Graduate>;
+    filters: Filters;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -90,13 +93,12 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function GraduateIndex({ graduates }: Props) {
-    // Local state for current page items and total count
+export default function GraduateIndex({ graduates, filters }: Props) {
     const [items, setItems] = useState<Graduate[]>(graduates.data);
     const [total, setTotal] = useState<number>(
         graduates.total ?? graduates.data.length,
     );
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(filters.q ?? '');
 
     const [editOpen, setEditOpen] = useState(false);
     const [editing, setEditing] = useState<GraduateForEdit | null>(null);
@@ -104,29 +106,11 @@ export default function GraduateIndex({ graduates }: Props) {
     // track which delete popover is open
     const [deleteOpenId, setDeleteOpenId] = useState<number | null>(null);
 
-    // When Inertia sends a new page, refresh items + total
+    // Sync local items when Inertia sends new page of graduates
     useEffect(() => {
         setItems(graduates.data);
         setTotal(graduates.total ?? graduates.data.length);
-    }, [graduates]);
-
-    const filteredGraduates = items.filter((graduate) => {
-        const term = search.toLowerCase();
-
-        return (
-            graduate.last_name?.toLowerCase().includes(term) ||
-            graduate.first_name?.toLowerCase().includes(term) ||
-            (graduate.middle_name ?? '').toLowerCase().includes(term) ||
-            graduate.program.program_name.toLowerCase().includes(term) ||
-            graduate.program.institution.name.toLowerCase().includes(term) ||
-            graduate.program.institution.institution_code
-                .toLowerCase()
-                .includes(term) ||
-            graduate.year_graduated.includes(search) ||
-            (graduate.academic_year ?? '').includes(search) ||
-            graduate.so_number?.toLowerCase().includes(term)
-        );
-    });
+    }, [graduates.data, graduates.total]);
 
     const getProgramTypeColor = (type: string) => {
         switch (type) {
@@ -202,15 +186,29 @@ export default function GraduateIndex({ graduates }: Props) {
         try {
             await axios.delete(`/graduates/${id}`);
             setItems((prev) => prev.filter((g) => g.id !== id));
-            setTotal((prev) => Math.max(prev - 1, 0)); // keep total text in sync
+            setTotal((prev) => (prev > 0 ? prev - 1 : 0));
             toast.success('Graduate removed successfully.');
         } catch (error: any) {
             console.error(error);
             const msg =
-                error?.response?.data?.message ??
-                'Failed to remove graduate.';
+                error?.response?.data?.message ?? 'Failed to remove graduate.';
             toast.error(msg);
         }
+    };
+
+    const onSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        router.get(
+            '/graduates',
+            {
+                q: search || undefined,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
     };
 
     return (
@@ -222,13 +220,23 @@ export default function GraduateIndex({ graduates }: Props) {
                     <CardHeader>
                         <CardTitle>All Graduates</CardTitle>
                         <CardDescription>
-                            Total of {total} graduate
-                            {total !== 1 ? 's' : ''} registered
+                            {filters.q ? (
+                                <>
+                                    Showing {items.length} of {total} graduate
+                                    {total !== 1 ? 's' : ''} matching "
+                                    {filters.q}"
+                                </>
+                            ) : (
+                                <>
+                                    Total of {total} graduate
+                                    {total !== 1 ? 's' : ''} registered
+                                </>
+                            )}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {/* Search Bar */}
-                        <div className="mb-4">
+                        {/* Search Bar (server-side) */}
+                        <form onSubmit={onSearchSubmit} className="mb-4">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                 <Input
@@ -239,7 +247,7 @@ export default function GraduateIndex({ graduates }: Props) {
                                     className="pl-10"
                                 />
                             </div>
-                        </div>
+                        </form>
 
                         {/* Table */}
                         <div className="rounded-md border overflow-x-auto">
@@ -265,19 +273,19 @@ export default function GraduateIndex({ graduates }: Props) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredGraduates.length === 0 ? (
+                                    {items.length === 0 ? (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={14}
                                                 className="text-center py-8 text-gray-500"
                                             >
-                                                {search
-                                                    ? 'No graduates found'
-                                                    : 'No graduates available'}
+                                                {filters.q
+                                                    ? 'No graduates found for your search.'
+                                                    : 'No graduates available.'}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredGraduates.map((graduate) => (
+                                        items.map((graduate) => (
                                             <TableRow
                                                 key={graduate.id}
                                                 className="hover:bg-gray-50"
@@ -285,7 +293,9 @@ export default function GraduateIndex({ graduates }: Props) {
                                                 <TableCell className="text-sm">
                                                     {graduate.so_number ? (
                                                         <span className="font-medium text-blue-600">
-                                                            {graduate.so_number}
+                                                            {
+                                                                graduate.so_number
+                                                            }
                                                         </span>
                                                     ) : (
                                                         <span className="text-gray-400">
@@ -482,13 +492,6 @@ export default function GraduateIndex({ graduates }: Props) {
                                 </TableBody>
                             </Table>
                         </div>
-
-                        {search && (
-                            <p className="text-sm text-gray-600 mt-4">
-                                Showing {filteredGraduates.length} of{' '}
-                                {items.length} graduates on this page
-                            </p>
-                        )}
 
                         {/* Pagination */}
                         {graduates.links && graduates.links.length > 0 && (

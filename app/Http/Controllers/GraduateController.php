@@ -12,20 +12,45 @@ use Inertia\Inertia;
 class GraduateController extends Controller
 {
     /**
-     * List graduates (Inertia page).
-     * Combines:
-     *  - local graduates table
+     * List graduates (Inertia page) with:
+     *  - server-side search (q)
+     *  - pagination (25 per page)
      *  - HEI metadata from CHED portal (via PortalService)
      *  - program type from program_catalogs
      */
-    public function index(PortalService $portalService)
+    public function index(Request $request, PortalService $portalService)
     {
+        $q = (string) $request->query('q', '');
+
         // Get all HEIs from the Portal once (cached)
         $heiFromPortal = collect($portalService->fetchAllHEI())->keyBy('instCode');
 
-        $graduates = Graduate::with(['program.institution', 'institution'])
+        $query = Graduate::with(['program.institution', 'institution']);
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('last_name', 'like', "%{$q}%")
+                    ->orWhere('first_name', 'like', "%{$q}%")
+                    ->orWhere('middle_name', 'like', "%{$q}%")
+                    ->orWhere('so_number', 'like', "%{$q}%")
+                    ->orWhere('academic_year', 'like', "%{$q}%")
+                    ->orWhere('hei_uii', 'like', "%{$q}%");
+            })
+            ->orWhereHas('program', function ($sub) use ($q) {
+                $sub->where('program_name', 'like', "%{$q}%")
+                    ->orWhere('major', 'like', "%{$q}%");
+            })
+            ->orWhereHas('program.institution', function ($sub) use ($q) {
+                $sub->where('name', 'like', "%{$q}%")
+                    ->orWhere('institution_code', 'like', "%{$q}%");
+            });
+        }
+
+        $graduates = $query
             ->orderBy('last_name')
-            ->paginate(25)                 // 👈 25 per page
+            ->orderBy('first_name')
+            ->paginate(25)
+            ->withQueryString()
             ->through(function (Graduate $graduate) use ($heiFromPortal) {
                 $portalHei = $graduate->hei_uii
                     ? $heiFromPortal->get($graduate->hei_uii)
@@ -95,6 +120,9 @@ class GraduateController extends Controller
 
         return Inertia::render('graduates/index', [
             'graduates' => $graduates,
+            'filters'   => [
+                'q' => $q !== '' ? $q : null,
+            ],
         ]);
     }
 
@@ -147,7 +175,7 @@ class GraduateController extends Controller
 
         $graduate->save();
 
-        // --- Log the edit (this is where the error came from before) ---
+        // --- Log the edit ---
         ActivityLog::create([
             'user_id'      => $request->user()?->id,
             'action'       => 'graduate_update',
