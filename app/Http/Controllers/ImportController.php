@@ -89,7 +89,7 @@ class ImportController extends Controller
 
             DB::commit();
 
-            // ✅ Log who imported (using summary + properties)
+            // Log who imported
             ActivityLog::create([
                 'user_id'      => $request->user()?->id,
                 'action'       => 'institutions_import',
@@ -156,6 +156,12 @@ class ImportController extends Controller
 
     /**
      * Import graduates from the SO masterlist Excel
+     *
+     * Upsert rule (SO-based):
+     *  - Unique key: (hei_uii + so_number)
+     *  - If NOT found => create
+     *  - If found and data changed => update
+     *  - If found and data exactly the same => unchanged (no duplicate)
      */
     public function importGraduates(Request $request)
     {
@@ -184,7 +190,12 @@ class ImportController extends Controller
             array_shift($rows);
             array_shift($rows);
 
-            $importedGraduates = 0;
+            $createdGraduates  = 0;
+            $updatedGraduates  = 0;
+            $unchangedGraduates = 0;
+            $blankRows         = 0;
+            $invalidRows       = 0;
+
             $matchedPrograms   = 0;
             $unmatchedPrograms = 0;
             $errors            = [];
@@ -199,6 +210,7 @@ class ImportController extends Controller
                     }
                 }
                 if ($isEmpty) {
+                    $blankRows++;
                     continue;
                 }
 
@@ -214,7 +226,7 @@ class ImportController extends Controller
                 $extension    = isset($row[8]) ? trim((string) $row[8]) : null;
                 $sexRaw       = isset($row[9]) ? trim((string) $row[9]) : null;
                 $courseExcel  = trim((string) ($row[10] ?? '')); // Program
-                $pscedCode    = isset($row[11]) ? trim((string) $row[11]) : null;
+                $pscedCode    = isset($row[11]) ? trim((string) $row[11]) : null; // currently unused
                 $majorExcel   = isset($row[12]) ? trim((string) $row[12]) : null;
 
                 // Ended -> Date of Graduation (col 15 index)
@@ -248,6 +260,7 @@ class ImportController extends Controller
                     $firstName === '' ||
                     $courseExcel === ''
                 ) {
+                    $invalidRows++;
                     $errors[] = "Row {$excelRow}: Missing required fields (HEI UII / SO Number / Name / Program).";
                     continue;
                 }
@@ -281,13 +294,18 @@ class ImportController extends Controller
                         . " for HEI UII '{$heiUii}'.";
                 }
 
-                // Create graduate record
-                Graduate::create([
+                // Unique key for upsert: (hei_uii + so_number)
+                $uniqueKeys = [
+                    'hei_uii'   => $heiUii,
+                    'so_number' => $soNumber,
+                ];
+
+                // Attributes to be stored/updated
+                $attributes = [
                     'institution_id'    => $institution ? $institution->id : null,
                     'program_id'        => $program ? $program->id : null,
-                    'hei_uii'           => $heiUii,
-                    'student_id_number' => null,
-                    'date_of_birth'     => null,
+                    'student_id_number' => null, // not present in this template
+                    'date_of_birth'     => null, // not present in this template
                     'last_name'         => $lastName,
                     'first_name'        => $firstName,
                     'middle_name'       => $middleName ?: null,
@@ -296,46 +314,67 @@ class ImportController extends Controller
                     'date_graduated'    => $dateGraduated ?: '',
                     'course_from_excel' => $courseExcel,
                     'major_from_excel'  => $majorExcel ?: null,
-                    'so_number'         => $soNumber,
                     'academic_year'     => $academicYear ?: null,
-                    // PSCED code could be stored later if you add a column
-                ]);
+                ];
 
-                $importedGraduates++;
+                // Eloquent upsert
+                $graduate = Graduate::updateOrCreate($uniqueKeys, $attributes);
+
+                if ($graduate->wasRecentlyCreated) {
+                    $createdGraduates++;
+                } elseif ($graduate->wasChanged()) {
+                    $updatedGraduates++;
+                } else {
+                    // Record existed and all fields were already the same
+                    $unchangedGraduates++;
+                }
             }
 
             DB::commit();
 
-            // ✅ Log who imported graduates (matches logs UI: graduates_import)
+            // Log who imported graduates (matches logs UI: graduates_import)
             ActivityLog::create([
                 'user_id'      => $request->user()?->id,
                 'action'       => 'graduates_import',
                 'subject_type' => Graduate::class,
                 'subject_id'   => null,
-                'summary'      => "Imported {$importedGraduates} graduates from {$file->getClientOriginalName()} (matched {$matchedPrograms}, unmatched {$unmatchedPrograms})",
+                'summary'      => "Imported graduates from {$file->getClientOriginalName()} "
+                    . "(created: {$createdGraduates}, updated: {$updatedGraduates}, "
+                    . "unchanged: {$unchangedGraduates}, matched programs: {$matchedPrograms}, "
+                    . "unmatched programs: {$unmatchedPrograms})",
                 'properties'   => [
                     'file'               => $file->getClientOriginalName(),
-                    'imported'           => $importedGraduates,
+                    'created'            => $createdGraduates,
+                    'updated'            => $updatedGraduates,
+                    'unchanged'          => $unchangedGraduates,
+                    'blank_rows'         => $blankRows,
+                    'invalid_rows'       => $invalidRows,
                     'matched_programs'   => $matchedPrograms,
                     'unmatched_programs' => $unmatchedPrograms,
                     'errors'             => array_slice($errors, 0, 10),
                 ],
             ]);
 
-            $message = "Import successful! Imported {$importedGraduates} graduates. ";
-            $message .= "Matched programs: {$matchedPrograms}. ";
-            if ($unmatchedPrograms > 0) {
-                $message .= "Unmatched programs: {$unmatchedPrograms}.";
-            }
+            $message = "Import completed. "
+                . "Created: {$createdGraduates}, "
+                . "Updated: {$updatedGraduates}, "
+                . "Unchanged: {$unchangedGraduates}. "
+                . "Matched programs: {$matchedPrograms}, "
+                . "Unmatched programs: {$unmatchedPrograms}. "
+                . "Blank rows skipped: {$blankRows}.";
 
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'data'    => [
-                    'graduates' => $importedGraduates,
-                    'matched'   => $matchedPrograms,
-                    'unmatched' => $unmatchedPrograms,
-                    'errors'    => array_slice($errors, 0, 10),
+                    'created'            => $createdGraduates,
+                    'updated'            => $updatedGraduates,
+                    'unchanged'          => $unchangedGraduates,
+                    'blank_rows'         => $blankRows,
+                    'invalid_rows'       => $invalidRows,
+                    'matched'            => $matchedPrograms,
+                    'unmatched'          => $unmatchedPrograms,
+                    'errors'             => array_slice($errors, 0, 10),
                 ],
             ]);
         } catch (\Exception $e) {
