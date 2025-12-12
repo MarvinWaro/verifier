@@ -397,10 +397,23 @@ function GraduatesImport() {
                         <AlertDescription className="text-green-800">
                             {result.message}
                             {result.data && (
-                                <div className="mt-2 font-medium">
-                                    • Graduates Imported: {result.data.graduates}
-                                    <br />
-                                    • Blank Rows Skipped: {result.data.skipped}
+                                <div className="mt-2 font-medium space-y-1">
+                                    <div>
+                                        • New records created:{' '}
+                                        {result.data.created ?? 0}
+                                    </div>
+                                    <div>
+                                        • Existing records updated:{' '}
+                                        {result.data.updated ?? 0}
+                                    </div>
+                                    <div>
+                                        • Unchanged rows (same data):{' '}
+                                        {result.data.unchanged ?? 0}
+                                    </div>
+                                    <div>
+                                        • Blank rows skipped:{' '}
+                                        {result.data.blank_rows ?? 0}
+                                    </div>
                                 </div>
                             )}
                         </AlertDescription>

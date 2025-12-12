@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -63,8 +63,23 @@ interface Graduate {
     so_number: string | null;
 }
 
+interface Pagination<T> {
+    data: T[];
+    links: {
+        url: string | null;
+        label: string;
+        active: boolean;
+    }[];
+    total?: number;
+}
+
+interface Filters {
+    q?: string | null;
+}
+
 interface Props {
-    graduates: Graduate[];
+    graduates: Pagination<Graduate>;
+    filters: Filters;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -78,9 +93,12 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function GraduateIndex({ graduates }: Props) {
-    const [items, setItems] = useState<Graduate[]>(graduates);
-    const [search, setSearch] = useState('');
+export default function GraduateIndex({ graduates, filters }: Props) {
+    const [items, setItems] = useState<Graduate[]>(graduates.data);
+    const [total, setTotal] = useState<number>(
+        graduates.total ?? graduates.data.length,
+    );
+    const [search, setSearch] = useState(filters.q ?? '');
 
     const [editOpen, setEditOpen] = useState(false);
     const [editing, setEditing] = useState<GraduateForEdit | null>(null);
@@ -88,25 +106,11 @@ export default function GraduateIndex({ graduates }: Props) {
     // track which delete popover is open
     const [deleteOpenId, setDeleteOpenId] = useState<number | null>(null);
 
+    // Sync local items when Inertia sends new page of graduates
     useEffect(() => {
-        setItems(graduates);
-    }, [graduates]);
-
-    const filteredGraduates = items.filter((graduate) => {
-        const term = search.toLowerCase();
-
-        return (
-            graduate.last_name?.toLowerCase().includes(term) ||
-            graduate.first_name?.toLowerCase().includes(term) ||
-            (graduate.middle_name ?? '').toLowerCase().includes(term) ||
-            graduate.program.program_name.toLowerCase().includes(term) ||
-            graduate.program.institution.name.toLowerCase().includes(term) ||
-            graduate.program.institution.institution_code.toLowerCase().includes(term) ||
-            graduate.year_graduated.includes(search) ||
-            (graduate.academic_year ?? '').includes(search) ||
-            graduate.so_number?.toLowerCase().includes(term)
-        );
-    });
+        setItems(graduates.data);
+        setTotal(graduates.total ?? graduates.data.length);
+    }, [graduates.data, graduates.total]);
 
     const getProgramTypeColor = (type: string) => {
         switch (type) {
@@ -182,12 +186,29 @@ export default function GraduateIndex({ graduates }: Props) {
         try {
             await axios.delete(`/graduates/${id}`);
             setItems((prev) => prev.filter((g) => g.id !== id));
+            setTotal((prev) => (prev > 0 ? prev - 1 : 0));
             toast.success('Graduate removed successfully.');
         } catch (error: any) {
             console.error(error);
-            const msg = error?.response?.data?.message ?? 'Failed to remove graduate.';
+            const msg =
+                error?.response?.data?.message ?? 'Failed to remove graduate.';
             toast.error(msg);
         }
+    };
+
+    const onSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        router.get(
+            '/graduates',
+            {
+                q: search || undefined,
+            },
+            {
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
     };
 
     return (
@@ -199,12 +220,23 @@ export default function GraduateIndex({ graduates }: Props) {
                     <CardHeader>
                         <CardTitle>All Graduates</CardTitle>
                         <CardDescription>
-                            Total of {items.length} graduate{items.length !== 1 ? 's' : ''} registered
+                            {filters.q ? (
+                                <>
+                                    Showing {items.length} of {total} graduate
+                                    {total !== 1 ? 's' : ''} matching "
+                                    {filters.q}"
+                                </>
+                            ) : (
+                                <>
+                                    Total of {total} graduate
+                                    {total !== 1 ? 's' : ''} registered
+                                </>
+                            )}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {/* Search Bar */}
-                        <div className="mb-4">
+                        {/* Search Bar (server-side) */}
+                        <form onSubmit={onSearchSubmit} className="mb-4">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                 <Input
@@ -215,7 +247,7 @@ export default function GraduateIndex({ graduates }: Props) {
                                     className="pl-10"
                                 />
                             </div>
-                        </div>
+                        </form>
 
                         {/* Table */}
                         <div className="rounded-md border overflow-x-auto">
@@ -235,26 +267,40 @@ export default function GraduateIndex({ graduates }: Props) {
                                         <TableHead>Program Type</TableHead>
                                         <TableHead>Date Graduated</TableHead>
                                         <TableHead>Academic Year</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
+                                        <TableHead className="text-right">
+                                            Actions
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredGraduates.length === 0 ? (
+                                    {items.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={14} className="text-center py-8 text-gray-500">
-                                                {search ? 'No graduates found' : 'No graduates available'}
+                                            <TableCell
+                                                colSpan={14}
+                                                className="text-center py-8 text-gray-500"
+                                            >
+                                                {filters.q
+                                                    ? 'No graduates found for your search.'
+                                                    : 'No graduates available.'}
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredGraduates.map((graduate) => (
-                                            <TableRow key={graduate.id} className="hover:bg-gray-50">
+                                        items.map((graduate) => (
+                                            <TableRow
+                                                key={graduate.id}
+                                                className="hover:bg-gray-50"
+                                            >
                                                 <TableCell className="text-sm">
                                                     {graduate.so_number ? (
                                                         <span className="font-medium text-blue-600">
-                                                            {graduate.so_number}
+                                                            {
+                                                                graduate.so_number
+                                                            }
                                                         </span>
                                                     ) : (
-                                                        <span className="text-gray-400">-</span>
+                                                        <span className="text-gray-400">
+                                                            -
+                                                        </span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="font-medium">
@@ -267,39 +313,57 @@ export default function GraduateIndex({ graduates }: Props) {
                                                     {graduate.middle_name}
                                                 </TableCell>
                                                 <TableCell className="text-sm text-gray-600">
-                                                    {graduate.extension_name || '-'}
+                                                    {graduate.extension_name ||
+                                                        '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {graduate.sex ? (
                                                         <Badge
                                                             variant="outline"
-                                                            className={getSexColor(graduate.sex)}
+                                                            className={getSexColor(
+                                                                graduate.sex,
+                                                            )}
                                                         >
                                                             {graduate.sex}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-gray-400">-</span>
+                                                        <span className="text-gray-400">
+                                                            -
+                                                        </span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-sm">
-                                                    {graduate.program.institution.name}
+                                                    {
+                                                        graduate.program
+                                                            .institution.name
+                                                    }
                                                 </TableCell>
                                                 <TableCell className="font-mono text-sm text-gray-600">
-                                                    {graduate.program.institution.institution_code}
+                                                    {
+                                                        graduate.program
+                                                            .institution
+                                                            .institution_code
+                                                    }
                                                 </TableCell>
                                                 <TableCell className="text-sm">
-                                                    {graduate.program.program_name ?? '-'}
+                                                    {graduate.program
+                                                        .program_name ?? '-'}
                                                 </TableCell>
                                                 <TableCell className="text-sm text-gray-600">
-                                                    {graduate.program.major || '-'}
+                                                    {graduate.program.major ||
+                                                        '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge
                                                         className={getProgramTypeColor(
-                                                            graduate.program.program_type,
+                                                            graduate.program
+                                                                .program_type,
                                                         )}
                                                     >
-                                                        {graduate.program.program_type}
+                                                        {
+                                                            graduate.program
+                                                                .program_type
+                                                        }
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -307,11 +371,14 @@ export default function GraduateIndex({ graduates }: Props) {
                                                         variant="outline"
                                                         className="bg-orange-50 text-orange-800 hover:bg-orange-50"
                                                     >
-                                                        {graduate.year_graduated}
+                                                        {
+                                                            graduate.year_graduated
+                                                        }
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-sm">
-                                                    {graduate.academic_year || '-'}
+                                                    {graduate.academic_year ||
+                                                        '-'}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">
@@ -319,17 +386,32 @@ export default function GraduateIndex({ graduates }: Props) {
                                                             variant="ghost"
                                                             size="sm"
                                                             className="flex items-center gap-1"
-                                                            onClick={() => openEditDialog(graduate)}
+                                                            onClick={() =>
+                                                                openEditDialog(
+                                                                    graduate,
+                                                                )
+                                                            }
                                                         >
                                                             <Edit2 className="h-4 w-4" />
-                                                            <span className="hidden md:inline">Edit</span>
+                                                            <span className="hidden md:inline">
+                                                                Edit
+                                                            </span>
                                                         </Button>
 
                                                         {/* Delete popover (controlled) */}
                                                         <Popover
-                                                            open={deleteOpenId === graduate.id}
-                                                            onOpenChange={(open) =>
-                                                                setDeleteOpenId(open ? graduate.id : null)
+                                                            open={
+                                                                deleteOpenId ===
+                                                                graduate.id
+                                                            }
+                                                            onOpenChange={(
+                                                                open,
+                                                            ) =>
+                                                                setDeleteOpenId(
+                                                                    open
+                                                                        ? graduate.id
+                                                                        : null,
+                                                                )
                                                             }
                                                         >
                                                             <PopoverTrigger asChild>
@@ -354,22 +436,35 @@ export default function GraduateIndex({ graduates }: Props) {
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <p className="text-sm font-semibold">
-                                                                            Delete graduate
+                                                                            Delete
+                                                                            graduate
                                                                         </p>
                                                                         <p className="text-xs text-gray-600">
                                                                             Delete{' '}
                                                                             <span className="font-medium">
-                                                                                {graduate.first_name}{' '}
-                                                                                {graduate.last_name}
+                                                                                {
+                                                                                    graduate.first_name
+                                                                                }{' '}
+                                                                                {
+                                                                                    graduate.last_name
+                                                                                }
                                                                             </span>
-                                                                            ? This action cannot be undone.
+                                                                            ? This
+                                                                            action
+                                                                            cannot
+                                                                            be
+                                                                            undone.
                                                                         </p>
                                                                         <div className="flex justify-end gap-2 pt-2">
                                                                             <Button
                                                                                 variant="outline"
                                                                                 size="sm"
                                                                                 className="h-7 px-3 text-xs"
-                                                                                onClick={() => setDeleteOpenId(null)}
+                                                                                onClick={() =>
+                                                                                    setDeleteOpenId(
+                                                                                        null,
+                                                                                    )
+                                                                                }
                                                                             >
                                                                                 Cancel
                                                                             </Button>
@@ -377,7 +472,9 @@ export default function GraduateIndex({ graduates }: Props) {
                                                                                 size="sm"
                                                                                 className="h-7 px-3 text-xs bg-red-600 hover:bg-red-700"
                                                                                 onClick={() =>
-                                                                                    handleDelete(graduate.id)
+                                                                                    handleDelete(
+                                                                                        graduate.id,
+                                                                                    )
                                                                                 }
                                                                             >
                                                                                 Delete
@@ -396,10 +493,41 @@ export default function GraduateIndex({ graduates }: Props) {
                             </Table>
                         </div>
 
-                        {search && (
-                            <p className="text-sm text-gray-600 mt-4">
-                                Showing {filteredGraduates.length} of {items.length} graduates
-                            </p>
+                        {/* Pagination */}
+                        {graduates.links && graduates.links.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {graduates.links.map((link, idx) => {
+                                    const label = link.label
+                                        .replace('&laquo;', '«')
+                                        .replace('&raquo;', '»');
+
+                                    return (
+                                        <Button
+                                            key={idx}
+                                            variant={
+                                                link.active
+                                                    ? 'default'
+                                                    : 'outline'
+                                            }
+                                            size="sm"
+                                            disabled={!link.url}
+                                            onClick={() => {
+                                                if (!link.url) return;
+                                                router.get(
+                                                    link.url,
+                                                    {},
+                                                    {
+                                                        preserveScroll: true,
+                                                        preserveState: true,
+                                                    },
+                                                );
+                                            }}
+                                        >
+                                            {label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
                         )}
                     </CardContent>
                 </Card>
