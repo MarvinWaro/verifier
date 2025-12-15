@@ -12,6 +12,8 @@ use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProgramCatalogController;
 use App\Http\Controllers\ActivityLogController;
 
+use App\Http\Controllers\DashboardController;
+
 /*
 |--------------------------------------------------------------------------
 | Public
@@ -27,7 +29,7 @@ Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
     /*
