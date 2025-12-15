@@ -11,6 +11,7 @@ use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProgramCatalogController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,7 +28,7 @@ Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', fn () => Inertia::render('dashboard'))->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
     /*
@@ -36,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     | - Page route (Inertia)
     | - JSON helper used by the Institutions page (accordion)
+    | - JSON helper used by the Modal to list graduates
     */
     Route::prefix('institutions')->name('institutions.')->group(function () {
         // Page
@@ -44,8 +46,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Lazy JSON used when expanding a row to load programs
         Route::get('{instCode}/programs', [InstitutionController::class, 'programs'])
             ->where('instCode', '[A-Za-z0-9\-]+')
-            ->middleware('throttle:120,1') // 120 req/min per IP
+            ->middleware('throttle:120,1')
             ->name('programs');
+
+        // NEW: Fetch graduates for a specific program modal
+        Route::get('{instCode}/programs/graduates', [InstitutionController::class, 'programGraduates'])
+            ->name('programs.graduates');
     });
 
     /*
@@ -102,6 +108,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('graduates', [ImportController::class, 'importGraduates'])->name('graduates');
         Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])->name('graduates.clear');
     });
+
+    // In routes/web.php - add this temporarily for debugging
+    Route::get('/debug/graduates/{instCode}', function($instCode) {
+        $graduates = \App\Models\Graduate::where('hei_uii', $instCode)->get();
+
+        return response()->json([
+            'institution_code' => $instCode,
+            'total_graduates' => $graduates->count(),
+            'sample_programs' => $graduates->pluck('course_from_excel')->unique()->values(),
+            'sample_graduate' => $graduates->first(),
+        ]);
+    })->middleware('auth');
 });
 
 require __DIR__.'/settings.php';
