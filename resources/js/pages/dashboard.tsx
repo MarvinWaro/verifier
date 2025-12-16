@@ -9,12 +9,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
     BookOpen,
     Building2,
-    Download,
-    FileSpreadsheet,
     GraduationCap,
 } from 'lucide-react';
 import GraduateSearch from '@/components/dashboard/graduate-search';
@@ -47,26 +44,14 @@ export default function Dashboard({ stats, chartData }: DashboardProps) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="CHED Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-6 overflow-y-auto rounded-xl p-4">
-                {/* Header Section */}
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight">
-                            System Overview
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Monitoring Institutions, Programs, and Graduate Records.
-                        </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Button variant="outline">
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Import Excel
-                        </Button>
-                        <Button>
-                            <Download className="mr-2 h-4 w-4" />
-                            Export Report
-                        </Button>
-                    </div>
+                {/* Header Section - Buttons Removed */}
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-3xl font-bold tracking-tight">
+                        System Overview
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        Monitoring Institutions, Programs, and Graduate Records.
+                    </p>
                 </div>
 
                 {/* Eye-Catching Search Section */}
@@ -155,39 +140,45 @@ export default function Dashboard({ stats, chartData }: DashboardProps) {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {chartData.topPrograms.map((prog, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center gap-4"
-                                >
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 font-bold text-sm">
-                                        {idx + 1}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">
-                                            {prog.program}
-                                        </p>
-                                        <div className="mt-1.5 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
-                                                style={{
-                                                    width: `${(prog.count / chartData.topPrograms[0].count) * 100}%`,
-                                                }}
-                                            />
+                            {chartData.topPrograms.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-8">
+                                    No program data available yet.
+                                </p>
+                            ) : (
+                                chartData.topPrograms.map((prog, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center gap-4"
+                                    >
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 font-bold text-sm">
+                                            {idx + 1}
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-right">
-                                            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                                {prog.count}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                graduates
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">
+                                                {prog.program}
+                                            </p>
+                                            <div className="mt-1.5 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
+                                                    style={{
+                                                        width: `${(prog.count / chartData.topPrograms[0].count) * 100}%`,
+                                                    }}
+                                                >
                                             </div>
                                         </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-right">
+                                                <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                                    {prog.count}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    graduates
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
                     </CardContent>
                 </Card>
