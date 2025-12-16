@@ -47,7 +47,7 @@ export default function Dashboard({ stats, chartData }: DashboardProps) {
                 {/* Header Section - Buttons Removed */}
                 <div className="flex flex-col gap-2">
                     <h2 className="text-3xl font-bold tracking-tight">
-                        System Overview
+                        System Dashboard Overview
                     </h2>
                     <p className="text-sm text-muted-foreground">
                         Monitoring Institutions, Programs, and Graduate Records.
