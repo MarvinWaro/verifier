@@ -7,15 +7,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import {
     Upload,
     Trash2,
     CheckCircle,
     AlertCircle,
     FileSpreadsheet,
     Users,
+    AlertTriangle,
 } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -71,6 +78,7 @@ function InstitutionsImport() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showClearPopover, setShowClearPopover] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -106,43 +114,65 @@ function InstitutionsImport() {
                 setFile(null);
                 const input = document.getElementById('institutions-file-input') as HTMLInputElement;
                 if (input) input.value = '';
+                toast.success('Import successful!', {
+                    description: response.data.message,
+                });
             } else {
                 setError(response.data.message);
+                toast.error('Import failed', {
+                    description: response.data.message,
+                });
             }
         } catch (err: any) {
             console.error('Import error:', err);
-            setError(
-                'An error occurred during import: ' +
-                    (err.response?.data?.message || err.message),
-            );
+            const errorMsg = err.response?.data?.message || err.message;
+            setError('An error occurred during import: ' + errorMsg);
+            toast.error('Import failed', {
+                description: errorMsg,
+            });
         } finally {
             setLoading(false);
         }
     };
 
     const handleClearData = async () => {
-        if (
-            !confirm(
-                'Are you sure you want to clear all institutions and programs? This cannot be undone!',
-            )
-        ) {
-            return;
-        }
-
+        setShowClearPopover(false);
         setLoading(true);
         setError(null);
+        setResult(null);
 
         try {
             const response = await axios.post('/import/institutions/clear');
 
             if (response.data.success) {
                 setResult({ message: response.data.message, success: true });
+                toast.success('Data cleared successfully!', {
+                    description: response.data.message,
+                });
+            } else if (response.data.isEmpty) {
+                toast.info('No data to clear', {
+                    description: 'The database is already empty. No institutions or programs found.',
+                });
             } else {
                 setError(response.data.message);
+                toast.error('Clear failed', {
+                    description: response.data.message,
+                });
             }
         } catch (err: any) {
             console.error('Clear error:', err);
-            setError('An error occurred: ' + (err.response?.data?.message || err.message));
+            const errorMsg = err.response?.data?.message || err.message;
+
+            if (err.response?.data?.isEmpty) {
+                toast.info('No data to clear', {
+                    description: 'The database is already empty. No institutions or programs found.',
+                });
+            } else {
+                setError('An error occurred: ' + errorMsg);
+                toast.error('Clear failed', {
+                    description: errorMsg,
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -259,15 +289,49 @@ function InstitutionsImport() {
                 </div>
 
                 <div className="pt-4 border-t">
-                    <Button
-                        variant="destructive"
-                        onClick={handleClearData}
-                        disabled={loading}
-                        className="flex items-center gap-2"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        Clear All Institutions &amp; Programs
-                    </Button>
+                    <Popover open={showClearPopover} onOpenChange={setShowClearPopover}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="destructive"
+                                disabled={loading}
+                                className="flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Clear All Institutions &amp; Programs
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                        <h4 className="font-semibold text-sm">Clear all institutions</h4>
+                                        <p className="text-xs text-muted-foreground">
+                                            Delete all institutions and programs? This action cannot be undone.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowClearPopover(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={handleClearData}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     <p className="text-xs text-gray-500 mt-2">
                         Warning: This will permanently delete all institutions and their programs
                     </p>
@@ -282,6 +346,7 @@ function GraduatesImport() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showClearPopover, setShowClearPopover] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = e.target.files?.[0];
@@ -317,39 +382,65 @@ function GraduatesImport() {
                 setFile(null);
                 const input = document.getElementById('graduates-file-input') as HTMLInputElement;
                 if (input) input.value = '';
+                toast.success('Import successful!', {
+                    description: response.data.message,
+                });
             } else {
                 setError(response.data.message);
+                toast.error('Import failed', {
+                    description: response.data.message,
+                });
             }
         } catch (err: any) {
             console.error('Import error:', err);
-            setError(
-                'An error occurred during import: ' +
-                    (err.response?.data?.message || err.message),
-            );
+            const errorMsg = err.response?.data?.message || err.message;
+            setError('An error occurred during import: ' + errorMsg);
+            toast.error('Import failed', {
+                description: errorMsg,
+            });
         } finally {
             setLoading(false);
         }
     };
 
     const handleClearData = async () => {
-        if (!confirm('Are you sure you want to clear all graduates? This cannot be undone!')) {
-            return;
-        }
-
+        setShowClearPopover(false);
         setLoading(true);
         setError(null);
+        setResult(null);
 
         try {
             const response = await axios.post('/import/graduates/clear');
 
             if (response.data.success) {
                 setResult({ message: response.data.message, success: true });
+                toast.success('Graduates cleared successfully!', {
+                    description: response.data.message,
+                });
+            } else if (response.data.isEmpty) {
+                toast.info('No graduates to clear', {
+                    description: 'The database is already empty. No graduate records found.',
+                });
             } else {
                 setError(response.data.message);
+                toast.error('Clear failed', {
+                    description: response.data.message,
+                });
             }
         } catch (err: any) {
             console.error('Clear error:', err);
-            setError('An error occurred: ' + (err.response?.data?.message || err.message));
+            const errorMsg = err.response?.data?.message || err.message;
+
+            if (err.response?.data?.isEmpty) {
+                toast.info('No graduates to clear', {
+                    description: 'The database is already empty. No graduate records found.',
+                });
+            } else {
+                setError('An error occurred: ' + errorMsg);
+                toast.error('Clear failed', {
+                    description: errorMsg,
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -512,15 +603,49 @@ function GraduatesImport() {
                 </div>
 
                 <div className="pt-4 border-t">
-                    <Button
-                        variant="destructive"
-                        onClick={handleClearData}
-                        disabled={loading}
-                        className="flex items-center gap-2"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        Clear All Graduates
-                    </Button>
+                    <Popover open={showClearPopover} onOpenChange={setShowClearPopover}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="destructive"
+                                disabled={loading}
+                                className="flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Clear All Graduates
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" align="start">
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                        <h4 className="font-semibold text-sm">Delete graduate</h4>
+                                        <p className="text-xs text-muted-foreground">
+                                            Delete all graduates? This action cannot be undone.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowClearPopover(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={handleClearData}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     <p className="text-xs text-gray-500 mt-2">
                         Warning: This will permanently delete all graduate records
                     </p>

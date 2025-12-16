@@ -8,6 +8,7 @@ use App\Models\Program;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -19,7 +20,7 @@ class ImportController extends Controller
     }
 
     /**
-     * Import institutions & programs (old module)
+     * Import institutions & programs
      */
     public function importInstitutions(Request $request)
     {
@@ -113,6 +114,8 @@ class ImportController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Import institutions error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
 
             return response()->json([
                 'success' => false,
@@ -124,28 +127,42 @@ class ImportController extends Controller
     public function clearInstitutions(Request $request)
     {
         try {
-            DB::beginTransaction();
+            // Check if there are any records to clear
+            $programCount = Program::count();
+            $institutionCount = Institution::count();
 
-            Program::truncate();
-            Institution::truncate();
+            if ($institutionCount === 0 && $programCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No institutions or programs found in the database.',
+                    'isEmpty' => true,
+                ], 200);
+            }
 
-            DB::commit();
+            // Clear programs first (foreign key constraint), then institutions
+            Program::query()->delete();
+            Institution::query()->delete();
 
+            // Log the action
             ActivityLog::create([
                 'user_id'      => $request->user()?->id,
                 'action'       => 'institutions_clear',
                 'subject_type' => Institution::class,
                 'subject_id'   => null,
-                'summary'      => 'Cleared all institutions and programs',
-                'properties'   => [],
+                'summary'      => "Cleared {$institutionCount} institutions and {$programCount} programs",
+                'properties'   => [
+                    'institutions' => $institutionCount,
+                    'programs' => $programCount,
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'All institutions and programs cleared successfully',
+                'message' => "Successfully cleared {$institutionCount} institution(s) and {$programCount} program(s).",
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error('Clear institutions error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
 
             return response()->json([
                 'success' => false,
@@ -332,7 +349,7 @@ class ImportController extends Controller
 
             DB::commit();
 
-            // Log who imported graduates (matches logs UI: graduates_import)
+            // Log who imported graduates
             ActivityLog::create([
                 'user_id'      => $request->user()?->id,
                 'action'       => 'graduates_import',
@@ -379,6 +396,8 @@ class ImportController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Import graduates error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
 
             return response()->json([
                 'success' => false,
@@ -390,27 +409,39 @@ class ImportController extends Controller
     public function clearGraduates(Request $request)
     {
         try {
-            DB::beginTransaction();
+            // Check if there are any graduates to clear
+            $graduateCount = Graduate::count();
 
-            Graduate::truncate();
+            if ($graduateCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No graduates found in the database.',
+                    'isEmpty' => true,
+                ], 200);
+            }
 
-            DB::commit();
+            // Clear graduates using delete() instead of truncate()
+            Graduate::query()->delete();
 
+            // Log the action
             ActivityLog::create([
                 'user_id'      => $request->user()?->id,
                 'action'       => 'graduates_clear',
                 'subject_type' => Graduate::class,
                 'subject_id'   => null,
-                'summary'      => 'Cleared all graduates',
-                'properties'   => [],
+                'summary'      => "Cleared {$graduateCount} graduate records",
+                'properties'   => [
+                    'count' => $graduateCount,
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'All graduates cleared successfully',
+                'message' => "Successfully cleared {$graduateCount} graduate record(s) from the database.",
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error('Clear graduates error: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
 
             return response()->json([
                 'success' => false,

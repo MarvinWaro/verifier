@@ -10,7 +10,7 @@ import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import { type User } from '@/types';
 import { Link, router } from '@inertiajs/react';
-import { LogOut, Settings, History } from 'lucide-react';
+import { LogOut, Settings, History, Users } from 'lucide-react';
 
 interface UserMenuContentProps {
     user: User;
@@ -49,11 +49,25 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     </Link>
                 </DropdownMenuItem>
 
+                {/* Users Management */}
+                <DropdownMenuItem asChild>
+                    <Link
+                        className="block w-full"
+                        href="/users"
+                        as="button"
+                        prefetch
+                        onClick={cleanup}
+                    >
+                        <Users className="mr-2" />
+                        Users
+                    </Link>
+                </DropdownMenuItem>
+
                 {/* Logs */}
                 <DropdownMenuItem asChild>
                     <Link
                         className="block w-full"
-                        href="/logs" // route('logs.index') if you add a helper
+                        href="/logs"
                         as="button"
                         prefetch
                         onClick={cleanup}

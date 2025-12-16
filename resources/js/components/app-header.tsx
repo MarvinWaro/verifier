@@ -43,11 +43,11 @@ import {
     Moon,
     Sun,
     Monitor,
-    Users,
     ChevronDown,
 } from 'lucide-react';
 import AppLogoIcon from './app-logo-icon';
 
+// REMOVED Users from mainNavItems
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -68,11 +68,6 @@ const mainNavItems: NavItem[] = [
         title: 'Graduates',
         href: '/graduates',
         icon: GraduationCap,
-    },
-    {
-        title: 'Users',
-        href: '/users',
-        icon: Users,
     },
     {
         title: 'Import',
