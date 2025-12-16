@@ -9,22 +9,12 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     BookOpen,
     Building2,
-    Download,
-    FileSpreadsheet,
     GraduationCap,
-    MoreHorizontal
 } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+import GraduateSearch from '@/components/dashboard/graduate-search';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -33,194 +23,165 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// Define props interface
+interface ProgramCount {
+    program: string;
+    count: number;
+}
+
 interface DashboardProps {
     stats: {
         graduates: number;
         institutions: number;
         programs: number;
     };
-    recentGraduates: {
-        id: number;
-        name: string;
-        program: string;
-        school: string;
-        initials: string;
-    }[];
+    chartData: {
+        topPrograms: ProgramCount[];
+    };
 }
 
-export default function Dashboard({ stats, recentGraduates }: DashboardProps) {
+export default function Dashboard({ stats, chartData }: DashboardProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="CHED Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-y-auto rounded-xl p-4">
-
-                {/* Header Section */}
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight">System Overview</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Monitoring Institutions, Programs, and Graduate Records.
-                        </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Button variant="outline">
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Import Excel
-                        </Button>
-                        <Button>
-                            <Download className="mr-2 h-4 w-4" />
-                            Export Report
-                        </Button>
-                    </div>
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-y-auto rounded-xl p-4">
+                {/* Header Section - Buttons Removed */}
+                <div className="flex flex-col gap-2">
+                    <h2 className="text-3xl font-bold tracking-tight">
+                        System Overview
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        Monitoring Institutions, Programs, and Graduate Records.
+                    </p>
                 </div>
 
-                <Tabs defaultValue="overview" className="space-y-4">
-                    <TabsList>
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="institutions" disabled>Institutions</TabsTrigger>
-                        <TabsTrigger value="graduates" disabled>Graduates</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="overview" className="space-y-4">
-
-                        {/* KPI Cards (Dynamic Data) */}
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">
-                                        Total Graduates
-                                    </CardTitle>
-                                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">
-                                        {stats.graduates.toLocaleString()}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Registered in system
-                                    </p>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">
-                                        Partner Institutions
-                                    </CardTitle>
-                                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">
-                                        {stats.institutions.toLocaleString()}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Active HEIs (Portal API)
-                                    </p>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">
-                                        Active Programs
-                                    </CardTitle>
-                                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">
-                                        {stats.programs.toLocaleString()}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Distinct programs recorded
-                                    </p>
-                                </CardContent>
-                            </Card>
+                {/* Eye-Catching Search Section */}
+                <Card className="border-2 border-blue-200 dark:border-blue-900 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 shadow-lg">
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 rounded-full bg-blue-600 text-white">
+                                <GraduationCap className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl">
+                                    Quick Graduate Search
+                                </CardTitle>
+                                <CardDescription className="text-sm">
+                                    Search by name, SO number, or program to quickly find graduate records
+                                </CardDescription>
+                            </div>
                         </div>
+                    </CardHeader>
+                    <CardContent>
+                        <GraduateSearch />
+                    </CardContent>
+                </Card>
 
-                        {/* Main Content Area */}
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                {/* KPI Cards */}
+                <div className="grid gap-4 md:grid-cols-3">
+                    <Card className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Total Graduates
+                            </CardTitle>
+                            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                {stats.graduates.toLocaleString()}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Registered in system
+                            </p>
+                        </CardContent>
+                    </Card>
 
-                            {/* Chart Area (Keeping Static for now, as requested) */}
-                            <Card className="col-span-4">
-                                <CardHeader>
-                                    <CardTitle>Graduate Distribution</CardTitle>
-                                    <CardDescription>
-                                        Graduates by Program Field (Current Academic Year).
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="pl-2">
-                                    <div className="flex h-[350px] w-full items-end justify-between gap-2 px-4 pt-10">
-                                        {/* Static visual for now */}
-                                        {[
-                                            { label: 'IT', val: 80, color: 'bg-blue-500' },
-                                            { label: 'Eng', val: 65, color: 'bg-blue-500' },
-                                            { label: 'Bus', val: 90, color: 'bg-blue-500' },
-                                            { label: 'Edu', val: 45, color: 'bg-blue-500' },
-                                            { label: 'Nur', val: 70, color: 'bg-blue-500' },
-                                            { label: 'Art', val: 30, color: 'bg-blue-500' },
-                                            { label: 'Sci', val: 55, color: 'bg-blue-500' },
-                                        ].map((item, i) => (
-                                            <div key={i} className="group relative flex w-full flex-col justify-end gap-2">
-                                                <div
-                                                    className={`w-full rounded-t-md opacity-80 transition-all hover:opacity-100 ${item.color}`}
-                                                    style={{ height: `${item.val}%` }}
-                                                ></div>
-                                                <span className="text-center text-xs font-medium text-muted-foreground">
-                                                    {item.label}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                    <Card className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Partner Institutions
+                            </CardTitle>
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                {stats.institutions.toLocaleString()}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Active HEIs (Portal API)
+                            </p>
+                        </CardContent>
+                    </Card>
 
-                            {/* Recent Records List (Dynamic Data) */}
-                            <Card className="col-span-3">
-                                <CardHeader>
-                                    <CardTitle>Recent Records</CardTitle>
-                                    <CardDescription>
-                                        Latest students added to the system.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-8">
-                                        {recentGraduates.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground text-center py-4">
-                                                No graduates found.
+                    <Card className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Active Programs
+                            </CardTitle>
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                {stats.programs.toLocaleString()}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Distinct programs recorded
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Top Programs - Full Width */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Top Programs</CardTitle>
+                        <CardDescription>
+                            Programs with most graduates
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {chartData.topPrograms.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-8">
+                                    No program data available yet.
+                                </p>
+                            ) : (
+                                chartData.topPrograms.map((prog, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center gap-4"
+                                    >
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 font-bold text-sm">
+                                            {idx + 1}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">
+                                                {prog.program}
                                             </p>
-                                        ) : (
-                                            recentGraduates.map((student) => (
-                                                <div key={student.id} className="flex items-center">
-                                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 border border-primary/20 text-primary">
-                                                        <span className="text-xs font-bold">{student.initials}</span>
-                                                    </div>
-                                                    <div className="ml-4 space-y-1">
-                                                        <p className="text-sm font-medium leading-none">{student.name}</p>
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="text-xs text-muted-foreground line-clamp-1">{student.program}</p>
-                                                        </div>
-                                                        <p className="text-[10px] text-muted-foreground line-clamp-1">{student.school}</p>
-                                                    </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="ml-auto h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem>View Record</DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                            <div className="mt-1.5 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
+                                                    style={{
+                                                        width: `${(prog.count / chartData.topPrograms[0].count) * 100}%`,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-right">
+                                                <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                                    {prog.count}
                                                 </div>
-                                            ))
-                                        )}
+                                                <div className="text-xs text-muted-foreground">
+                                                    graduates
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                ))
+                            )}
                         </div>
-                    </TabsContent>
-                </Tabs>
+                    </CardContent>
+                </Card>
             </div>
         </AppLayout>
     );
