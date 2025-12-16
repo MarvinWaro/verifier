@@ -163,7 +163,7 @@ export default function Dashboard({ stats, chartData }: DashboardProps) {
                                                     style={{
                                                         width: `${(prog.count / chartData.topPrograms[0].count) * 100}%`,
                                                     }}
-                                                >
+                                                />
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
