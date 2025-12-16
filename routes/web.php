@@ -29,6 +29,9 @@ Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 */
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard search endpoint
+    Route::get('dashboard/search', [DashboardController::class, 'searchGraduates'])->name('dashboard.search');
+
     Route::get('logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
     /*
@@ -110,16 +113,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // In routes/web.php - add this temporarily for debugging
-    Route::get('/debug/graduates/{instCode}', function($instCode) {
-        $graduates = \App\Models\Graduate::where('hei_uii', $instCode)->get();
+    // Route::get('/debug/graduates/{instCode}', function($instCode) {
+    //     $graduates = \App\Models\Graduate::where('hei_uii', $instCode)->get();
 
-        return response()->json([
-            'institution_code' => $instCode,
-            'total_graduates' => $graduates->count(),
-            'sample_programs' => $graduates->pluck('course_from_excel')->unique()->values(),
-            'sample_graduate' => $graduates->first(),
-        ]);
-    })->middleware('auth');
+    //     return response()->json([
+    //         'institution_code' => $instCode,
+    //         'total_graduates' => $graduates->count(),
+    //         'sample_programs' => $graduates->pluck('course_from_excel')->unique()->values(),
+    //         'sample_graduate' => $graduates->first(),
+    //     ]);
+    // })->middleware('auth');
 });
 
 require __DIR__.'/settings.php';
