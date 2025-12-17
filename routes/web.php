@@ -31,6 +31,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     // Dashboard search endpoint
     Route::get('dashboard/search', [DashboardController::class, 'searchGraduates'])->name('dashboard.search');
+    Route::get('dashboard/graduate/{id}', [DashboardController::class, 'getGraduateDetails'])->name('dashboard.graduate.details');
 
     Route::get('logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
