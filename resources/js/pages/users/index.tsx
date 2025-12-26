@@ -32,15 +32,17 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, Plus, Edit, Trash2, Mail } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Mail, CheckCircle, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { AppHeader } from '@/components/app-header';
+import { Badge } from '@/components/ui/badge';
 
 interface User {
     id: number;
     name: string;
     email: string;
     role: 'admin' | 'prc';
+    is_active: boolean;
     email_verified_at: string | null;
     created_at: string;
 }
@@ -66,6 +68,7 @@ export default function UsersIndex({ users, filters }: Props) {
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [deletePopoverId, setDeletePopoverId] = useState<number | null>(null);
+    const [toggleActivePopoverId, setToggleActivePopoverId] = useState<number | null>(null);
 
     // Create user form
     const createForm = useForm({
@@ -134,6 +137,15 @@ export default function UsersIndex({ users, filters }: Props) {
         router.delete(`/users/${userId}`, {
             onSuccess: () => {
                 setDeletePopoverId(null);
+            },
+        });
+    };
+
+    // Handle toggle active status
+    const handleToggleActive = (userId: number) => {
+        router.patch(`/users/${userId}/toggle-active`, {}, {
+            onSuccess: () => {
+                setToggleActivePopoverId(null);
             },
         });
     };
@@ -340,6 +352,7 @@ export default function UsersIndex({ users, filters }: Props) {
                                     <TableHead>User</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead>Joined</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -348,7 +361,7 @@ export default function UsersIndex({ users, filters }: Props) {
                                 {users.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
                                             No users found
@@ -374,19 +387,83 @@ export default function UsersIndex({ users, filters }: Props) {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <span
-                                                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                                        user.role === 'admin'
-                                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                                            : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                                                    }`}
+                                                <Badge
+                                                    variant={user.role === 'admin' ? 'default' : 'secondary'}
                                                 >
                                                     {user.role === 'admin' ? 'CHED Admin' : 'PRC'}
-                                                </span>
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {user.is_active ? (
+                                                    <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                                                        <CheckCircle className="mr-1 h-3 w-3" />
+                                                        Active
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="secondary">
+                                                        <XCircle className="mr-1 h-3 w-3" />
+                                                        Inactive
+                                                    </Badge>
+                                                )}
                                             </TableCell>
                                             <TableCell>{formatDate(user.created_at)}</TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end space-x-2">
+                                                    {/* Toggle Active/Inactive */}
+                                                    <Popover
+                                                        open={toggleActivePopoverId === user.id}
+                                                        onOpenChange={(open) =>
+                                                            setToggleActivePopoverId(open ? user.id : null)
+                                                        }
+                                                    >
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className={user.is_active ? 'text-orange-500 hover:text-orange-600' : 'text-green-500 hover:text-green-600'}
+                                                            >
+                                                                {user.is_active ? (
+                                                                    <XCircle className="h-4 w-4" />
+                                                                ) : (
+                                                                    <CheckCircle className="h-4 w-4" />
+                                                                )}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-80">
+                                                            <div className="space-y-4">
+                                                                <div className="space-y-2">
+                                                                    <h4 className="font-semibold text-sm">
+                                                                        {user.is_active ? 'Deactivate' : 'Activate'} User
+                                                                    </h4>
+                                                                    <p className="text-sm text-muted-foreground">
+                                                                        {user.is_active
+                                                                            ? `Are you sure you want to deactivate ${user.name}? They will not be able to log in.`
+                                                                            : `Are you sure you want to activate ${user.name}? They will be able to log in.`
+                                                                        }
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex justify-end space-x-2">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() =>
+                                                                            setToggleActivePopoverId(null)
+                                                                        }
+                                                                    >
+                                                                        Cancel
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant={user.is_active ? 'destructive' : 'default'}
+                                                                        size="sm"
+                                                                        onClick={() => handleToggleActive(user.id)}
+                                                                    >
+                                                                        {user.is_active ? 'Deactivate' : 'Activate'}
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

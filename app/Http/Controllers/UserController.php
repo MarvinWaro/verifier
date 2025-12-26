@@ -61,6 +61,7 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
+            'is_active' => true, // Admin-created users are active by default
         ]);
 
         return redirect()->back()->with('success', 'User created successfully.');
@@ -110,18 +111,21 @@ class UserController extends Controller
     }
 
     /**
-     * Verify user's email.
+     * Toggle user active status.
      */
-    public function verifyEmail(User $user)
+    public function toggleActive(User $user)
     {
-        if ($user->email_verified_at) {
-            return redirect()->back()->with('info', 'Email already verified.');
+        // Prevent deactivating own account
+        if ($user->id === auth()->id()) {
+            return redirect()->back()->with('error', 'You cannot deactivate your own account.');
         }
 
         $user->update([
-            'email_verified_at' => now(),
+            'is_active' => !$user->is_active,
         ]);
 
-        return redirect()->back()->with('success', 'Email verified successfully.');
+        $status = $user->is_active ? 'activated' : 'deactivated';
+
+        return redirect()->back()->with('success', "User {$status} successfully.");
     }
 }

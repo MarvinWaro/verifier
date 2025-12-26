@@ -98,6 +98,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [UserController::class, 'store'])->name('store');
         Route::put('{user}', [UserController::class, 'update'])->name('update');
         Route::delete('{user}', [UserController::class, 'destroy'])->name('destroy');
+        Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active'); // Add this line
     });
 
     /*
