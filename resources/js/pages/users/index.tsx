@@ -32,10 +32,11 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, Plus, Edit, Trash2, Mail, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Mail, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useState } from 'react';
 import { AppHeader } from '@/components/app-header';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface User {
     id: number;
@@ -70,12 +71,10 @@ export default function UsersIndex({ users, filters }: Props) {
     const [deletePopoverId, setDeletePopoverId] = useState<number | null>(null);
     const [toggleActivePopoverId, setToggleActivePopoverId] = useState<number | null>(null);
 
-    // Create user form
+    // Create user form (no password fields)
     const createForm = useForm({
         name: '',
         email: '',
-        password: '',
-        password_confirmation: '',
         role: 'admin' as 'admin' | 'prc',
     });
 
@@ -205,6 +204,13 @@ export default function UsersIndex({ users, filters }: Props) {
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="space-y-4 py-4">
+                                        <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertDescription>
+                                                Default password will be set to <strong>12345678</strong>. Users can change it in their profile settings.
+                                            </AlertDescription>
+                                        </Alert>
+
                                         <div className="space-y-2">
                                             <Label htmlFor="create-name">Name</Label>
                                             <Input
@@ -261,42 +267,6 @@ export default function UsersIndex({ users, filters }: Props) {
                                                     {createForm.errors.role}
                                                 </p>
                                             )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="create-password">Password</Label>
-                                            <Input
-                                                id="create-password"
-                                                type="password"
-                                                value={createForm.data.password}
-                                                onChange={(e) =>
-                                                    createForm.setData('password', e.target.value)
-                                                }
-                                                placeholder="••••••••"
-                                                required
-                                            />
-                                            {createForm.errors.password && (
-                                                <p className="text-sm text-destructive">
-                                                    {createForm.errors.password}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="create-password-confirmation">
-                                                Confirm Password
-                                            </Label>
-                                            <Input
-                                                id="create-password-confirmation"
-                                                type="password"
-                                                value={createForm.data.password_confirmation}
-                                                onChange={(e) =>
-                                                    createForm.setData(
-                                                        'password_confirmation',
-                                                        e.target.value
-                                                    )
-                                                }
-                                                placeholder="••••••••"
-                                                required
-                                            />
                                         </div>
                                     </div>
                                     <DialogFooter>

@@ -52,19 +52,19 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|in:admin,prc',
         ]);
 
+        // Create user with default password "12345678"
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'password' => Hash::make('12345678'), // Default password
             'role' => $request->role,
             'is_active' => true, // Admin-created users are active by default
         ]);
 
-        return redirect()->back()->with('success', 'User created successfully.');
+        return redirect()->back()->with('success', 'User created successfully with default password: 12345678');
     }
 
     /**
