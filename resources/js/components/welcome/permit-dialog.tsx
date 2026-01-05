@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, School, AlertCircle } from 'lucide-react';
+import { GraduationCap, School, AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface ProgramInstitution {
     code: string;
@@ -23,8 +24,6 @@ interface Program {
     copNumber: string | null;
     grNumber: string | null;
     institution?: ProgramInstitution | undefined;
-
-    // backend may send a full URL
     permitPdfUrl?: string | null;
 }
 
@@ -39,6 +38,10 @@ export default function PermitDialog({
     program,
     onOpenChange,
 }: PermitDialogProps) {
+    const [blobUrl, setBlobUrl] = useState<string | null>(null);
+    const [isLoadingBlob, setIsLoadingBlob] = useState(false);
+    const [blobError, setBlobError] = useState<string | null>(null);
+
     const permitUrl = program?.permitPdfUrl ?? null;
 
     const hasCopNumber = !!program?.copNumber;
@@ -59,8 +62,69 @@ export default function PermitDialog({
         : null;
 
     const permitContainerHeightClass = hasPermitFile
-        ? 'min-h-[260px]' // smaller when there is a PDF
-        : 'min-h-[420px]'; // taller for preview / no file
+        ? 'min-h-[260px]'
+        : 'min-h-[420px]';
+
+    // Fetch PDF and create blob URL
+    useEffect(() => {
+        if (!open || !permitUrl) {
+            return;
+        }
+
+        setIsLoadingBlob(true);
+        setBlobError(null);
+
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+        // Fetch the PDF through our proxy endpoint
+        fetch('/api/permit-pdf-proxy', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({ url: permitUrl }),
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch PDF');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                setBlobUrl(url);
+                setIsLoadingBlob(false);
+            })
+            .catch(error => {
+                console.error('Error fetching PDF:', error);
+                setBlobError('Failed to load PDF document');
+                setIsLoadingBlob(false);
+            });
+
+        // Cleanup blob URL when dialog closes or component unmounts
+        return () => {
+            if (blobUrl) {
+                URL.revokeObjectURL(blobUrl);
+                setBlobUrl(null);
+            }
+        };
+    }, [open, permitUrl]);
+
+    // Also cleanup when dialog closes
+    useEffect(() => {
+        if (!open && blobUrl) {
+            URL.revokeObjectURL(blobUrl);
+            setBlobUrl(null);
+        }
+    }, [open, blobUrl]);
+
+    const handleOpenPdf = () => {
+        if (blobUrl) {
+            window.open(blobUrl, '_blank');
+        }
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,21 +219,30 @@ export default function PermitDialog({
                                             )}
 
                                             <div className="flex flex-col items-center gap-3">
-                                                <Button
-                                                    asChild
-                                                    className="px-4 py-2 text-sm font-semibold shadow-md"
-                                                >
-                                                    <a
-                                                        href={permitUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
+                                                {isLoadingBlob ? (
+                                                    <Button
+                                                        disabled
+                                                        className="px-4 py-2 text-sm font-semibold shadow-md"
+                                                    >
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Loading PDF...
+                                                    </Button>
+                                                ) : blobError ? (
+                                                    <div className="text-red-600 dark:text-red-400">
+                                                        <p className="text-sm font-semibold">{blobError}</p>
+                                                        <p className="mt-1 text-xs">Please try again later</p>
+                                                    </div>
+                                                ) : (
+                                                    <Button
+                                                        onClick={handleOpenPdf}
+                                                        disabled={!blobUrl}
+                                                        className="px-4 py-2 text-sm font-semibold shadow-md"
                                                     >
                                                         Open permit PDF in new tab
-                                                    </a>
-                                                </Button>
+                                                    </Button>
+                                                )}
                                                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                                                    The permit will open in a separate browser tab
-                                                    from the CHED portal.
+                                                    The permit will open in a separate browser tab.
                                                 </p>
                                             </div>
                                         </>

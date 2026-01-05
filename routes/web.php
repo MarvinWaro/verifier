@@ -1,4 +1,5 @@
 <?php
+// routes/web.php
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -12,6 +13,7 @@ use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProgramCatalogController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PermitPdfProxyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +23,10 @@ use App\Http\Controllers\DashboardController;
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 
 Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
+
+// PDF Proxy endpoint (public access for permit viewing)
+Route::post('/api/permit-pdf-proxy', [PermitPdfProxyController::class, 'proxy'])
+    ->name('permit.pdf.proxy');
 
 /*
 |--------------------------------------------------------------------------
@@ -98,7 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [UserController::class, 'store'])->name('store');
         Route::put('{user}', [UserController::class, 'update'])->name('update');
         Route::delete('{user}', [UserController::class, 'destroy'])->name('destroy');
-        Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active'); // Add this line
+        Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active');
     });
 
     /*
@@ -113,18 +119,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('graduates', [ImportController::class, 'importGraduates'])->name('graduates');
         Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])->name('graduates.clear');
     });
-
-    // In routes/web.php - add this temporarily for debugging
-    // Route::get('/debug/graduates/{instCode}', function($instCode) {
-    //     $graduates = \App\Models\Graduate::where('hei_uii', $instCode)->get();
-
-    //     return response()->json([
-    //         'institution_code' => $instCode,
-    //         'total_graduates' => $graduates->count(),
-    //         'sample_programs' => $graduates->pluck('course_from_excel')->unique()->values(),
-    //         'sample_graduate' => $graduates->first(),
-    //     ]);
-    // })->middleware('auth');
 });
 
 require __DIR__.'/settings.php';
