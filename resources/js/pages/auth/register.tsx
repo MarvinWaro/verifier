@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 export default function Register() {
     return (
@@ -17,6 +19,13 @@ export default function Register() {
             description="Enter your details below to create your account"
         >
             <Head title="Register" />
+
+            <Alert className="mb-6">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                    Only CHED email addresses (@ched.gov.ph) are allowed. Your account will require admin approval before you can log in.
+                </AlertDescription>
+            </Alert>
 
             <Form
                 {...RegisteredUserController.store.form()}
@@ -46,7 +55,7 @@ export default function Register() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                                <Label htmlFor="email">CHED Email Address</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -54,7 +63,7 @@ export default function Register() {
                                     tabIndex={2}
                                     autoComplete="email"
                                     name="email"
-                                    placeholder="email@example.com"
+                                    placeholder="your.name@ched.gov.ph"
                                 />
                                 <InputError message={errors.email} />
                             </div>

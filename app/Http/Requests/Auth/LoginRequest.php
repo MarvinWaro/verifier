@@ -52,6 +52,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Check if user is active
+        if (! $user->is_active) {
+            RateLimiter::clear($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Your account is pending approval. Please contact an administrator.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
 
         return $user;

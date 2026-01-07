@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/WelcomeController.php
 
 namespace App\Http\Controllers;
 

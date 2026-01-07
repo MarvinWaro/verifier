@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
@@ -51,12 +50,13 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'admin', // Always create as admin
+            'is_active' => false, // Inactive by default - requires admin approval
         ]);
 
         event(new Registered($user));
 
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        // Don't auto-login the user
+        // Redirect to login with a message
+        return redirect()->route('login')->with('status', 'Registration successful! Your account is pending approval. Please wait for an administrator to activate your account.');
     }
 }

@@ -23,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_active',
     ];
 
     /**
@@ -48,6 +49,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -65,5 +67,13 @@ class User extends Authenticatable
     public function isPrc(): bool
     {
         return $this->role === 'prc';
+    }
+
+    /**
+     * Check if user is active.
+     */
+    public function isActive(): bool
+    {
+        return $this->is_active === true;
     }
 }
