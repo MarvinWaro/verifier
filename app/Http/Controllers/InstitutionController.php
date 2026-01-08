@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Graduate; // <--- IMPORTANT: This was missing
+use App\Models\Graduate;
 use App\Services\PortalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -37,7 +37,6 @@ class InstitutionController extends Controller
             ];
         });
 
-        // FIXED: Changed 'institutions/index' to 'institution/index' to match your folder name
         return Inertia::render('institution/index', [
             'institutions' => $institutions,
             'error' => $error,
@@ -59,13 +58,18 @@ class InstitutionController extends Controller
             $records = $portal->fetchProgramRecords($instCode);
 
             $programs = collect($records)
-                ->map(function ($r, $i) {
+                ->map(function ($r, $i) use ($portal) {
+                    // Extract filename to build the secure PDF URL
+                    $filename = trim((string) ($r['filename'] ?? ''));
+
                     return [
                         'id' => $i + 1,
                         'program_name' => trim((string) ($r['programName'] ?? '')),
                         'major' => trim((string) ($r['majorName'] ?? '')) ?: null,
-                        'program_type' => null,
+                        'program_type' => null, // You might want to map this if available in $r
                         'permit_number' => trim((string) ($r['permit_4thyr'] ?? '')) ?: null,
+                        // Generate the proxy URL for the PDF
+                        'permitPdfUrl' => $portal->buildPermitUrl($filename) ?? null,
                     ];
                 })
                 ->filter(fn ($p) => $p['program_name'] !== '')
