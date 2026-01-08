@@ -46,8 +46,9 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import AppLogoIcon from './app-logo-icon';
+import { useMemo } from 'react';
 
-// REMOVED Users from mainNavItems
+// Define items here, but we will filter them inside the component
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -85,6 +86,19 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const { auth } = page.props;
     const getInitials = useInitials();
     const { appearance, updateAppearance } = useAppearance();
+
+    // Filter Navigation Items based on Role
+    const navItems = useMemo(() => {
+        return mainNavItems.filter((item) => {
+            // Logic: Hide 'Import' and 'Graduates' from non-admin (e.g. prc) users
+            if (item.title === 'Import' || item.title === 'Graduates') {
+                return auth.user.role === 'admin';
+            }
+
+            // Show all other items to everyone
+            return true;
+        });
+    }, [auth.user.role]);
 
     const toggleTheme = () => {
         switch (appearance) {
@@ -151,7 +165,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                         <div className="flex h-full flex-col justify-between text-sm">
                                             <div className="flex flex-col space-y-4">
-                                                {mainNavItems.map((item) => {
+                                                {/* USE navItems (filtered) instead of mainNavItems */}
+                                                {navItems.map((item) => {
                                                     const isPrograms =
                                                         item.title ===
                                                         'Programs';
@@ -320,7 +335,8 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     <div className="hidden lg:flex h-full items-center">
                         <NavigationMenu className="flex h-full items-stretch">
                             <NavigationMenuList className="flex h-full items-stretch space-x-0">
-                                {mainNavItems.map((item, index) => {
+                                {/* USE navItems (filtered) instead of mainNavItems */}
+                                {navItems.map((item, index) => {
                                     const isPrograms =
                                         item.title === 'Programs';
 

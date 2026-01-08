@@ -107,7 +107,7 @@ export default function Dashboard({ stats, chartData }: DashboardProps) {
                                 {stats.institutions.toLocaleString()}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Active HEIs (Portal API)
+                                Active HEIs
                             </p>
                         </CardContent>
                     </Card>
