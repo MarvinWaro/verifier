@@ -14,6 +14,7 @@ import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+// --- Types ---
 interface Graduate {
     id: number;
     name: string;
@@ -56,11 +57,8 @@ interface Program {
         name: string;
         type: string;
     };
-
-    // NEW:
     permitPdfUrl?: string | null;
 }
-
 
 interface Institution {
     id: number | null;
@@ -89,19 +87,14 @@ interface Props {
 }
 
 export default function PRCCheckLanding({ stats }: Props) {
+    // --- State ---
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [institutions, setInstitutions] = useState<Institution[]>([]);
 
-    const [expandedInstitutionCode, setExpandedInstitutionCode] =
-        useState<string | null>(null);
-    const [institutionPrograms, setInstitutionPrograms] = useState<
-        Record<string, Program[]>
-    >({});
-    const [institutionProgramsLoading, setInstitutionProgramsLoading] =
-        useState<Record<string, boolean>>({});
-    const [institutionProgramsError, setInstitutionProgramsError] = useState<
-        Record<string, string | null>
-    >({});
+    const [expandedInstitutionCode, setExpandedInstitutionCode] = useState<string | null>(null);
+    const [institutionPrograms, setInstitutionPrograms] = useState<Record<string, Program[]>>({});
+    const [institutionProgramsLoading, setInstitutionProgramsLoading] = useState<Record<string, boolean>>({});
+    const [institutionProgramsError, setInstitutionProgramsError] = useState<Record<string, string | null>>({});
 
     const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
     const [permitDialogOpen, setPermitDialogOpen] = useState(false);
@@ -110,24 +103,22 @@ export default function PRCCheckLanding({ stats }: Props) {
     const [loadingProgramId, setLoadingProgramId] = useState<number | null>(null);
 
     const [searchMessage, setSearchMessage] = useState<string | null>(null);
-    const [searchMessageType, setSearchMessageType] = useState<
-        'warning' | 'error' | null
-    >(null);
+    const [searchMessageType, setSearchMessageType] = useState<'warning' | 'error' | null>(null);
 
+    // Map State
     const [heiMapLoading, setHeiMapLoading] = useState(false);
     const [heiMapError, setHeiMapError] = useState<string | null>(null);
-    const [heiMapCenter, setHeiMapCenter] = useState<{
-        lat: number;
-        lng: number;
-    } | null>(null);
+    const [heiMapCenter, setHeiMapCenter] = useState<{ lat: number; lng: number } | null>(null);
     const [heiMapZoom, setHeiMapZoom] = useState<number>(8);
     const [heiLocations, setHeiLocations] = useState<HeiLocation[]>([]);
 
     const { appearance, updateAppearance } = useAppearance();
 
-    // For auto-scroll to the results section
+    // Auto-scroll refs
     const resultsRef = useRef<HTMLDivElement | null>(null);
     const [shouldScrollToResults, setShouldScrollToResults] = useState(false);
+
+    // --- Handlers ---
 
     const resetAll = () => {
         setInstitutions([]);
@@ -147,71 +138,39 @@ export default function PRCCheckLanding({ stats }: Props) {
         setSearchMessageType(null);
     };
 
-    // Helper: scroll the viewport so the results card is visible
     const scrollToResults = () => {
         if (typeof window === 'undefined' || !resultsRef.current) return;
-
         const rect = resultsRef.current.getBoundingClientRect();
-        const offset = 96; // adjust if navbar height changes
+        const offset = 96;
         const absoluteTop = window.scrollY + rect.top - offset;
-
-        window.scrollTo({
-            top: absoluteTop,
-            behavior: 'smooth',
-        });
+        window.scrollTo({ top: absoluteTop, behavior: 'smooth' });
     };
 
-    // After a successful search, wait for the results card to render,
-    // then scroll down to it (works even on the first search).
     useEffect(() => {
         if (!shouldScrollToResults) return;
         if (!resultsRef.current) return;
-
         scrollToResults();
         setShouldScrollToResults(false);
     }, [shouldScrollToResults]);
 
-    // ------------------------------
-    // HEI map load
-    // ------------------------------
+    // --- API Calls ---
+
     const loadHeiMap = async () => {
         setHeiMapLoading(true);
         setHeiMapError(null);
-
         try {
             const response = await axios.get('/hei-map');
             const data = response.data ?? {};
-
             const centerRaw = data.center ?? {};
-            const center = {
-                lat: Number(centerRaw.lat ?? 6.5),
-                lng: Number(centerRaw.lng ?? 124.5),
-            };
-
+            const center = { lat: Number(centerRaw.lat ?? 6.5), lng: Number(centerRaw.lng ?? 124.5) };
             const zoom = Number(data.zoom ?? 8);
             const heisRaw: any[] = Array.isArray(data.heis) ? data.heis : [];
 
             const normalized: HeiLocation[] = heisRaw
                 .map((item) => {
-                    const lat = Number(
-                        item.latitude ??
-                            item.lat ??
-                            item.xCoordinate ??
-                            item.yCoordinate ??
-                            NaN,
-                    );
-                    const lng = Number(
-                        item.longitude ??
-                            item.lng ??
-                            item.yCoordinate ??
-                            item.xCoordinate ??
-                            NaN,
-                    );
-
-                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                        return null;
-                    }
-
+                    const lat = Number(item.latitude ?? item.lat ?? item.xCoordinate ?? NaN);
+                    const lng = Number(item.longitude ?? item.lng ?? item.yCoordinate ?? NaN);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
                     return {
                         instCode: String(item.instCode ?? ''),
                         instName: String(item.instName ?? 'Unknown HEI'),
@@ -241,9 +200,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // ------------------------------
-    // Search institutions
-    // ------------------------------
     const performInstitutionSearch = async (rawSearch: string) => {
         setSearchMessage(null);
         setSearchMessageType(null);
@@ -252,7 +208,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         setExpandedInstitutionCode(null);
 
         const trimmed = rawSearch.trim();
-
         if (!trimmed) {
             setInstitutions([]);
             setSearchMessage('Please enter an institution code or name to search.');
@@ -263,19 +218,14 @@ export default function PRCCheckLanding({ stats }: Props) {
         const isNumeric = /^\d+$/.test(trimmed);
         if (isNumeric && trimmed.length < 4) {
             setInstitutions([]);
-            setSearchMessage(
-                'For institution codes, please enter at least 4 digits (e.g., 1201).',
-            );
+            setSearchMessage('For institution codes, please enter at least 4 digits (e.g., 1201).');
             setSearchMessageType('warning');
             return;
         }
 
         setIsSearching(true);
         try {
-            const response = await axios.post('/api/search-institution', {
-                search: trimmed,
-            });
-
+            const response = await axios.post('/api/search-institution', { search: trimmed });
             const result: Institution[] = response.data.institutions ?? [];
 
             setInstitutions(result);
@@ -285,14 +235,9 @@ export default function PRCCheckLanding({ stats }: Props) {
             setExpandedInstitutionCode(null);
 
             if (result.length === 0) {
-                setSearchMessage(
-                    `No institution found for "${trimmed}". Please check the code or name.`,
-                );
+                setSearchMessage(`No institution found for "${trimmed}". Please check the code or name.`);
                 setSearchMessageType('warning');
             } else {
-                setSearchMessage(null);
-                setSearchMessageType(null);
-                // tell effect to scroll once the results card is rendered
                 setShouldScrollToResults(true);
             }
         } catch (error) {
@@ -313,12 +258,8 @@ export default function PRCCheckLanding({ stats }: Props) {
         void performInstitutionSearch(instCode);
     };
 
-    // ------------------------------
-    // Load programs for institution
-    // ------------------------------
     const loadProgramsForInstitution = async (institution: Institution) => {
         const code = institution.code;
-
         if (institutionPrograms[code] || institutionProgramsLoading[code]) return;
 
         try {
@@ -329,9 +270,8 @@ export default function PRCCheckLanding({ stats }: Props) {
             const programs: Program[] = response.data.programs ?? [];
 
             setInstitutionPrograms((s) => ({ ...s, [code]: programs }));
-
             setInstitutions((prev) =>
-                prev.map((inst) => (inst.code === code ? { ...inst, programs } : inst)),
+                prev.map((inst) => (inst.code === code ? { ...inst, programs } : inst))
             );
         } catch (error) {
             console.error('Failed to load programs:', error);
@@ -344,9 +284,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
-    // ------------------------------
-    // Institution click / toggle + auto scroll
-    // ------------------------------
     const handleInstitutionToggle = (institution: Institution) => {
         const code = institution.code;
         const isSame = expandedInstitutionCode === code;
@@ -358,15 +295,13 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         if (!isSame) {
             void loadProgramsForInstitution(institution);
-            // When a school is selected, scroll to the results card
             scrollToResults();
         }
     };
 
-    // ------------------------------
-    // Program click (permit dialog)
-    // ------------------------------
     const handleProgramClick = async (program: Program) => {
+        // If we don't have an ID, we can't fetch more details, but we might still have a PDF URL
+        // from the program list item.
         if (!program.id) {
             setSelectedProgram(program);
             setPermitDialogOpen(true);
@@ -376,6 +311,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         setLoadingProgramId(program.id);
         try {
             const response = await axios.get(`/api/program/${program.id}`);
+            // The API returns the full details including graduates
             setSelectedProgram(response.data.program);
             setPermitDialogOpen(true);
         } catch (error) {
@@ -386,57 +322,38 @@ export default function PRCCheckLanding({ stats }: Props) {
         }
     };
 
-    // ------------------------------
-    // Theming
-    // ------------------------------
+    // --- Theme ---
     const toggleTheme = () => {
         switch (appearance) {
-            case 'light':
-                return updateAppearance('dark');
-            case 'dark':
-                return updateAppearance('system');
-            case 'system':
-                return updateAppearance('light');
-            default:
-                return updateAppearance('light');
+            case 'light': return updateAppearance('dark');
+            case 'dark': return updateAppearance('system');
+            case 'system': return updateAppearance('light');
+            default: return updateAppearance('light');
         }
     };
 
     const getThemeIcon = () => {
         switch (appearance) {
-            case 'light':
-                return { icon: Sun, tooltip: 'Switch to Dark Mode' };
-            case 'dark':
-                return { icon: Moon, tooltip: 'Switch to System Mode' };
-            case 'system':
-                return { icon: Monitor, tooltip: 'Switch to Light Mode' };
-            default:
-                return { icon: Sun, tooltip: 'Toggle theme' };
+            case 'light': return { icon: Sun, tooltip: 'Switch to Dark Mode' };
+            case 'dark': return { icon: Moon, tooltip: 'Switch to System Mode' };
+            case 'system': return { icon: Monitor, tooltip: 'Switch to Light Mode' };
+            default: return { icon: Sun, tooltip: 'Toggle theme' };
         }
     };
 
     const { icon: ThemeIcon, tooltip } = getThemeIcon();
 
-    // Derived selected institution + programs
-    const selectedInstitution =
-        expandedInstitutionCode &&
-        institutions.find((inst) => inst.code === expandedInstitutionCode)
-            ? institutions.find((inst) => inst.code === expandedInstitutionCode)!
-            : null;
+    // Derived State
+    const selectedInstitution = expandedInstitutionCode
+        ? institutions.find((inst) => inst.code === expandedInstitutionCode) ?? null
+        : null;
 
-    const selectedPrograms =
-        selectedInstitution &&
-        (institutionPrograms[selectedInstitution.code] ??
-            selectedInstitution.programs ??
-            []);
+    const selectedPrograms = selectedInstitution
+        ? (institutionPrograms[selectedInstitution.code] ?? selectedInstitution.programs ?? [])
+        : [];
 
-    const selectedProgramsLoading =
-        selectedInstitution &&
-        institutionProgramsLoading[selectedInstitution.code] === true;
-
-    const selectedProgramsError =
-        selectedInstitution &&
-        (institutionProgramsError[selectedInstitution.code] ?? null);
+    const selectedProgramsLoading = selectedInstitution && institutionProgramsLoading[selectedInstitution.code] === true;
+    const selectedProgramsError = selectedInstitution && (institutionProgramsError[selectedInstitution.code] ?? null);
 
     return (
         <div className="relative min-h-screen bg-gray-50 font-sans dark:bg-gray-950">
@@ -453,7 +370,7 @@ export default function PRCCheckLanding({ stats }: Props) {
             <div className="pointer-events-none absolute inset-0 bg-white/70 dark:bg-gray-950/60" />
 
             <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-                {/* Map + search grid */}
+                {/* Map + Search */}
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
                     <WelcomeLeaflet
                         center={heiMapCenter}
@@ -481,7 +398,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                     </div>
                 </div>
 
-                {/* Skeleton while searching and no results yet */}
+                {/* Loading Skeleton */}
                 {isSearching && institutions.length === 0 && (
                     <div className="mt-8">
                         <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
@@ -490,13 +407,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     <Skeleton className="h-4 w-40" />
                                     <Skeleton className="h-3 w-28" />
                                 </div>
-
                                 <div className="space-y-4">
                                     {[1, 2, 3].map((i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-start gap-4 rounded-lg border bg-white/80 p-4 dark:border-gray-800 dark:bg-gray-900/80"
-                                        >
+                                        <div key={i} className="flex items-start gap-4 rounded-lg border bg-white/80 p-4 dark:border-gray-800 dark:bg-gray-900/80">
                                             <Skeleton className="h-10 w-10 rounded-xl" />
                                             <div className="flex-1 space-y-2">
                                                 <Skeleton className="h-4 w-1/2" />
@@ -513,25 +426,22 @@ export default function PRCCheckLanding({ stats }: Props) {
                     </div>
                 )}
 
-                {/* Search Results + Programs panel */}
+                {/* Results Area */}
                 {institutions.length > 0 && (
                     <div ref={resultsRef} className="mt-8">
                         <Card className="border-0 bg-white/95 shadow-2xl backdrop-blur-md dark:bg-gray-900/95">
                             <CardContent className="p-6 sm:p-8">
                                 <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                                     <div>
-                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                                            Search Results
-                                        </h3>
+                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Search Results</h3>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            {institutions.length} institution
-                                            {institutions.length !== 1 ? 's' : ''} found
+                                            {institutions.length} institution{institutions.length !== 1 ? 's' : ''} found
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="grid gap-6 lg:grid-cols-12 lg:h-[460px]">
-                                    {/* Left: institutions list */}
+                                    {/* Left: Institution List */}
                                     <div className="min-w-0 lg:col-span-6 lg:h-full lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2">
                                         <InstitutionResultsList
                                             institutions={institutions}
@@ -545,61 +455,39 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         />
                                     </div>
 
-                                    {/* Right: selected institution programs */}
+                                    {/* Right: Programs Panel */}
                                     <div className="min-w-0 mt-4 lg:col-span-6 lg:mt-0 lg:h-full lg:overflow-y-auto lg:overflow-x-hidden lg:pl-2">
                                         {!selectedInstitution ? (
                                             <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/70 p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-400">
-                                                Select an institution on the left to view its
-                                                programs and permits here.
+                                                Select an institution on the left to view its programs and permits here.
                                             </div>
                                         ) : (
                                             <Card className="border border-gray-100 bg-white/95 shadow-md dark:border-gray-800 dark:bg-gray-900/95">
                                                 <CardContent className="p-5 sm:p-6">
                                                     <div className="mb-3">
-                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                                            Programs for
-                                                        </p>
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Programs for</p>
                                                         <h3 className="mt-1 text-sm font-semibold leading-snug text-gray-900 dark:text-white">
                                                             {selectedInstitution.name}
                                                         </h3>
                                                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                                             <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 font-medium dark:bg-gray-800">
-                                                                Code:{' '}
-                                                                <span className="ml-1 font-mono">
-                                                                    {selectedInstitution.code}
-                                                                </span>
+                                                                Code: <span className="ml-1 font-mono">{selectedInstitution.code}</span>
                                                             </span>
                                                             <span className="inline-flex items-center rounded-md bg-gray-900 px-2 py-0.5 font-medium text-white dark:bg-gray-100 dark:text-gray-900">
-                                                                {selectedInstitution.type === 'public'
-                                                                    ? 'Public Institution'
-                                                                    : 'Private Institution'}
+                                                                {selectedInstitution.type === 'public' ? 'Public Institution' : 'Private Institution'}
                                                             </span>
                                                         </div>
                                                     </div>
 
                                                     <div className="mb-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                                        <span className="font-semibold">
-                                                            Available Programs
-                                                        </span>
-                                                        <span>
-                                                            {selectedPrograms
-                                                                ? selectedPrograms.length
-                                                                : 0}{' '}
-                                                            program
-                                                            {selectedPrograms &&
-                                                            selectedPrograms.length !== 1
-                                                                ? 's'
-                                                                : ''}
-                                                        </span>
+                                                        <span className="font-semibold">Available Programs</span>
+                                                        <span>{selectedPrograms ? selectedPrograms.length : 0} program{selectedPrograms && selectedPrograms.length !== 1 ? 's' : ''}</span>
                                                     </div>
 
                                                     {selectedProgramsLoading ? (
                                                         <div className="space-y-3">
                                                             {[1, 2, 3].map((i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className="rounded-lg border bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-800/80"
-                                                                >
+                                                                <div key={i} className="rounded-lg border bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-800/80">
                                                                     <div className="flex items-start gap-4">
                                                                         <Skeleton className="h-10 w-10 rounded-xl" />
                                                                         <div className="flex-1 space-y-2">
@@ -611,15 +499,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             ))}
                                                         </div>
                                                     ) : selectedProgramsError ? (
-                                                        <p className="text-sm text-red-600 dark:text-red-400">
-                                                            {selectedProgramsError}
-                                                        </p>
-                                                    ) : !selectedPrograms ||
-                                                      selectedPrograms.length === 0 ? (
-                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                            No programs available for this
-                                                            institution.
-                                                        </p>
+                                                        <p className="text-sm text-red-600 dark:text-red-400">{selectedProgramsError}</p>
+                                                    ) : !selectedPrograms || selectedPrograms.length === 0 ? (
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400">No programs available for this institution.</p>
                                                     ) : (
                                                         <ProgramsList
                                                             programs={selectedPrograms}
@@ -643,14 +525,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                 </div>
             </main>
 
+            {/* Dialog handles the PDF and details */}
             <PermitDialog
                 open={permitDialogOpen && !!selectedProgram}
                 program={selectedProgram}
                 onOpenChange={(open) => {
                     setPermitDialogOpen(open);
-                    if (!open) {
-                        setSelectedProgram(null);
-                    }
+                    if (!open) setSelectedProgram(null);
                 }}
             />
         </div>

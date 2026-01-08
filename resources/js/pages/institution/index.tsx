@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -20,10 +21,12 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { ChevronDown, GraduationCap, Search, ExternalLink } from 'lucide-react';
+import { ChevronDown, GraduationCap, Search, ExternalLink, FileText } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import ViewGraduatesDialog, { type GraduateLite } from '@/components/admin-institution/view-graduates-dialog';
+// Import the PermitDialog from the welcome components
+import PermitDialog from '@/components/welcome/permit-dialog';
 
 interface Program {
     id: number;
@@ -31,6 +34,8 @@ interface Program {
     major: string | null;
     program_type: string | null;
     permit_number: string | null;
+    // New field for the PDF
+    permitPdfUrl?: string | null;
 }
 
 interface Institution {
@@ -49,6 +54,21 @@ interface Props {
     error?: string | null;
 }
 
+// Interface expected by PermitDialog (matching the welcome page component)
+interface PermitDialogProgram {
+    id: number | null;
+    name: string;
+    major: string | null;
+    copNumber: string | null;
+    grNumber: string | null;
+    institution?: {
+        code: string;
+        name: string;
+        type: string;
+    };
+    permitPdfUrl?: string | null;
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard().url },
     { title: 'Institutions', href: '/institutions' },
@@ -61,11 +81,15 @@ export default function InstitutionIndex({ institutions, error }: Props) {
     const [loading, setLoading] = useState<Record<string, boolean>>({});
     const [loadError, setLoadError] = useState<Record<string, string | null>>({});
 
-    // Dialog state
+    // Graduates Dialog state
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedProgram, setSelectedProgram] = useState<{ name: string; instCode: string; instName: string } | null>(null);
     const [graduates, setGraduates] = useState<GraduateLite[]>([]);
     const [loadingGraduates, setLoadingGraduates] = useState(false);
+
+    // Permit Dialog state
+    const [permitDialogOpen, setPermitDialogOpen] = useState(false);
+    const [permitDialogProgram, setPermitDialogProgram] = useState<PermitDialogProgram | null>(null);
 
     const controllersRef = useRef<Record<string, AbortController>>({});
 
@@ -189,6 +213,28 @@ export default function InstitutionIndex({ institutions, error }: Props) {
             setLoadingGraduates(false);
         }
     }
+
+    const openPermitView = (inst: Institution, prog: Program) => {
+        const isPublic = inst.ownership_sector === 'PUBLIC';
+
+        // Map Admin Program to PermitDialog Program format
+        const dialogData: PermitDialogProgram = {
+            id: prog.id,
+            name: prog.program_name,
+            major: prog.major,
+            copNumber: isPublic ? prog.permit_number : null,
+            grNumber: !isPublic ? prog.permit_number : null,
+            institution: {
+                code: inst.institution_code,
+                name: inst.name,
+                type: inst.ownership_sector === 'PUBLIC' ? 'public' : 'private',
+            },
+            permitPdfUrl: prog.permitPdfUrl,
+        };
+
+        setPermitDialogProgram(dialogData);
+        setPermitDialogOpen(true);
+    };
 
     const onRowToggle = (row: Institution) => {
         const newId = expandedId === row.id ? null : row.id;
@@ -328,11 +374,26 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                                                                                                 {program.major && <p>Major: <span className="text-gray-700 dark:text-gray-300">{program.major}</span></p>}
                                                                                             </div>
                                                                                         </div>
-                                                                                        {program.program_type && (
-                                                                                            <Badge className={`w-fit whitespace-nowrap ${getProgramTypeColor(program.program_type)}`}>
-                                                                                                {program.program_type}
-                                                                                            </Badge>
-                                                                                        )}
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            {program.program_type && (
+                                                                                                <Badge className={`w-fit whitespace-nowrap ${getProgramTypeColor(program.program_type)}`}>
+                                                                                                    {program.program_type}
+                                                                                                </Badge>
+                                                                                            )}
+
+                                                                                            <Button
+                                                                                                size="sm"
+                                                                                                variant="outline"
+                                                                                                className="h-8 gap-1.5 text-xs bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    openPermitView(row, program);
+                                                                                                }}
+                                                                                            >
+                                                                                                <FileText className="h-3.5 w-3.5" />
+                                                                                                View Permit
+                                                                                            </Button>
+                                                                                        </div>
                                                                                     </div>
                                                                                 </div>
                                                                             ))}
@@ -359,7 +420,7 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                 </Card>
             </div>
 
-            {/* Graduates Dialog Component - All complexity is hidden here! */}
+            {/* Graduates Dialog Component */}
             <ViewGraduatesDialog
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
@@ -368,6 +429,16 @@ export default function InstitutionIndex({ institutions, error }: Props) {
                 institutionCode={selectedProgram?.instCode || null}
                 graduates={graduates}
                 loading={loadingGraduates}
+            />
+
+            {/* Permit Viewer Dialog (Reused from landing page) */}
+            <PermitDialog
+                open={permitDialogOpen}
+                program={permitDialogProgram}
+                onOpenChange={(open) => {
+                    setPermitDialogOpen(open);
+                    if (!open) setPermitDialogProgram(null);
+                }}
             />
         </AppLayout>
     );
