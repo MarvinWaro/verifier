@@ -35,7 +35,7 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-                {/* Settings */}
+                {/* Settings - Visible to everyone */}
                 <DropdownMenuItem asChild>
                     <Link
                         className="block w-full"
@@ -49,33 +49,36 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     </Link>
                 </DropdownMenuItem>
 
-                {/* Users Management */}
-                <DropdownMenuItem asChild>
-                    <Link
-                        className="block w-full"
-                        href="/users"
-                        as="button"
-                        prefetch
-                        onClick={cleanup}
-                    >
-                        <Users className="mr-2" />
-                        Users
-                    </Link>
-                </DropdownMenuItem>
+                {/* Admin Only Items: Users & Logs */}
+                {user.role === 'admin' && (
+                    <>
+                        <DropdownMenuItem asChild>
+                            <Link
+                                className="block w-full"
+                                href="/users"
+                                as="button"
+                                prefetch
+                                onClick={cleanup}
+                            >
+                                <Users className="mr-2" />
+                                Users
+                            </Link>
+                        </DropdownMenuItem>
 
-                {/* Logs */}
-                <DropdownMenuItem asChild>
-                    <Link
-                        className="block w-full"
-                        href="/logs"
-                        as="button"
-                        prefetch
-                        onClick={cleanup}
-                    >
-                        <History className="mr-2" />
-                        Logs
-                    </Link>
-                </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link
+                                className="block w-full"
+                                href="/logs"
+                                as="button"
+                                prefetch
+                                onClick={cleanup}
+                            >
+                                <History className="mr-2" />
+                                Logs
+                            </Link>
+                        </DropdownMenuItem>
+                    </>
+                )}
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />

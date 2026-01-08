@@ -45,12 +45,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     | Institutions
     |--------------------------------------------------------------------------
-    | - Page route (Inertia)
-    | - JSON helper used by the Institutions page (accordion)
-    | - JSON helper used by the Modal to list graduates
     */
     Route::prefix('institutions')->name('institutions.')->group(function () {
-        // Page
         Route::get('/', [InstitutionController::class, 'index'])->name('index');
 
         // Lazy JSON used when expanding a row to load programs
@@ -66,58 +62,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Programs (page)
+    | Programs
     |--------------------------------------------------------------------------
     */
     Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
 
     /*
     |--------------------------------------------------------------------------
-    | Program Catalog (Board / Non-Board classification)
+    | Program Catalog
     |--------------------------------------------------------------------------
     */
     Route::get('programs/catalog', [ProgramCatalogController::class, 'index'])
         ->name('programs.catalog.index');
 
-    // Route model binding: {programCatalog} -> ProgramCatalog $programCatalog
     Route::patch('programs/catalog/{programCatalog}', [ProgramCatalogController::class, 'update'])
         ->name('programs.catalog.update');
 
     /*
     |--------------------------------------------------------------------------
-    | Graduates (page + update/delete)
+    | Admin Only Routes (Graduates, Users, Import)
     |--------------------------------------------------------------------------
+    | Routes inside this group are strictly for 'admin' role.
     */
-    Route::prefix('graduates')->name('graduates.')->group(function () {
-        Route::get('/', [GraduateController::class, 'index'])->name('index');
-        Route::put('{graduate}', [GraduateController::class, 'update'])->name('update');
-        Route::delete('{graduate}', [GraduateController::class, 'destroy'])->name('destroy');
-    });
+    Route::middleware(['admin'])->group(function () {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Users (CRUD)
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('users')->name('users.')->group(function () {
-        Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::post('/', [UserController::class, 'store'])->name('store');
-        Route::put('{user}', [UserController::class, 'update'])->name('update');
-        Route::delete('{user}', [UserController::class, 'destroy'])->name('destroy');
-        Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active');
-    });
+        /* Graduates (Moved here to protect access) */
+        Route::prefix('graduates')->name('graduates.')->group(function () {
+            Route::get('/', [GraduateController::class, 'index'])->name('index');
+            Route::put('{graduate}', [GraduateController::class, 'update'])->name('update');
+            Route::delete('{graduate}', [GraduateController::class, 'destroy'])->name('destroy');
+        });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Import tools
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('import')->name('import.')->group(function () {
-        Route::get('/', [ImportController::class, 'index'])->name('index');
-        Route::post('institutions', [ImportController::class, 'importInstitutions'])->name('institutions');
-        Route::post('institutions/clear', [ImportController::class, 'clearInstitutions'])->name('institutions.clear');
-        Route::post('graduates', [ImportController::class, 'importGraduates'])->name('graduates');
-        Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])->name('graduates.clear');
+        /* Users (CRUD) */
+        Route::prefix('users')->name('users.')->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::put('{user}', [UserController::class, 'update'])->name('update');
+            Route::delete('{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active');
+        });
+
+        /* Import tools */
+        Route::prefix('import')->name('import.')->group(function () {
+            Route::get('/', [ImportController::class, 'index'])->name('index');
+            Route::post('institutions', [ImportController::class, 'importInstitutions'])->name('institutions');
+            Route::post('institutions/clear', [ImportController::class, 'clearInstitutions'])->name('institutions.clear');
+            Route::post('graduates', [ImportController::class, 'importGraduates'])->name('graduates');
+            Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])->name('graduates.clear');
+        });
     });
 });
 
