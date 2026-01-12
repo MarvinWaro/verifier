@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, School, AlertCircle, Loader2, Maximize2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { GraduationCap, School, AlertCircle, Loader2, Maximize2, ChevronLeft, ChevronRight, X, FileText, FileWarning } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import axios from 'axios';
@@ -74,14 +74,22 @@ export default function PermitDialog({
         ? program?.grNumber
         : null;
 
+    // Helper: Match the badge logic from ProgramsList
+    const getBadgeStyle = (hasPdf: boolean) => {
+        if (hasPdf) {
+            // Green: Has Permit + PDF
+            return "border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300";
+        }
+        // Purple: Has Permit but No PDF
+        return "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300";
+    };
+
     // Calculate PDF width based on window size
     useEffect(() => {
         const calculateWidth = () => {
             if (isFullscreen) {
-                // Fullscreen: use most of window width, max 1400px
                 setPdfWidth(Math.min(window.innerWidth * 0.85, 1400));
             } else {
-                // Dialog: use wider width for better fit
                 setPdfWidth(Math.min(window.innerWidth * 0.6, 900));
             }
         };
@@ -101,17 +109,15 @@ export default function PermitDialog({
         setBlobError(null);
         setPageNumber(1);
 
-        // Get CSRF token from meta tag for safety, though Axios usually handles it automatically
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
         axios.post('/api/permit-pdf-proxy', { url: permitUrl }, {
-            responseType: 'blob', // Important: Tell axios we expect a binary blob
+            responseType: 'blob',
             headers: {
                 'X-CSRF-TOKEN': csrfToken
             }
         })
         .then(response => {
-            // Create object URL from the Blob response
             const url = URL.createObjectURL(response.data);
             setBlobUrl(url);
             setIsLoadingBlob(false);
@@ -122,7 +128,6 @@ export default function PermitDialog({
             setIsLoadingBlob(false);
         });
 
-        // Cleanup blob URL when dialog closes or component unmounts
         return () => {
             if (blobUrl) {
                 URL.revokeObjectURL(blobUrl);
@@ -130,7 +135,7 @@ export default function PermitDialog({
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, permitUrl]); // re-run if open state or url changes
+    }, [open, permitUrl]);
 
     // Also cleanup when dialog closes explicitly
     useEffect(() => {
@@ -185,7 +190,6 @@ export default function PermitDialog({
     if (isFullscreen && hasPermitFile) {
         return (
             <div className="fixed inset-0 z-[100] flex flex-col bg-black/95">
-                {/* Header */}
                 <div className="flex-shrink-0 flex items-center justify-between bg-black/60 px-6 py-4 backdrop-blur-sm">
                     <div className="text-white">
                         <h3 className="text-lg font-semibold">{program?.name}</h3>
@@ -205,7 +209,6 @@ export default function PermitDialog({
                     </Button>
                 </div>
 
-                {/* PDF Viewer - Scrollable */}
                 <div className="flex-1 overflow-y-auto">
                     <div className="flex min-h-full items-start justify-center py-8">
                         {blobUrl && (
@@ -236,7 +239,6 @@ export default function PermitDialog({
                     </div>
                 </div>
 
-                {/* Footer Navigation */}
                 {numPages && numPages > 1 && (
                     <div className="flex-shrink-0 flex items-center justify-center gap-4 bg-black/60 px-6 py-4 backdrop-blur-sm">
                         <Button
@@ -283,7 +285,6 @@ export default function PermitDialog({
                                         {program.name}
                                     </span>
                                 </div>
-                                {/* Maximize button moved to header for better UX */}
                                 {hasPermitFile && blobUrl && (
                                     <Button
                                         onClick={toggleFullscreen}
@@ -307,18 +308,29 @@ export default function PermitDialog({
                                     </p>
                                 )}
                                 <div className="mt-3 flex flex-wrap items-center gap-3">
+                                    {/* Updated Badges to match ProgramList logic */}
                                     {program.copNumber && (
-                                        <Badge variant="outline" className="border-green-200 bg-green-50 text-[11px] text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300">
-                                            <span className="font-medium">COP:</span>
+                                        <Badge variant="outline" className={`text-[11px] ${getBadgeStyle(hasPermitFile)}`}>
+                                            <span className="font-medium">No:</span>
                                             <span className="ml-1 font-mono">{program.copNumber}</span>
                                         </Badge>
                                     )}
                                     {program.grNumber && (
-                                        <Badge variant="outline" className="border-purple-200 bg-purple-50 text-[11px] text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                                            <span className="font-medium">GR:</span>
+                                        <Badge variant="outline" className={`text-[11px] ${getBadgeStyle(hasPermitFile)}`}>
+                                            <span className="font-medium">No:</span>
                                             <span className="ml-1 font-mono">{program.grNumber}</span>
                                         </Badge>
                                     )}
+                                    {!hasPermitNumber && (
+                                        <Badge
+                                            variant="outline"
+                                            className="border-red-200 bg-red-50 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
+                                        >
+                                            <AlertCircle className="mr-1 h-3 w-3" />
+                                            <span className="font-bold">CHECK WITH CHED</span>
+                                        </Badge>
+                                    )}
+
                                     {program.institution && (
                                         <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                                             <School className="h-4 w-4" />
@@ -333,11 +345,14 @@ export default function PermitDialog({
 
                             {/* Permit area */}
                             {hasPermitFile ? (
-                                <div className="rounded-lg border-2 border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-900">
-                                    <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
-                                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">Permit Document</h4>
+                                // GREEN SCENARIO (Implicitly handled by showing PDF)
+                                <div className="rounded-lg border-2 border-green-200 bg-white dark:border-green-900 dark:bg-gray-900">
+                                    <div className="border-b border-green-200 bg-green-50 px-6 py-4 dark:border-green-900 dark:bg-green-900/10">
+                                        <h4 className="text-lg font-bold text-green-900 dark:text-green-100 flex items-center gap-2">
+                                            <FileText className="h-5 w-5" /> Permit Document
+                                        </h4>
                                         {permitNumberValue && (
-                                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                            <p className="mt-1 text-sm text-green-700 dark:text-green-300">
                                                 {permitNumberLabel}: <span className="font-mono font-semibold">{permitNumberValue}</span>
                                             </p>
                                         )}
@@ -346,7 +361,7 @@ export default function PermitDialog({
                                     <div className="relative bg-gray-100 dark:bg-gray-950">
                                         {isLoadingBlob ? (
                                             <div className="flex min-h-[500px] flex-col items-center justify-center p-8">
-                                                <Loader2 className="mb-4 h-12 w-12 animate-spin text-blue-600 dark:text-blue-400" />
+                                                <Loader2 className="mb-4 h-12 w-12 animate-spin text-green-600 dark:text-green-400" />
                                                 <p className="text-sm text-gray-600 dark:text-gray-400">Loading PDF preview...</p>
                                             </div>
                                         ) : blobError ? (
@@ -363,7 +378,7 @@ export default function PermitDialog({
                                                         onLoadSuccess={onDocumentLoadSuccess}
                                                         loading={
                                                             <div className="flex min-h-[500px] items-center justify-center">
-                                                                <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
+                                                                <Loader2 className="h-8 w-8 animate-spin text-green-600 dark:text-green-400" />
                                                             </div>
                                                         }
                                                         error={
@@ -382,7 +397,6 @@ export default function PermitDialog({
                                                         />
                                                     </Document>
 
-                                                    {/* Hover Overlay: Click to View Fullscreen */}
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 rounded-sm">
                                                         <div className="bg-black/70 text-white px-4 py-2 rounded-md flex items-center gap-2 backdrop-blur-sm">
                                                             <Maximize2 className="h-4 w-4" />
@@ -394,7 +408,6 @@ export default function PermitDialog({
                                         ) : null}
                                     </div>
 
-                                    {/* Pagination Controls */}
                                     {numPages && numPages > 1 && (
                                         <div className="border-t border-gray-200 bg-gray-50 px-6 py-3 dark:border-gray-700 dark:bg-gray-800">
                                             <div className="flex items-center justify-between">
@@ -410,31 +423,33 @@ export default function PermitDialog({
                                     )}
                                 </div>
                             ) : hasPermitNumber ? (
-                                <div className="relative min-h-[420px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:border-gray-600 dark:from-gray-900 dark:to-gray-800">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
+                                // PURPLE SCENARIO: Has Number, No PDF
+                                <div className="relative min-h-[420px] overflow-hidden rounded-lg border-2 border-dashed border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-900/10">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-purple-100/10" />
                                     <div className="relative flex h-full flex-col items-center justify-center p-8 text-center">
-                                        <div className="mb-6 rounded-full bg-blue-100 p-4 dark:bg-blue-900/40">
-                                            <AlertCircle className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                                        <div className="mb-6 rounded-full bg-purple-100 p-4 dark:bg-purple-900/40">
+                                            <FileWarning className="h-8 w-8 text-purple-600 dark:text-purple-400" />
                                         </div>
-                                        <h4 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">Permit Document Preview</h4>
-                                        <p className="mb-2 text-sm text-gray-700 dark:text-gray-200">
+                                        <h4 className="mb-2 text-xl font-bold text-purple-900 dark:text-purple-200">Permit Number Recorded</h4>
+                                        <p className="mb-2 text-sm text-purple-700 dark:text-purple-300">
                                             {permitNumberLabel}: <span className="font-mono font-semibold">{permitNumberValue}</span>
                                         </p>
-                                        <p className="mb-6 max-w-md text-xs text-gray-600 dark:text-gray-400">
-                                            A permit number is recorded for this program, but the PDF copy has not yet been uploaded to the registry.
+                                        <p className="mb-6 max-w-md text-xs text-purple-600 dark:text-purple-400">
+                                            A permit number is recorded for this program, but the digital copy (PDF) has not yet been uploaded to the registry.
                                         </p>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="relative min-h-[420px] overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 dark:border-gray-600 dark:from-gray-900 dark:to-gray-800">
-                                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5" />
+                                // RED SCENARIO: No Number, No PDF (Check with CHED)
+                                <div className="relative min-h-[420px] overflow-hidden rounded-lg border-2 border-dashed border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10">
+                                     <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-red-100/10" />
                                     <div className="relative flex h-full flex-col items-center justify-center p-8 text-center">
-                                        <div className="mb-6 animate-pulse rounded-full bg-blue-100 p-6 dark:bg-blue-900/30">
-                                            <AlertCircle className="h-14 w-14 text-blue-600 dark:text-blue-400" />
+                                        <div className="mb-6 animate-pulse rounded-full bg-red-100 p-6 dark:bg-red-900/30">
+                                            <AlertCircle className="h-14 w-14 text-red-600 dark:text-red-400" />
                                         </div>
-                                        <h4 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">Permit Document Preview</h4>
-                                        <p className="mb-6 max-w-md text-sm text-gray-600 dark:text-gray-400">
-                                            No permit number is currently recorded for this program in the registry.
+                                        <h4 className="mb-2 text-xl font-bold text-red-900 dark:text-red-200">CHECK WITH CHED</h4>
+                                        <p className="mb-6 max-w-md text-sm text-red-600 dark:text-red-400">
+                                            No permit number is currently recorded for this program in the registry. Please contact CHED for verification.
                                         </p>
                                     </div>
                                 </div>
