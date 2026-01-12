@@ -29,15 +29,50 @@ export default function ProgramsList({
     showHeader = true,
 }: ProgramsListProps) {
 
-    // Helper function to determine badge style based on PDF availability
+    // Helper: Determine badge style based on PDF availability
     const getPermitStyle = (hasPdf: boolean) => {
         if (hasPdf) {
-            // Green (Complete: Number + PDF)
+            // Green: Has Permit + PDF
             return "border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300";
         }
-        // Purple (Number Only: No PDF)
+        // Purple: Has Permit but No PDF
         return "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300";
     };
+
+    // Sort Programs Function
+    const sortPrograms = (list: Program[]) => {
+        return [...list].sort((a, b) => {
+            // Define conditions
+            const aHasPermit = !!(a.copNumber || a.grNumber);
+            const aHasPdf = !!a.permitPdfUrl;
+
+            const bHasPermit = !!(b.copNumber || b.grNumber);
+            const bHasPdf = !!b.permitPdfUrl;
+
+            // Priority 1: Green (Has Permit + Has PDF)
+            // Priority 2: Purple (Has Permit + No PDF)
+            // Priority 3: Red (No Permit)
+
+            // Assign weights (Lower number = Higher priority)
+            const getWeight = (hasPermit: boolean, hasPdf: boolean) => {
+                if (hasPermit && hasPdf) return 1; // Green
+                if (hasPermit && !hasPdf) return 2; // Purple
+                return 3; // Red
+            };
+
+            const weightA = getWeight(aHasPermit, aHasPdf);
+            const weightB = getWeight(bHasPermit, bHasPdf);
+
+            if (weightA !== weightB) {
+                return weightA - weightB;
+            }
+
+            // Secondary sort: Alphabetical by name if status is the same
+            return a.name.localeCompare(b.name);
+        });
+    };
+
+    const sortedPrograms = sortPrograms(programs);
 
     return (
         <>
@@ -53,17 +88,15 @@ export default function ProgramsList({
             )}
 
             <div className="space-y-3">
-                {programs.map((program, index) => {
+                {sortedPrograms.map((program, index) => {
                     const isLoading = loadingProgramId !== null && loadingProgramId === program.id;
                     const hasPdf = !!program.permitPdfUrl;
-
-                    // Check if we have any permit number at all
                     const hasAnyPermit = program.copNumber || program.grNumber;
 
                     return (
                         <Card
                             key={program.id ?? `${program.name}-${program.major ?? 'nomajor'}-${index}`}
-                            className="group border border-dashed border-gray-200 bg-white/95 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/90 py-0!"
+                            className="py-0 group border border-dashed border-gray-200 bg-white/95 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/90"
                         >
                             <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
                                 <div className="flex items-center justify-between gap-3">
@@ -95,7 +128,7 @@ export default function ProgramsList({
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
                                                         <span className="font-medium">No:</span>
-                                                        <span className="ml-1 font-mono font-bold text-sm">{program.copNumber}</span>
+                                                        <span className="ml-1 font-mono">{program.copNumber}</span>
                                                     </Badge>
                                                 )}
 
@@ -106,7 +139,7 @@ export default function ProgramsList({
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
                                                         <span className="font-medium">No:</span>
-                                                        <span className="ml-1 font-mono font-bold text-sm">{program.grNumber}</span>
+                                                        <span className="ml-1 font-mono">{program.grNumber}</span>
                                                     </Badge>
                                                 )}
 
@@ -117,7 +150,7 @@ export default function ProgramsList({
                                                         className="border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
                                                     >
                                                         <AlertCircle className="mr-1 h-3 w-3" />
-                                                        <span className="font-bold text-sm">CHECK WITH CHED</span>
+                                                        <span className="font-bold">CHECK WITH CHED</span>
                                                     </Badge>
                                                 )}
                                             </div>
