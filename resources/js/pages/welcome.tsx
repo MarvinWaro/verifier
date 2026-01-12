@@ -8,6 +8,8 @@ import WelcomeLeaflet from '@/components/welcome/leaflet';
 import SearchInstitutionCard from '@/components/welcome/search-institution-card';
 import PermitDialog from '@/components/welcome/permit-dialog';
 import Footer from '@/components/footer';
+// Import the new component
+import Concerns from '@/components/welcome/concerns';
 import { useAppearance } from '@/hooks/use-appearance';
 import WelcomeNav from '@/components/welcome/welcome-nav';
 import axios from 'axios';
@@ -440,6 +442,10 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </div>
                                 </div>
 
+                                {/* Inserted the Concerns Component here */}
+                                <div className='py-3'><Concerns /></div>
+
+
                                 <div className="grid gap-6 lg:grid-cols-12 lg:h-[460px]">
                                     {/* Left: Institution List */}
                                     <div className="min-w-0 lg:col-span-6 lg:h-full lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2">
@@ -471,7 +477,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         </h3>
                                                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                                             <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 font-medium dark:bg-gray-800">
-                                                                Code: <span className="ml-1 font-mono">{selectedInstitution.code}</span>
+                                                                UII: <span className="ml-1 font-mono">{selectedInstitution.code}</span>
                                                             </span>
                                                             <span className="inline-flex items-center rounded-md bg-gray-900 px-2 py-0.5 font-medium text-white dark:bg-gray-100 dark:text-gray-900">
                                                                 {selectedInstitution.type === 'public' ? 'Public Institution' : 'Private Institution'}
