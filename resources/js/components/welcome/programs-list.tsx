@@ -63,7 +63,7 @@ export default function ProgramsList({
                     return (
                         <Card
                             key={program.id ?? `${program.name}-${program.major ?? 'nomajor'}-${index}`}
-                            className="group border border-dashed border-gray-200 bg-white/95 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/90"
+                            className="group border border-dashed border-gray-200 bg-white/95 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/90 py-0!"
                         >
                             <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
                                 <div className="flex items-center justify-between gap-3">
@@ -95,7 +95,7 @@ export default function ProgramsList({
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
                                                         <span className="font-medium">No:</span>
-                                                        <span className="ml-1 font-mono">{program.copNumber}</span>
+                                                        <span className="ml-1 font-mono font-bold text-sm">{program.copNumber}</span>
                                                     </Badge>
                                                 )}
 
@@ -106,7 +106,7 @@ export default function ProgramsList({
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
                                                         <span className="font-medium">No:</span>
-                                                        <span className="ml-1 font-mono">{program.grNumber}</span>
+                                                        <span className="ml-1 font-mono font-bold text-sm">{program.grNumber}</span>
                                                     </Badge>
                                                 )}
 
@@ -117,7 +117,7 @@ export default function ProgramsList({
                                                         className="border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
                                                     >
                                                         <AlertCircle className="mr-1 h-3 w-3" />
-                                                        <span className="font-bold">CHECK WITH CHED</span>
+                                                        <span className="font-bold text-sm">CHECK WITH CHED</span>
                                                     </Badge>
                                                 )}
                                             </div>

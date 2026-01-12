@@ -58,7 +58,7 @@ export default function InstitutionResultsList({
                     return (
                         <Card
                             key={institution.code}
-                            className={`group border border-dashed shadow-sm transition-all hover:shadow-md ${
+                            className={`py-0 group border border-dashed shadow-sm transition-all hover:shadow-md ${
                                 isSelected
                                     ? 'bg-[#98fb98] border-[#98fb98] dark:bg-[#98fb98] dark:border-[#98fb98]'
                                     : 'bg-white/95 border-gray-200 dark:bg-gray-900/90 dark:border-gray-700'

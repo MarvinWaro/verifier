@@ -8,6 +8,8 @@ import WelcomeLeaflet from '@/components/welcome/leaflet';
 import SearchInstitutionCard from '@/components/welcome/search-institution-card';
 import PermitDialog from '@/components/welcome/permit-dialog';
 import Footer from '@/components/footer';
+// Import the new component
+import Concerns from '@/components/welcome/concerns';
 import { useAppearance } from '@/hooks/use-appearance';
 import WelcomeNav from '@/components/welcome/welcome-nav';
 import axios from 'axios';
@@ -439,6 +441,10 @@ export default function PRCCheckLanding({ stats }: Props) {
                                         </p>
                                     </div>
                                 </div>
+
+                                {/* Inserted the Concerns Component here */}
+                                <div className='py-3'><Concerns /></div>
+
 
                                 <div className="grid gap-6 lg:grid-cols-12 lg:h-[460px]">
                                     {/* Left: Institution List */}

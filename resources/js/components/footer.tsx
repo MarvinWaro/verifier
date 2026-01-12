@@ -14,7 +14,7 @@ const Footer: React.FC<FooterProps> = ({
         <footer className="w-full py-6 mt-10">
             <div className="mx-auto max-w-7xl px-4 text-center">
                 {/* Copyright Text */}
-                <p className="text-sm text-gray-300 dark:text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-600">
                     {copyright}
                 </p>
 
