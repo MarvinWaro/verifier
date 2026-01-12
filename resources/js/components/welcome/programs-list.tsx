@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Loader2 } from 'lucide-react';
+import { GraduationCap, Loader2, AlertCircle } from 'lucide-react';
 
 interface Program {
     id: number | null;
@@ -28,6 +28,17 @@ export default function ProgramsList({
     loadingProgramId = null,
     showHeader = true,
 }: ProgramsListProps) {
+
+    // Helper function to determine badge style based on PDF availability
+    const getPermitStyle = (hasPdf: boolean) => {
+        if (hasPdf) {
+            // Green (Complete: Number + PDF)
+            return "border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300";
+        }
+        // Purple (Number Only: No PDF)
+        return "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300";
+    };
+
     return (
         <>
             {showHeader && (
@@ -44,11 +55,15 @@ export default function ProgramsList({
             <div className="space-y-3">
                 {programs.map((program, index) => {
                     const isLoading = loadingProgramId !== null && loadingProgramId === program.id;
+                    const hasPdf = !!program.permitPdfUrl;
+
+                    // Check if we have any permit number at all
+                    const hasAnyPermit = program.copNumber || program.grNumber;
 
                     return (
                         <Card
                             key={program.id ?? `${program.name}-${program.major ?? 'nomajor'}-${index}`}
-                            className="group border-0 bg-white/90 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:bg-gray-800/90"
+                            className="group border border-dashed border-gray-200 bg-white/95 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900/90"
                         >
                             <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
                                 <div className="flex items-center justify-between gap-3">
@@ -73,23 +88,36 @@ export default function ProgramsList({
                                             )}
 
                                             <div className="flex flex-wrap items-center gap-2">
+                                                {/* Case 1: Public (COP) -> Label: No: */}
                                                 {program.copNumber && (
                                                     <Badge
                                                         variant="outline"
-                                                        className="border-green-200 bg-green-50 px-2 py-0.5 text-[11px] text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300"
+                                                        className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
-                                                        <span className="font-medium">COP:</span>
+                                                        <span className="font-medium">No:</span>
                                                         <span className="ml-1 font-mono">{program.copNumber}</span>
                                                     </Badge>
                                                 )}
 
+                                                {/* Case 2: Private (GR) -> Label: No: */}
                                                 {program.grNumber && (
                                                     <Badge
                                                         variant="outline"
-                                                        className="border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                                                        className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
-                                                        <span className="font-medium">GR:</span>
+                                                        <span className="font-medium">No:</span>
                                                         <span className="ml-1 font-mono">{program.grNumber}</span>
+                                                    </Badge>
+                                                )}
+
+                                                {/* Case 3: No Permit Number (Red) */}
+                                                {!hasAnyPermit && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
+                                                    >
+                                                        <AlertCircle className="mr-1 h-3 w-3" />
+                                                        <span className="font-bold">CHECK WITH CHED</span>
                                                     </Badge>
                                                 )}
                                             </div>
@@ -100,12 +128,12 @@ export default function ProgramsList({
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            disabled={isLoading}
-                                            onClick={() => !isLoading && onProgramClick(program)}
-                                            className="mt-0.5 h-8 px-3 text-xs"
+                                            disabled={isLoading || !hasPdf}
+                                            onClick={() => !isLoading && hasPdf && onProgramClick(program)}
+                                            className={`mt-0.5 h-8 px-3 text-xs ${!hasPdf ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             {isLoading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                                            {isLoading ? 'Loading…' : 'View permit'}
+                                            {isLoading ? 'Loading…' : (hasPdf ? 'View permit' : 'No PDF')}
                                         </Button>
                                     </div>
                                 </div>

@@ -471,7 +471,7 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                         </h3>
                                                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                                                             <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 font-medium dark:bg-gray-800">
-                                                                Code: <span className="ml-1 font-mono">{selectedInstitution.code}</span>
+                                                                UII: <span className="ml-1 font-mono">{selectedInstitution.code}</span>
                                                             </span>
                                                             <span className="inline-flex items-center rounded-md bg-gray-900 px-2 py-0.5 font-medium text-white dark:bg-gray-100 dark:text-gray-900">
                                                                 {selectedInstitution.type === 'public' ? 'Public Institution' : 'Private Institution'}
