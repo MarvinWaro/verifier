@@ -1,27 +1,37 @@
 <?php
 
-use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\ConcernController;
 
 /*
 |--------------------------------------------------------------------------
 | Public API Routes
 |--------------------------------------------------------------------------
 | These routes are publicly accessible (no authentication required)
-| Rate limited to 30 requests per minute per IP to prevent abuse
+| Laravel automatically prefixes these with "/api"
 */
-Route::middleware('throttle:30,1')->group(function () {
-    // Search for institutions by code or name
+
+Route::middleware('throttle:60,1')->group(function () {
+
+    // 1. Dropdown List for "Submit Concern" Modal
+    // This allows the frontend to fetch the school list without logging in.
+    Route::get('/institutions-list', [WelcomeController::class, 'getInstitutionsList']);
+
+    // 2. Submit Concern Endpoint
+    Route::post('/concerns', [ConcernController::class, 'store']);
+
+    // 3. Main Search Endpoint (Welcome Page)
     Route::post('/search-institution', [WelcomeController::class, 'searchInstitution']);
 
-    // ✅ NEW: Get programs for a specific institution (lazy loading)
+    // 4. Lazy Load Programs (Welcome Page Expansion)
     Route::get('/institution/{instCode}/programs', [WelcomeController::class, 'getInstitutionPrograms'])
         ->where('instCode', '[A-Za-z0-9\-]+');
 
-    // Get full program details with graduates
+    // 5. Get Program Details & Graduates (Permit Dialog)
     Route::get('/program/{programId}', [WelcomeController::class, 'getProgram'])
         ->where('programId', '[0-9]+');
 
-    // Search for students (placeholder for future implementation)
+    // 6. Student Search (Placeholder)
     Route::post('/search-student', [WelcomeController::class, 'searchStudent']);
 });

@@ -8,10 +8,11 @@ import WelcomeLeaflet from '@/components/welcome/leaflet';
 import SearchInstitutionCard from '@/components/welcome/search-institution-card';
 import PermitDialog from '@/components/welcome/permit-dialog';
 import Footer from '@/components/footer';
-// Import the new component
 import Concerns from '@/components/welcome/concerns';
+import Notice from '@/components/welcome/notice';
 import { useAppearance } from '@/hooks/use-appearance';
 import WelcomeNav from '@/components/welcome/welcome-nav';
+import { Toaster } from '@/components/ui/sonner';
 import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -302,8 +303,6 @@ export default function PRCCheckLanding({ stats }: Props) {
     };
 
     const handleProgramClick = async (program: Program) => {
-        // If we don't have an ID, we can't fetch more details, but we might still have a PDF URL
-        // from the program list item.
         if (!program.id) {
             setSelectedProgram(program);
             setPermitDialogOpen(true);
@@ -313,7 +312,6 @@ export default function PRCCheckLanding({ stats }: Props) {
         setLoadingProgramId(program.id);
         try {
             const response = await axios.get(`/api/program/${program.id}`);
-            // The API returns the full details including graduates
             setSelectedProgram(response.data.program);
             setPermitDialogOpen(true);
         } catch (error) {
@@ -359,6 +357,8 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     return (
         <div className="relative min-h-screen bg-gray-50 font-sans dark:bg-gray-950">
+            <Toaster />
+
             <WelcomeNav
                 ThemeIcon={ThemeIcon}
                 tooltip={tooltip}
@@ -372,7 +372,13 @@ export default function PRCCheckLanding({ stats }: Props) {
             <div className="pointer-events-none absolute inset-0 bg-white/70 dark:bg-gray-950/60" />
 
             <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
-                {/* Map + Search */}
+
+                {/* Important Notice (Concerns) stays at top as requested previously */}
+                <div className="mb-6">
+                    <Concerns />
+                </div>
+
+                {/* Map + Search Grid */}
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
                     <WelcomeLeaflet
                         center={heiMapCenter}
@@ -442,9 +448,12 @@ export default function PRCCheckLanding({ stats }: Props) {
                                     </div>
                                 </div>
 
-                                {/* Inserted the Concerns Component here */}
-                                <div className='py-3'><Concerns /></div>
-
+                                {/* ✅ MOVED HERE: URGENT NOTICE (RED)
+                                    Inside the card content, full width, below the results header.
+                                */}
+                                <div className="mb-6">
+                                    <Notice />
+                                </div>
 
                                 <div className="grid gap-6 lg:grid-cols-12 lg:h-[460px]">
                                     {/* Left: Institution List */}

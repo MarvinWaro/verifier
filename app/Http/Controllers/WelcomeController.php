@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/WelcomeController.php
 
 namespace App\Http\Controllers;
 
@@ -38,25 +37,60 @@ class WelcomeController extends Controller
     }
 
     /**
+     * GET /api/institutions-list
+     * * ✅ FIX: Returns a simple list of HEIs for the "Submit Concern" dropdown.
+     */
+    public function getInstitutionsList(PortalService $portal)
+    {
+        try {
+            // Fetch all HEIs from the portal service
+            $hei = $portal->fetchAllHEI();
+
+            // Transform into a simple list { code, name }
+            $list = collect($hei)->map(function ($row) {
+                $code = (string) ($row['instCode'] ?? '');
+                $name = (string) ($row['instName'] ?? '');
+
+                // Skip invalid entries
+                if ($code === '' || $name === '') {
+                    return null;
+                }
+
+                return [
+                    'code' => $code,
+                    'name' => $name,
+                ];
+            })
+            ->filter() // Remove nulls
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE) // Alphabetical sort
+            ->values() // Re-index array
+            ->all();
+
+            return response()->json($list);
+
+        } catch (\Throwable $e) {
+            // Log error but return empty array to prevent frontend crash
+            Log::error('Failed to fetch institutions list: ' . $e->getMessage());
+            return response()->json([], 200);
+        }
+    }
+
+    /**
      * POST /api/search-institution
      *
-     * ✅ Returns institutions WITHOUT programs initially
-     * Programs are loaded lazily when user clicks on an institution
+     * Returns institutions WITHOUT programs initially.
      */
     public function searchInstitution(Request $request, PortalService $portal)
     {
         try {
             $search = trim((string) $request->input('search', ''));
 
-            // Return empty if no search term
             if ($search === '') {
                 return response()->json(['institutions' => []]);
             }
 
-            // 1. Get all HEIs from portal (cached for 10 min)
             $hei = $portal->fetchAllHEI();
 
-            // 2. Filter by search term (code or name)
             $q = mb_strtolower($search);
             $collection = collect($hei)->filter(function ($row) use ($q) {
                 $code = mb_strtolower((string) ($row['instCode'] ?? ''));
@@ -68,7 +102,6 @@ class WelcomeController extends Controller
                 return response()->json(['institutions' => []]);
             }
 
-            // 3. Map results WITHOUT fetching all programs (faster!)
             $result = $collection->map(function ($row, $index) {
                 $instCode = (string) ($row['instCode'] ?? '');
                 $instName = (string) ($row['instName'] ?? '');
@@ -77,7 +110,6 @@ class WelcomeController extends Controller
                     return null;
                 }
 
-                // Determine public/private from CHED ownership
                 $sector = strtoupper(trim((string) ($row['ownershipSector'] ?? '')));
                 $heiType = strtoupper(trim((string) ($row['ownershipHei_type'] ?? '')));
                 $isPublic = $sector === 'PUBLIC'
@@ -88,8 +120,7 @@ class WelcomeController extends Controller
                     'code'     => $instCode,
                     'name'     => $instName,
                     'type'     => $isPublic ? 'public' : 'private',
-                    // ✅ Return empty array - programs loaded lazily via new endpoint
-                    'programs' => [],
+                    'programs' => [], // Loaded lazily
                 ];
             })->filter()->values()->all();
 
@@ -111,15 +142,13 @@ class WelcomeController extends Controller
     /**
      * GET /api/institution/{instCode}/programs
      *
-     * ✅ Lazy load programs when user clicks on institution
+     * Lazy load programs when user clicks on an institution.
      */
     public function getInstitutionPrograms(string $instCode, PortalService $portal)
     {
         try {
             // 1. Fetch programs from portal API
             $records = $portal->fetchProgramRecords($instCode);
-
-            error_log(json_encode($records));
 
             // 2. Get local institution data (for graduates count)
             $localInstitution = Institution::with('programs')
@@ -128,7 +157,7 @@ class WelcomeController extends Controller
 
             $localPrograms = $localInstitution ? $localInstitution->programs : collect();
 
-            // 2b. Precompute graduates count per local program (avoid N+1)
+            // 2b. Precompute graduates count
             $graduatesCounts = collect();
             if ($localPrograms->isNotEmpty()) {
                 $programIds = $localPrograms->pluck('id')->filter()->all();
@@ -141,12 +170,11 @@ class WelcomeController extends Controller
                 }
             }
 
-            // 3. Determine if public/private from portal data
+            // 3. Determine if public/private
             $heiArray = $portal->fetchAllHEI();
             $hei      = collect($heiArray)->firstWhere('instCode', $instCode) ?? [];
-
-            $sector  = strtoupper(trim((string) ($hei['ownershipSector'] ?? '')));
-            $heiType = strtoupper(trim((string) ($hei['ownershipHei_type'] ?? '')));
+            $sector   = strtoupper(trim((string) ($hei['ownershipSector'] ?? '')));
+            $heiType  = strtoupper(trim((string) ($hei['ownershipHei_type'] ?? '')));
             $isPublic = $sector === 'PUBLIC'
                 || in_array($heiType, ['SUC', 'LUC', 'STATE', 'PUBLIC'], true);
 
@@ -169,11 +197,10 @@ class WelcomeController extends Controller
                 ->unique(fn ($p) => $p['program_name'] . '|' . ($p['major'] ?? ''))
                 ->values();
 
-            // 5. Match with local programs and count graduates
+            // 5. Match with local programs
             $programsPayload = [];
 
             foreach ($portalPrograms as $p) {
-                // Try to find a matching local Program (same name + major)
                 $matchingLocal = $localPrograms->first(function ($lp) use ($p) {
                     $lpName  = strtoupper(trim((string) $lp->program_name));
                     $lpMajor = strtoupper(trim((string) ($lp->major ?? '')));
@@ -185,12 +212,7 @@ class WelcomeController extends Controller
 
                 $localId         = $matchingLocal?->id;
                 $hasPermitNumber = !empty($p['permit_number']);
-
-                $graduatesCount = null;
-                if ($matchingLocal && $localId) {
-                    // Use precomputed counts; default to 0 if not present
-                    $graduatesCount = (int) ($graduatesCounts[$localId] ?? 0);
-                }
+                $graduatesCount  = ($matchingLocal && $localId) ? (int) ($graduatesCounts[$localId] ?? 0) : null;
 
                 $programsPayload[] = [
                     'id'              => $localId,
@@ -209,7 +231,6 @@ class WelcomeController extends Controller
             Log::error('Get institution programs error', [
                 'instCode' => $instCode,
                 'message'  => $e->getMessage(),
-                'trace'    => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -222,7 +243,7 @@ class WelcomeController extends Controller
     /**
      * GET /api/program/{programId}
      *
-     * Get full program details with graduates list
+     * Get full program details with graduates list.
      */
     public function getProgram(Request $request, $programId, PortalService $portal)
     {
@@ -231,14 +252,11 @@ class WelcomeController extends Controller
             $graduates = Graduate::where('program_id', $programId)->get();
 
             $type = strtolower(trim($program->institution->type ?? ''));
-
-            // Determine if institution is private or public
             $isPublic = in_array($type, ['sucs', 'lucs', 'suc', 'luc', 'state', 'public']);
 
             $hasPermitNumber = !empty($program->permit_number);
             $isBoard         = ($program->program_type === 'Board');
 
-            // Build permit PDF URL from local permit_number (if any)
             $permitPdfUrl = $hasPermitNumber
                 ? $portal->buildPermitUrl($program->permit_number)
                 : null;
@@ -246,10 +264,7 @@ class WelcomeController extends Controller
             $graduatesList = [];
 
             foreach ($graduates as $graduate) {
-                // Determine eligibility: only Board programs are eligible
-                $eligibility = $isBoard
-                    ? 'Eligible'
-                    : 'Not Eligible - Non-Board Program';
+                $eligibility = $isBoard ? 'Eligible' : 'Not Eligible - Non-Board Program';
 
                 $graduatesList[] = [
                     'id'            => $graduate->id,
@@ -266,7 +281,6 @@ class WelcomeController extends Controller
                     'soNumber'      => $graduate->so_number,
                     'lrn'           => $graduate->lrn,
                     'philsysId'     => $graduate->philsys_id,
-                    // Include program and institution data for each graduate
                     'program'       => [
                         'id'        => $program->id,
                         'name'      => $program->program_name,
@@ -303,7 +317,6 @@ class WelcomeController extends Controller
             Log::error('Get program error', [
                 'programId' => $programId,
                 'message'   => $e->getMessage(),
-                'trace'     => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -316,26 +329,18 @@ class WelcomeController extends Controller
     /**
      * POST /api/search-student
      *
-     * ✅ PLACEHOLDER: Add your student search logic here if needed
+     * Placeholder: Add your student search logic here if needed.
      */
     public function searchStudent(Request $request)
     {
         try {
-            // Add your student search implementation here
             return response()->json([
                 'students' => [],
                 'message'  => 'Student search not yet implemented',
             ]);
         } catch (\Throwable $e) {
-            Log::error('Search student error', [
-                'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'error'   => true,
-                'message' => 'An unexpected error occurred while searching students.',
-            ], 500);
+            Log::error('Search student error', ['message' => $e->getMessage()]);
+            return response()->json(['error' => true, 'message' => 'Error searching students.'], 500);
         }
     }
 }

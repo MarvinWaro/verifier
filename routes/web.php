@@ -1,5 +1,4 @@
 <?php
-// routes/web.php
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -14,62 +13,62 @@ use App\Http\Controllers\ProgramCatalogController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermitPdfProxyController;
+// Note: ConcernController and WelcomeController API methods are handled in api.php
 
 /*
 |--------------------------------------------------------------------------
-| Public
+| Public Routes
 |--------------------------------------------------------------------------
 */
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
-
 Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 
-// PDF Proxy endpoint (public access for permit viewing)
+// Public Proxy endpoint for permit viewing
 Route::post('/api/permit-pdf-proxy', [PermitPdfProxyController::class, 'proxy'])
     ->name('permit.pdf.proxy');
 
 /*
 |--------------------------------------------------------------------------
-| Authenticated app
+| Authenticated App Routes
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'verified'])->group(function () {
+
+    // Dashboard & Logs
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    // Dashboard search endpoint
     Route::get('dashboard/search', [DashboardController::class, 'searchGraduates'])->name('dashboard.search');
     Route::get('dashboard/graduate/{id}', [DashboardController::class, 'getGraduateDetails'])->name('dashboard.graduate.details');
-
     Route::get('logs', [ActivityLogController::class, 'index'])->name('logs.index');
 
     /*
     |--------------------------------------------------------------------------
-    | Institutions
+    | Institutions (Authenticated)
     |--------------------------------------------------------------------------
     */
     Route::prefix('institutions')->name('institutions.')->group(function () {
         Route::get('/', [InstitutionController::class, 'index'])->name('index');
 
-        // Lazy JSON used when expanding a row to load programs
+        // Lazy JSON loading for table expansion
         Route::get('{instCode}/programs', [InstitutionController::class, 'programs'])
             ->where('instCode', '[A-Za-z0-9\-]+')
             ->middleware('throttle:120,1')
             ->name('programs');
 
-        // NEW: Fetch graduates for a specific program modal
+        // Fetch graduates for program modal
         Route::get('{instCode}/programs/graduates', [InstitutionController::class, 'programGraduates'])
             ->name('programs.graduates');
     });
 
     /*
     |--------------------------------------------------------------------------
-    | Programs
+    | Programs (Authenticated)
     |--------------------------------------------------------------------------
     */
     Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
 
     /*
     |--------------------------------------------------------------------------
-    | Program Catalog
+    | Program Catalog (Authenticated)
     |--------------------------------------------------------------------------
     */
     Route::get('programs/catalog', [ProgramCatalogController::class, 'index'])
@@ -80,20 +79,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Admin Only Routes (Graduates, Users, Import)
+    | Admin Only Routes
     |--------------------------------------------------------------------------
-    | Routes inside this group are strictly for 'admin' role.
     */
     Route::middleware(['admin'])->group(function () {
 
-        /* Graduates (Moved here to protect access) */
+        // Graduates Management
         Route::prefix('graduates')->name('graduates.')->group(function () {
             Route::get('/', [GraduateController::class, 'index'])->name('index');
             Route::put('{graduate}', [GraduateController::class, 'update'])->name('update');
             Route::delete('{graduate}', [GraduateController::class, 'destroy'])->name('destroy');
         });
 
-        /* Users (CRUD) */
+        // User Management
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/', [UserController::class, 'index'])->name('index');
             Route::post('/', [UserController::class, 'store'])->name('store');
@@ -102,7 +100,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active');
         });
 
-        /* Import tools */
+        // Import Tools
         Route::prefix('import')->name('import.')->group(function () {
             Route::get('/', [ImportController::class, 'index'])->name('index');
             Route::post('institutions', [ImportController::class, 'importInstitutions'])->name('institutions');
