@@ -28,9 +28,9 @@ interface InstitutionResultsListProps {
     onToggleInstitution: (institution: Institution) => void;
     programsByInstitution: Record<string, Program[]>;
     programsLoading: Record<string, boolean>;
-    programsError: Record<string, string | null>; // kept for compatibility
-    onProgramClick: (program: Program) => void;   // kept for compatibility
-    loadingProgramId?: number | null;            // kept for compatibility
+    programsError: Record<string, string | null>;
+    onProgramClick: (program: Program) => void;
+    loadingProgramId?: number | null;
 }
 
 export default function InstitutionResultsList({
@@ -45,36 +45,23 @@ export default function InstitutionResultsList({
             <div className="flex flex-col gap-2">
                 {institutions.map((institution) => {
                     const isSelected = expandedInstitutionCode === institution.code;
+                    const isLoadingPrograms = programsLoading[institution.code] === true;
 
-                    const loadedPrograms = programsByInstitution[institution.code];
-                    const hasLoadedOnce = loadedPrograms !== undefined;
-
-                    const programsCount =
-                        loadedPrograms?.length ??
-                        institution.programs?.length ??
-                        0;
-
-                    const isLoadingPrograms =
-                        programsLoading[institution.code] === true;
-
-                    let helperText: string;
+                    // UPDATED LOGIC:
+                    // Removed the "programs loaded" count check.
+                    // The helper text now ONLY appears if we are currently loading.
+                    let helperText: string | null = null;
                     if (isLoadingPrograms) {
                         helperText = 'Loading programs...';
-                    } else if (hasLoadedOnce && programsCount > 0) {
-                        helperText = `${programsCount} program${
-                            programsCount !== 1 ? 's' : ''
-                        } loaded`;
-                    } else {
-                        helperText = 'Tap to view programs';
                     }
 
                     return (
                         <Card
                             key={institution.code}
-                            className={`group border border-transparent bg-white/95 shadow-sm transition-all hover:shadow-md dark:bg-gray-900/90 ${
+                            className={`group border border-dashed shadow-sm transition-all hover:shadow-md ${
                                 isSelected
-                                    ? 'border-blue-400 ring-1 ring-blue-100 dark:border-blue-500/70'
-                                    : ''
+                                    ? 'bg-[#98fb98] border-[#98fb98] dark:bg-[#98fb98] dark:border-[#98fb98]'
+                                    : 'bg-white/95 border-gray-200 dark:bg-gray-900/90 dark:border-gray-700'
                             }`}
                         >
                             <CardContent className="px-4 py-3">
@@ -90,15 +77,19 @@ export default function InstitutionResultsList({
                                         </div>
 
                                         <div className="min-w-0 flex-1">
-                                            {/* SCHOOL NAME – wrapped, compact */}
-                                            <h3 className="text-sm font-semibold leading-snug text-gray-900 dark:text-white break-words">
+                                            <h3
+                                                className={`text-sm font-semibold leading-snug break-words ${
+                                                    isSelected
+                                                        ? 'text-gray-900'
+                                                        : 'text-gray-900 dark:text-white'
+                                                }`}
+                                            >
                                                 {institution.name}
                                             </h3>
 
-                                            {/* Code + type */}
                                             <div className="mt-1 flex flex-wrap items-center gap-2">
                                                 <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                                                    Code:{' '}
+                                                    UII:{' '}
                                                     <span className="ml-1 font-mono">
                                                         {institution.code}
                                                     </span>
@@ -118,29 +109,33 @@ export default function InstitutionResultsList({
                                                 </Badge>
                                             </div>
 
-                                            {/* Helper text: Tap to view / X programs loaded */}
-                                            <div className="mt-1 flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400">
-                                                <svg
-                                                    className="h-3 w-3 flex-shrink-0"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                                                    />
-                                                </svg>
-                                                <span>{helperText}</span>
-                                            </div>
+                                            {/* Helper text section: Only rendered if loading */}
+                                            {helperText && (
+                                                <div className={`mt-1 flex items-center gap-1 text-[11px] ${
+                                                    isSelected ? 'text-gray-700' : 'text-gray-500 dark:text-gray-400'
+                                                }`}>
+                                                    <svg
+                                                        className="h-3 w-3 flex-shrink-0 animate-spin"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                        />
+                                                    </svg>
+                                                    <span>{helperText}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
                                     <ChevronDown
-                                        className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform group-hover:text-gray-500 dark:text-gray-500 ${
-                                            isSelected ? 'rotate-180' : ''
+                                        className={`h-4 w-4 flex-shrink-0 transition-transform ${
+                                            isSelected ? 'rotate-180 text-gray-600' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500'
                                         }`}
                                     />
                                 </button>
