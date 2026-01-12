@@ -13,6 +13,7 @@ use App\Http\Controllers\ProgramCatalogController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermitPdfProxyController;
+use App\Http\Controllers\ConcernController;
 // Note: ConcernController and WelcomeController API methods are handled in api.php
 
 /*
@@ -108,7 +109,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('graduates', [ImportController::class, 'importGraduates'])->name('graduates');
             Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])->name('graduates.clear');
         });
-    });
+
+        /* |--------------------------------------------------------------------------
+        | Concerns (Admin)
+        |--------------------------------------------------------------------------
+        */
+        // Concerns
+        Route::get('/concerns', [ConcernController::class, 'index'])->name('concerns.index');
+        });
 });
 
 require __DIR__.'/settings.php';

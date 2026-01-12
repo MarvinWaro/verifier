@@ -44,11 +44,12 @@ import {
     Sun,
     Monitor,
     ChevronDown,
+    MessageSquareWarning, // ✅ Ensure this is imported
 } from 'lucide-react';
 import AppLogoIcon from './app-logo-icon';
 import { useMemo } from 'react';
 
-// Define items here, but we will filter them inside the component
+// Define items here
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -70,6 +71,12 @@ const mainNavItems: NavItem[] = [
         href: '/graduates',
         icon: GraduationCap,
     },
+    // ✅ Added Concerns Tab
+    {
+        title: 'Concerns',
+        href: '/concerns',
+        icon: MessageSquareWarning,
+    },
     {
         title: 'Import',
         href: '/import',
@@ -90,8 +97,10 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     // Filter Navigation Items based on Role
     const navItems = useMemo(() => {
         return mainNavItems.filter((item) => {
-            // Logic: Hide 'Import' and 'Graduates' from non-admin (e.g. prc) users
-            if (item.title === 'Import' || item.title === 'Graduates') {
+            // Logic: Hide 'Import', 'Graduates', and 'Concerns' from non-admin users
+            const adminOnlyItems = ['Import', 'Graduates', 'Concerns'];
+
+            if (adminOnlyItems.includes(item.title)) {
                 return auth.user.role === 'admin';
             }
 
@@ -165,42 +174,30 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     <div className="flex h-full flex-1 flex-col space-y-4 p-4">
                                         <div className="flex h-full flex-col justify-between text-sm">
                                             <div className="flex flex-col space-y-4">
-                                                {/* USE navItems (filtered) instead of mainNavItems */}
+                                                {/* Filtered Mobile Items */}
                                                 {navItems.map((item) => {
-                                                    const isPrograms =
-                                                        item.title ===
-                                                        'Programs';
+                                                    const isPrograms = item.title === 'Programs';
 
                                                     if (!isPrograms) {
                                                         return (
                                                             <Link
-                                                                key={
-                                                                    item.title
-                                                                }
-                                                                href={
-                                                                    item.href
-                                                                }
+                                                                key={item.title}
+                                                                href={item.href}
                                                                 className={cn(
                                                                     'flex items-center space-x-2 rounded-md px-3 py-2 font-medium transition-colors',
-                                                                    page.url ===
-                                                                        item.href
+                                                                    // ✅ FIX: Force cast item.href to string here too just in case
+                                                                    page.url === (item.href as string)
                                                                         ? 'bg-[#1e40af] text-white'
                                                                         : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
                                                                 )}
                                                             >
                                                                 {item.icon && (
                                                                     <Icon
-                                                                        iconNode={
-                                                                            item.icon
-                                                                        }
+                                                                        iconNode={item.icon}
                                                                         className="h-5 w-5"
                                                                     />
                                                                 )}
-                                                                <span>
-                                                                    {
-                                                                        item.title
-                                                                    }
-                                                                </span>
+                                                                <span>{item.title}</span>
                                                             </Link>
                                                         );
                                                     }
@@ -212,35 +209,27 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                             className="flex flex-col space-y-1"
                                                         >
                                                             <Link
-                                                                href={
-                                                                    item.href
-                                                                }
+                                                                href={item.href}
                                                                 className={cn(
                                                                     'flex items-center space-x-2 rounded-md px-3 py-2 font-medium transition-colors',
-                                                                    page.url ===
-                                                                        '/programs'
+                                                                    page.url === '/programs'
                                                                         ? 'bg-[#1e40af] text-white'
                                                                         : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
                                                                 )}
                                                             >
                                                                 {item.icon && (
                                                                     <Icon
-                                                                        iconNode={
-                                                                            item.icon
-                                                                        }
+                                                                        iconNode={item.icon}
                                                                         className="h-5 w-5"
                                                                     />
                                                                 )}
-                                                                <span>
-                                                                    Programs
-                                                                </span>
+                                                                <span>Programs</span>
                                                             </Link>
                                                             <Link
                                                                 href="/programs/catalog"
                                                                 className={cn(
                                                                     'ml-8 rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                                                                    page.url ===
-                                                                        '/programs/catalog'
+                                                                    page.url === '/programs/catalog'
                                                                         ? 'bg-[#1e40af] text-white'
                                                                         : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
                                                                 )}
@@ -288,9 +277,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                         onClick={toggleTheme}
                                     >
                                         <ThemeIcon className="h-[1.2rem] w-[1.2rem]" />
-                                        <span className="sr-only">
-                                            Toggle theme
-                                        </span>
+                                        <span className="sr-only">Toggle theme</span>
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -317,10 +304,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                     </Avatar>
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                className="w-56"
-                                align="end"
-                            >
+                            <DropdownMenuContent className="w-56" align="end">
                                 <UserMenuContent user={auth.user} />
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -335,10 +319,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     <div className="hidden lg:flex h-full items-center">
                         <NavigationMenu className="flex h-full items-stretch">
                             <NavigationMenuList className="flex h-full items-stretch space-x-0">
-                                {/* USE navItems (filtered) instead of mainNavItems */}
+                                {/* Filtered Desktop Items */}
                                 {navItems.map((item, index) => {
-                                    const isPrograms =
-                                        item.title === 'Programs';
+                                    const isPrograms = item.title === 'Programs';
 
                                     if (!isPrograms) {
                                         return (
@@ -350,17 +333,15 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                     href={item.href}
                                                     className={cn(
                                                         'flex h-full items-center space-x-2 border-b-2 px-4 text-sm font-medium transition-colors',
-                                                        page.url ===
-                                                            item.href
+                                                        // ✅ FIX: Added (as string) to resolve TS2345 error
+                                                        page.url.startsWith(item.href as string)
                                                             ? 'border-[#1e40af] text-[#1e40af] bg-[#1e40af]/5'
                                                             : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
                                                     )}
                                                 >
                                                     {item.icon && (
                                                         <Icon
-                                                            iconNode={
-                                                                item.icon
-                                                            }
+                                                            iconNode={item.icon}
                                                             className="h-4 w-4"
                                                         />
                                                     )}
@@ -388,9 +369,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                     >
                                                         {item.icon && (
                                                             <Icon
-                                                                iconNode={
-                                                                    item.icon
-                                                                }
+                                                                iconNode={item.icon}
                                                                 className="h-4 w-4"
                                                             />
                                                         )}
