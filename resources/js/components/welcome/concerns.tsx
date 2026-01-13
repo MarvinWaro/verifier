@@ -105,6 +105,7 @@ export default function Concerns() {
                         </h4>
                         <p className="mt-1 text-amber-800 dark:text-amber-500">
                             For permit corrections, discrepancies, and/or other concerns, please notify us here:{' '}
+
                             <span className="font-semibold">
                                 <a
                                     href="#"
@@ -114,6 +115,9 @@ export default function Concerns() {
                                     Programs and Permits Concerns
                                 </a>
                             </span>.
+                            <br />
+                            <br />
+                            <span className='text-red-600'>ONLY THOSE WITH GOVERNMENT RECOGNITION (GR, COPC) AND A CERTIFICATE OF PROGRAM COMPLIANCE.</span>
                         </p>
                     </div>
                 </div>

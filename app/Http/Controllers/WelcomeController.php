@@ -38,7 +38,7 @@ class WelcomeController extends Controller
 
     /**
      * GET /api/institutions-list
-     * * ✅ FIX: Returns a simple list of HEIs for the "Submit Concern" dropdown.
+     * ✅ FIX: Returns a simple list of HEIs for the "Submit Concern" dropdown.
      */
     public function getInstitutionsList(PortalService $portal)
     {
@@ -186,14 +186,20 @@ class WelcomeController extends Controller
                     $permit4th   = trim((string) ($r['permit_4thyr'] ?? ''));
                     $filename    = trim((string) ($r['filename'] ?? ''));
 
+                    // ✅ Extract status from API
+                    $status = $this->extractStatus($r);
+
                     return [
                         'program_name'  => $programName,
                         'major'         => $majorName !== '' ? $majorName : null,
                         'permit_number' => $permit4th !== '' ? $permit4th : null,
                         'filename'      => $filename !== '' ? $filename : null,
+                        'status'        => $status,
                     ];
                 })
                 ->filter(fn ($p) => $p['program_name'] !== '')
+                // ✅ FILTER: Only show programs with permit numbers (remove "CHECK WITH CHED")
+                ->filter(fn ($p) => !empty($p['permit_number']))
                 ->unique(fn ($p) => $p['program_name'] . '|' . ($p['major'] ?? ''))
                 ->values();
 
@@ -222,6 +228,7 @@ class WelcomeController extends Controller
                     'grNumber'        => (!$isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'graduates_count' => $graduatesCount,
                     'permitPdfUrl'    => $portal->buildPermitUrl($p['filename'] ?? '') ?? null,
+                    'status'          => $p['status'],
                 ];
             }
 
@@ -238,6 +245,57 @@ class WelcomeController extends Controller
                 'message' => 'Unable to load programs for this institution.',
             ], 500);
         }
+    }
+
+    /**
+     * ✅ Extract actual status from API record
+     * The portal's Status column shows the REAL status, not the program_status field
+     */
+    protected function extractStatus(array $record): string
+    {
+        // Priority 1: Check "Status" field (this is what the portal displays)
+        $status = trim((string) ($record['Status'] ?? ''));
+        if ($status !== '') {
+            return $status;
+        }
+
+        // Priority 2: Check "status" field (lowercase variant)
+        $status = trim((string) ($record['status'] ?? ''));
+        if ($status !== '') {
+            return $status;
+        }
+
+        // Priority 3: Check "remarks" or "Remarks" fields
+        $remarks = trim((string) ($record['remarks'] ?? $record['Remarks'] ?? ''));
+        if ($remarks !== '' && strtolower($remarks) !== 'active') {
+            return $remarks;
+        }
+
+        // Priority 4: Check special permit indicators
+        $permit4th = trim((string) ($record['permit_4thyr'] ?? ''));
+        $specialPermit = trim((string) ($record['special_permit'] ?? ''));
+
+        if (stripos($specialPermit, 'withdrawn') !== false) {
+            return 'Withdrawn Application';
+        }
+        if (stripos($specialPermit, 'disapprove') !== false) {
+            return 'Disapproved';
+        }
+        if (stripos($permit4th, 'voluntary') !== false) {
+            return 'Voluntary Phase Out';
+        }
+        if (stripos($permit4th, 'gradual') !== false) {
+            return 'Gradual Phased Out';
+        }
+
+        // Priority 5: Check program_status as LAST resort
+        $programStatus = trim((string) ($record['program_status'] ?? ''));
+        if ($programStatus !== '' && strtolower($programStatus) !== 'active') {
+            return $programStatus;
+        }
+
+        // Default: Active if has permit, Unknown if no permit
+        return $permit4th !== '' ? 'Active' : 'Unknown';
     }
 
     /**
