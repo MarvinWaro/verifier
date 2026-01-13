@@ -66,7 +66,7 @@
             }
         </style>
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title>Programs and Permits Registry</title>
 
         <link rel="icon" href="/assets/img/ched-logo.png" type="image/png">
         <link rel="apple-touch-icon" href="/assets/img/ched-logo.png">

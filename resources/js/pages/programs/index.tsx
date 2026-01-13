@@ -33,7 +33,8 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Check, ChevronsUpDown, Search } from 'lucide-react';
+// ✅ Added FileText and AlertCircle icons
+import { Check, ChevronsUpDown, Search, AlertCircle, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -53,8 +54,9 @@ interface Program {
     id: number;
     program_name: string;
     major: string | null;
-    program_type: string | null; // 'Board' | 'Non-Board' | 'Unknown' | null
+    program_type: string | null;
     permit_number: string | null;
+    permit_pdf_url: string | null; // ✅ Make sure this matches your Controller
     institution: Institution;
 }
 
@@ -116,12 +118,6 @@ export default function ProgramIndex({
         );
     };
 
-    const fmt = (v: string | number | null | undefined) =>
-        v === null || v === undefined || String(v).trim() === ''
-            ? '-'
-            : String(v);
-
-    // Get selected institution display name
     const selectedInstitution = hei.find((h) => h.instCode === selectedInstCode);
 
     return (
@@ -144,9 +140,8 @@ export default function ProgramIndex({
                     </CardHeader>
 
                     <CardContent>
-                        {/* Institution selector + Search - IMPROVED SPACING */}
                         <div className="mb-6 flex flex-col gap-3 lg:flex-row">
-                            {/* Institution Dropdown with Search */}
+                            {/* Institution Selector */}
                             <div className="w-full lg:w-2/3">
                                 <Popover open={open} onOpenChange={setOpen}>
                                     <PopoverTrigger asChild>
@@ -163,13 +158,8 @@ export default function ProgramIndex({
                                                         <span className="font-semibold text-blue-600 dark:text-blue-400">
                                                             {selectedInstitution.instCode}
                                                         </span>
-                                                        <span className="text-muted-foreground">
-                                                            {' '}
-                                                            —{' '}
-                                                        </span>
-                                                        <span>
-                                                            {selectedInstitution.instName}
-                                                        </span>
+                                                        <span className="text-muted-foreground"> — </span>
+                                                        <span>{selectedInstitution.instName}</span>
                                                     </>
                                                 ) : (
                                                     <span className="text-muted-foreground">
@@ -180,55 +170,31 @@ export default function ProgramIndex({
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
-                                    <PopoverContent
-                                        className="w-[650px] p-0"
-                                        align="start"
-                                    >
+                                    <PopoverContent className="w-[650px] p-0" align="start">
                                         <Command>
-                                            <CommandInput
-                                                placeholder="Search institutions..."
-                                                className="h-10"
-                                            />
+                                            <CommandInput placeholder="Search institutions..." className="h-10" />
                                             <CommandList>
-                                                <CommandEmpty>
-                                                    No institution found.
-                                                </CommandEmpty>
+                                                <CommandEmpty>No institution found.</CommandEmpty>
                                                 <CommandGroup>
                                                     {hei.map((h) => (
                                                         <CommandItem
                                                             key={h.instCode}
                                                             value={`${h.instCode} ${h.instName}`}
-                                                            onSelect={() =>
-                                                                onSelectInst(
-                                                                    h.instCode,
-                                                                )
-                                                            }
+                                                            onSelect={() => onSelectInst(h.instCode)}
                                                             className="flex items-center gap-3 py-3"
                                                         >
                                                             <Check
                                                                 className={cn(
                                                                     'h-4 w-4 shrink-0',
-                                                                    selectedInstCode ===
-                                                                        h.instCode
-                                                                        ? 'opacity-100'
-                                                                        : 'opacity-0',
+                                                                    selectedInstCode === h.instCode ? 'opacity-100' : 'opacity-0',
                                                                 )}
                                                             />
                                                             <span className="flex-1">
                                                                 <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                                    {
-                                                                        h.instCode
-                                                                    }
+                                                                    {h.instCode}
                                                                 </span>
-                                                                <span className="text-muted-foreground">
-                                                                    {' '}
-                                                                    —{' '}
-                                                                </span>
-                                                                <span>
-                                                                    {
-                                                                        h.instName
-                                                                    }
-                                                                </span>
+                                                                <span className="text-muted-foreground"> — </span>
+                                                                <span>{h.instName}</span>
                                                             </span>
                                                         </CommandItem>
                                                     ))}
@@ -239,80 +205,52 @@ export default function ProgramIndex({
                                 </Popover>
                             </div>
 
-                            {/* Search Input - MATCHED HEIGHT */}
+                            {/* Search Input */}
                             <div className="relative w-full lg:w-1/3">
                                 <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                                 <Input
                                     type="text"
                                     placeholder="Search programs..."
                                     value={search}
-                                    onChange={(e) =>
-                                        setSearch(e.target.value)
-                                    }
+                                    onChange={(e) => setSearch(e.target.value)}
                                     className="h-10 w-full pl-10"
-                                    aria-label="Search programs"
                                 />
                             </div>
                         </div>
 
-                        {/* Table - IMPROVED SPACING */}
+                        {/* Table */}
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
-                                        <TableHead className="h-12">
-                                            Institution
-                                        </TableHead>
-                                        <TableHead className="h-12">
-                                            Institution Code
-                                        </TableHead>
-                                        <TableHead className="h-12">
-                                            Program Name
-                                        </TableHead>
-                                        <TableHead className="h-12">
-                                            Major
-                                        </TableHead>
-                                        <TableHead className="h-12">
-                                            Program Type
-                                        </TableHead>
-                                        <TableHead className="h-12">
-                                            Permit Number
-                                        </TableHead>
+                                        <TableHead className="h-12">Institution</TableHead>
+                                        <TableHead className="h-12">Code</TableHead>
+                                        <TableHead className="h-12">Program Name</TableHead>
+                                        <TableHead className="h-12">Major</TableHead>
+                                        <TableHead className="h-12">Type</TableHead>
+                                        <TableHead className="h-12">Permit Number</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredPrograms.length === 0 ? (
                                         <TableRow>
-                                            <TableCell
-                                                colSpan={6}
-                                                className="h-32 text-center text-gray-500 dark:text-gray-400"
-                                            >
+                                            <TableCell colSpan={6} className="h-32 text-center text-gray-500">
                                                 No programs available
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         filteredPrograms.map((program) => {
-                                            const typeLabel =
-                                                program.program_type ||
-                                                'Unknown';
+                                            const typeLabel = program.program_type || 'Unknown';
+                                            const hasPermit = !!program.permit_number;
+                                            const hasPdf = !!program.permit_pdf_url;
 
                                             return (
-                                                <TableRow
-                                                    key={program.id}
-                                                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                                                >
+                                                <TableRow key={program.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                                                     <TableCell className="py-4 font-medium">
-                                                        {
-                                                            program.institution
-                                                                .name
-                                                        }
+                                                        {program.institution.name}
                                                     </TableCell>
                                                     <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
-                                                        {
-                                                            program
-                                                                .institution
-                                                                .institution_code
-                                                        }
+                                                        {program.institution.institution_code}
                                                     </TableCell>
                                                     <TableCell className="py-4 font-medium">
                                                         {program.program_name}
@@ -321,17 +259,41 @@ export default function ProgramIndex({
                                                         {program.major || '-'}
                                                     </TableCell>
                                                     <TableCell className="py-4">
-                                                        <Badge
-                                                            className={getProgramTypeColor(
-                                                                typeLabel,
-                                                            )}
-                                                        >
+                                                        <Badge className={getProgramTypeColor(program.program_type)}>
                                                             {typeLabel}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="py-4 font-mono text-sm">
-                                                        {fmt(
-                                                            program.permit_number,
+
+                                                    {/* ✅ PERMIT BADGE LOGIC */}
+                                                    <TableCell className="py-4">
+                                                        {hasPermit ? (
+                                                            hasPdf ? (
+                                                                // CASE 1: Has Permit + Has PDF = GREEN
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300 gap-1.5"
+                                                                >
+                                                                    <FileText className="h-3 w-3" />
+                                                                    <span className="font-mono">{program.permit_number}</span>
+                                                                </Badge>
+                                                            ) : (
+                                                                // CASE 2: Has Permit + No PDF = PURPLE
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                                                                >
+                                                                    <span className="font-mono">{program.permit_number}</span>
+                                                                </Badge>
+                                                            )
+                                                        ) : (
+                                                            // CASE 3: No Permit = RED (Check with CHED)
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="border-red-200 bg-red-50 text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 gap-1.5"
+                                                            >
+                                                                <AlertCircle className="h-3 w-3" />
+                                                                <span className="font-bold text-[10px]">CHECK WITH CHED</span>
+                                                            </Badge>
                                                         )}
                                                     </TableCell>
                                                 </TableRow>
