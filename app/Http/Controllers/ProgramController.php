@@ -32,7 +32,7 @@ class ProgramController extends Controller
                 ['instCode' => ['required', 'string', 'max:32', 'regex:/^[A-Za-z0-9\-]+$/']]
             );
             if ($v->fails()) {
-                $selectedInstCode = null; // ignore bad query & fall back to first
+                $selectedInstCode = null;
             }
         }
         if (!$selectedInstCode && !empty($hei)) {
@@ -60,7 +60,7 @@ class ProgramController extends Controller
             $instName = $hit['instName'] ?? $selectedInstCode;
         }
 
-        // 🔹 Load catalog classifications once, key by normalized program name
+        // 🔹 Load catalog classifications
         $catalog = ProgramCatalog::query()
             ->select(['program_name', 'program_type'])
             ->get()
@@ -68,12 +68,21 @@ class ProgramController extends Controller
                 return mb_strtoupper(trim($row->program_name));
             });
 
-        // map -> UI shape (dedupe by program+major)
+        // map -> UI shape
         $programs = collect($records)
-            ->map(function ($r, $i) use ($selectedInstCode, $instName, $catalog) {
+            ->map(function ($r, $i) use ($selectedInstCode, $instName, $catalog, $portal) {
                 $programName = trim((string) ($r['programName'] ?? ''));
                 $majorName   = trim((string) ($r['majorName'] ?? ''));
                 $permit4th   = trim((string) ($r['permit_4thyr'] ?? ''));
+
+                // ✅ Get the filename for building PDF URL
+                $filename = trim((string) ($r['filename'] ?? ''));
+
+                // ✅ Build proper PDF URL using PortalService method
+                $permitPdfUrl = null;
+                if ($filename !== '') {
+                    $permitPdfUrl = $portal->buildPermitUrl($filename);
+                }
 
                 // Default classification = Unknown
                 $programType = 'Unknown';
@@ -81,32 +90,53 @@ class ProgramController extends Controller
                     $key = mb_strtoupper($programName);
                     $catalogRow = $catalog->get($key);
                     if ($catalogRow && $catalogRow->program_type) {
-                        $programType = $catalogRow->program_type; // 'Board' or 'Non-Board' or 'Unknown'
+                        $programType = $catalogRow->program_type;
                     }
                 }
 
+                // ✅ Add badge_priority for sorting
+                // 1 = Green (has permit + has PDF)
+                // 2 = Purple (has permit, no PDF)
+                // 3 = Red (no permit)
+                $hasPermit = $permit4th !== '';
+                $hasPdf = $permitPdfUrl !== null;
+
+                $badgePriority = 3; // Default: Red
+                if ($hasPermit && $hasPdf) {
+                    $badgePriority = 1; // Green
+                } elseif ($hasPermit && !$hasPdf) {
+                    $badgePriority = 2; // Purple
+                }
+
                 return [
-                    'id'           => $i + 1,
-                    'program_name' => $programName,
-                    'major'        => $majorName !== '' ? $majorName : null,
-                    'program_type' => $programType, // now comes from ProgramCatalog
+                    'id'            => $i + 1,
+                    'program_name'  => $programName,
+                    'major'         => $majorName !== '' ? $majorName : null,
+                    'program_type'  => $programType,
                     'permit_number' => $permit4th !== '' ? $permit4th : null,
+                    'permit_pdf_url' => $permitPdfUrl,
+                    'badge_priority' => $badgePriority, // ✅ For sorting
                     'institution'   => [
                         'institution_code' => $selectedInstCode,
                         'name'             => $instName ?? $selectedInstCode,
-                        'type'             => '-', // kept for compatibility (UI may ignore)
+                        'type'             => '-',
                     ],
                 ];
             })
             ->filter(fn ($p) => $p['program_name'] !== '')
             ->unique(fn ($p) => $p['program_name'] . '|' . ($p['major'] ?? ''))
+            // ✅ Sort by badge priority (1=Green, 2=Purple, 3=Red), then by program name
+            ->sortBy([
+                ['badge_priority', 'asc'],
+                ['program_name', 'asc'],
+            ])
             ->values();
 
         return Inertia::render('programs/index', [
-            'programs'         => $programs,
-            'hei'              => $hei,
+            'programs'       => $programs,
+            'hei'            => $hei,
             'selectedInstCode' => $selectedInstCode,
-            'error'            => $error, // optional toast on page load
+            'error'          => $error,
         ]);
     }
 }
