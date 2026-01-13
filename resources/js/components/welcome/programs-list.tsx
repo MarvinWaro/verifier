@@ -13,6 +13,7 @@ interface Program {
     grNumber: string | null;
     graduates_count?: number;
     permitPdfUrl?: string | null;
+    status?: string; // ✅ Status field
 }
 
 interface ProgramsListProps {
@@ -37,6 +38,44 @@ export default function ProgramsList({
         }
         // Purple: Has Permit but No PDF
         return "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300";
+    };
+
+    // ✅ Helper: Get status badge color
+    const getStatusColor = (status: string) => {
+        const normalizedStatus = status.toLowerCase();
+
+        if (normalizedStatus === 'active') {
+            return 'border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300';
+        }
+
+        if (
+            normalizedStatus.includes('phase') ||
+            normalizedStatus.includes('phased out') ||
+            normalizedStatus.includes('discontinue') ||
+            normalizedStatus.includes('closed')
+        ) {
+            return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400';
+        }
+
+        if (
+            normalizedStatus.includes('voluntary') ||
+            normalizedStatus.includes('gradual')
+        ) {
+            return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/50 dark:bg-orange-900/20 dark:text-orange-400';
+        }
+
+        if (normalizedStatus.includes('suspend')) {
+            return 'border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-900/50 dark:bg-yellow-900/20 dark:text-yellow-400';
+        }
+
+        if (
+            normalizedStatus.includes('withdraw') ||
+            normalizedStatus.includes('disapprove')
+        ) {
+            return 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/50 dark:bg-purple-900/20 dark:text-purple-400';
+        }
+
+        return 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300';
     };
 
     // Sort Programs Function
@@ -87,8 +126,6 @@ export default function ProgramsList({
                     const hasPdf = !!program.permitPdfUrl;
                     const hasAnyPermit = program.copNumber || program.grNumber;
 
-                    // UPDATED: Card styles
-                    // If no permit: Red-400 border, Red-50 background, and 60% opacity
                     const cardStyle = !hasAnyPermit
                         ? "border-red-400 bg-red-50 opacity-60 dark:border-red-500/50 dark:bg-red-900/20"
                         : "border-gray-200 bg-white/95 dark:border-gray-700 dark:bg-gray-900/90";
@@ -96,7 +133,6 @@ export default function ProgramsList({
                     return (
                         <Card
                             key={program.id ?? `${program.name}-${program.major ?? 'nomajor'}-${index}`}
-                            // Apply the conditional cardStyle here
                             className={`py-0 group border border-dashed shadow-sm transition-all hover:shadow-md ${cardStyle}`}
                         >
                             <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
@@ -128,8 +164,8 @@ export default function ProgramsList({
                                                         variant="outline"
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
-                                                        <span className="font-medium">No:</span>
-                                                        <span className="ml-1 font-mono text-sm">{program.copNumber}</span>
+                                                        <span className="font-medium">COP:</span>
+                                                        <span className="ml-1 font-mono text-[10px]">{program.copNumber}</span>
                                                     </Badge>
                                                 )}
 
@@ -139,8 +175,18 @@ export default function ProgramsList({
                                                         variant="outline"
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
-                                                        <span className="font-medium">No:</span>
-                                                        <span className="ml-1 font-mono text-sm">{program.grNumber}</span>
+                                                        <span className="font-medium">GR:</span>
+                                                        <span className="ml-1 font-mono text-[10px]">{program.grNumber}</span>
+                                                    </Badge>
+                                                )}
+
+                                                {/* ✅ Status Badge - Display next to permit number */}
+                                                {program.status && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`px-2 py-0.5 text-[10px] ${getStatusColor(program.status)}`}
+                                                    >
+                                                        {program.status}
                                                     </Badge>
                                                 )}
 
@@ -148,11 +194,10 @@ export default function ProgramsList({
                                                 {!hasAnyPermit && (
                                                     <Badge
                                                         variant="outline"
-                                                        // UPDATED: Reverted to Red Text / Outline style (Background removed)
                                                         className="border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
                                                     >
                                                         <AlertCircle className="mr-1 h-3 w-3" />
-                                                        <span className="font-bold text-sm">CHECK WITH CHED</span>
+                                                        <span className="font-bold text-[10px]">CHECK WITH CHED</span>
                                                     </Badge>
                                                 )}
                                             </div>

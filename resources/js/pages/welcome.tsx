@@ -374,9 +374,9 @@ export default function PRCCheckLanding({ stats }: Props) {
             <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
 
                 {/* Important Notice (Concerns) stays at top as requested previously */}
-                <div className="mb-6">
+                {/* <div className="mb-6">
                     <Concerns />
-                </div>
+                </div> */}
 
                 {/* Map + Search Grid */}
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
@@ -451,9 +451,13 @@ export default function PRCCheckLanding({ stats }: Props) {
                                 {/* ✅ MOVED HERE: URGENT NOTICE (RED)
                                     Inside the card content, full width, below the results header.
                                 */}
+
                                 <div className="mb-6">
-                                    <Notice />
+                                    <Concerns />
                                 </div>
+                                {/* <div className="mb-6">
+                                    <Notice />
+                                </div> */}
 
                                 <div className="grid gap-6 lg:grid-cols-12 lg:h-[460px]">
                                     {/* Left: Institution List */}
