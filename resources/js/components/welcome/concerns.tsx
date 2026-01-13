@@ -1,26 +1,26 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Info, Loader2 } from 'lucide-react';
-import { toast } from 'sonner'; // Import toast from sonner
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import axios from 'axios';
+import { Info, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner'; // Import toast from sonner
 
 interface SchoolOption {
     code: string;
@@ -43,12 +43,13 @@ export default function Concerns() {
     useEffect(() => {
         if (isOpen && schools.length === 0) {
             setIsSchoolsLoading(true);
-            axios.get('/api/institutions-list')
+            axios
+                .get('/api/institutions-list')
                 .then((response) => {
                     setSchools(response.data || []);
                 })
                 .catch((error) => {
-                    console.error("Failed to load schools", error);
+                    console.error('Failed to load schools', error);
                 })
                 .finally(() => {
                     setIsSchoolsLoading(false);
@@ -61,7 +62,9 @@ export default function Concerns() {
         setIsOpen(true);
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
@@ -77,8 +80,9 @@ export default function Concerns() {
             await axios.post('/api/concerns', formData);
 
             // ✅ Success Toast
-            toast.success("Concern Submitted", {
-                description: "Thank you. Your concern has been logged successfully.",
+            toast.success('Concern Submitted', {
+                description:
+                    'Thank you. Your concern has been logged successfully.',
             });
 
             setFormData({ school: '', program: '', concern: '' });
@@ -86,8 +90,8 @@ export default function Concerns() {
         } catch (error) {
             console.error(error);
             // Error Toast
-            toast.error("Submission Failed", {
-                description: "Something went wrong. Please try again.",
+            toast.error('Submission Failed', {
+                description: 'Something went wrong. Please try again.',
             });
         } finally {
             setIsLoading(false);
@@ -103,21 +107,27 @@ export default function Concerns() {
                         <h4 className="font-semibold text-amber-900 dark:text-amber-400">
                             Important Notice
                         </h4>
-                        <p className="mt-1 text-amber-800 dark:text-amber-500">
-                            For permit corrections, discrepancies, and/or other concerns, please notify us here:{' '}
+                        <p className="mt-1 flex flex-col leading-6 text-amber-800 dark:text-amber-500">
+                            <div>
+                                For permit corrections, discrepancies, and/or
+                                other concerns, please notify us here:{' '}
+                                <span className="font-semibold">
+                                    <a
+                                        href="#"
+                                        onClick={handleOpen}
+                                        className="text-blue-600 underline transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                    >
+                                        Programs and Permits Concerns
+                                    </a>
+                                </span>
+                                .
+                            </div>
 
-                            <span className="font-semibold">
-                                <a
-                                    href="#"
-                                    onClick={handleOpen}
-                                    className="text-blue-600 underline transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                >
-                                    Programs and Permits Concerns
-                                </a>
-                            </span>.
-                            <br />
-                            <br />
-                            <span className='text-red-600'>ONLY THOSE WITH GOVERNMENT RECOGNITION (GR, COPC) AND A CERTIFICATE OF PROGRAM COMPLIANCE.</span>
+                            <span className="text-red-600">
+                                Only programs with Government Recognition (GR)
+                                or a Certificate of Program Compliance (COPC)
+                                are displayed.
+                            </span>
                         </p>
                     </div>
                 </div>
@@ -128,7 +138,8 @@ export default function Concerns() {
                     <DialogHeader>
                         <DialogTitle>Submit a Concern</DialogTitle>
                         <DialogDescription>
-                            Please provide details about the school program or permit issue.
+                            Please provide details about the school program or
+                            permit issue.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -141,18 +152,29 @@ export default function Concerns() {
                                 required
                             >
                                 <SelectTrigger className="w-full">
-                                    <SelectValue placeholder={isSchoolsLoading ? "Loading schools..." : "Select a school"} />
+                                    <SelectValue
+                                        placeholder={
+                                            isSchoolsLoading
+                                                ? 'Loading schools...'
+                                                : 'Select a school'
+                                        }
+                                    />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[200px]">
                                     {schools.length > 0 ? (
                                         schools.map((school) => (
-                                            <SelectItem key={school.code} value={school.name}>
+                                            <SelectItem
+                                                key={school.code}
+                                                value={school.name}
+                                            >
                                                 {school.name}
                                             </SelectItem>
                                         ))
                                     ) : (
-                                        <div className="p-2 text-sm text-center text-muted-foreground">
-                                            {isSchoolsLoading ? "Loading..." : "No schools found"}
+                                        <div className="p-2 text-center text-sm text-muted-foreground">
+                                            {isSchoolsLoading
+                                                ? 'Loading...'
+                                                : 'No schools found'}
                                         </div>
                                     )}
                                 </SelectContent>
@@ -194,7 +216,9 @@ export default function Concerns() {
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isLoading}>
-                                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isLoading && (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                )}
                                 Submit Concern
                             </Button>
                         </DialogFooter>
