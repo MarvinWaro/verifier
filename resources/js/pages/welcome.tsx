@@ -371,7 +371,7 @@ export default function PRCCheckLanding({ stats }: Props) {
             />
             <div className="pointer-events-none absolute inset-0 bg-white/70 dark:bg-gray-950/60" />
 
-            <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 pb-16 sm:px-6 lg:px-8">
+            <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
 
                 {/* Important Notice (Concerns) stays at top as requested previously */}
                 {/* <div className="mb-6">

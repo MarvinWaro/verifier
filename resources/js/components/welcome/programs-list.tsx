@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Loader2, AlertCircle } from 'lucide-react';
+import { GraduationCap, Loader2 } from 'lucide-react';
 
 interface Program {
     id: number | null;
@@ -13,7 +13,7 @@ interface Program {
     grNumber: string | null;
     graduates_count?: number;
     permitPdfUrl?: string | null;
-    status?: string; // ✅ Status field
+    status?: string;
 }
 
 interface ProgramsListProps {
@@ -78,24 +78,42 @@ export default function ProgramsList({
         return 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300';
     };
 
-    // Sort Programs Function
+    // ✅ Sort Programs Function - Prioritize active programs
     const sortPrograms = (list: Program[]) => {
         return [...list].sort((a, b) => {
             const aHasPermit = !!(a.copNumber || a.grNumber);
             const aHasPdf = !!a.permitPdfUrl;
+            const aStatus = (a.status || '').toLowerCase();
 
             const bHasPermit = !!(b.copNumber || b.grNumber);
             const bHasPdf = !!b.permitPdfUrl;
+            const bStatus = (b.status || '').toLowerCase();
 
-            // Assign weights (Lower number = Higher priority)
-            const getWeight = (hasPermit: boolean, hasPdf: boolean) => {
-                if (hasPermit && hasPdf) return 1; // Green
-                if (hasPermit && !hasPdf) return 2; // Purple
-                return 3; // Red
+            // Check if status is inactive
+            const isStatusInactive = (status: string) => {
+                return (
+                    status.includes('discontinue') ||
+                    status.includes('phased out') ||
+                    status.includes('phase out') ||
+                    status.includes('voluntary') ||
+                    status.includes('gradual')
+                );
             };
 
-            const weightA = getWeight(aHasPermit, aHasPdf);
-            const weightB = getWeight(bHasPermit, bHasPdf);
+            const aIsInactive = isStatusInactive(aStatus);
+            const bIsInactive = isStatusInactive(bStatus);
+
+            // Assign weights (Lower number = Higher priority)
+            const getWeight = (hasPermit: boolean, hasPdf: boolean, isInactive: boolean) => {
+                if (hasPermit && hasPdf && !isInactive) return 1; // Green + Active (Top)
+                if (hasPermit && !hasPdf && !isInactive) return 2; // Purple + Active
+                if (hasPermit && hasPdf && isInactive) return 3; // Green + Inactive (Bottom)
+                if (hasPermit && !hasPdf && isInactive) return 4; // Purple + Inactive (Bottom)
+                return 5; // No permit
+            };
+
+            const weightA = getWeight(aHasPermit, aHasPdf, aIsInactive);
+            const weightB = getWeight(bHasPermit, bHasPdf, bIsInactive);
 
             if (weightA !== weightB) {
                 return weightA - weightB;
@@ -126,8 +144,18 @@ export default function ProgramsList({
                     const hasPdf = !!program.permitPdfUrl;
                     const hasAnyPermit = program.copNumber || program.grNumber;
 
-                    const cardStyle = !hasAnyPermit
-                        ? "border-red-400 bg-red-50 opacity-60 dark:border-red-500/50 dark:bg-red-900/20"
+                    // ✅ Check if program status is inactive
+                    const programStatus = (program.status || '').toLowerCase();
+                    const isInactive =
+                        programStatus.includes('discontinue') ||
+                        programStatus.includes('phased out') ||
+                        programStatus.includes('phase out') ||
+                        programStatus.includes('voluntary') ||
+                        programStatus.includes('gradual');
+
+                    // ✅ Card styling: Red background for inactive programs
+                    const cardStyle = isInactive
+                        ? "border-red-400 bg-red-100 opacity-80 dark:border-red-500/50 dark:bg-red-900/20"
                         : "border-gray-200 bg-white/95 dark:border-gray-700 dark:bg-gray-900/90";
 
                     return (
@@ -138,11 +166,11 @@ export default function ProgramsList({
                             <CardContent className="px-4 py-3 sm:px-5 sm:py-4">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex flex-1 items-start gap-3">
-                                        <div className={`rounded-lg p-2.5 transition-colors ${!hasAnyPermit ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' : 'bg-purple-100 group-hover:bg-purple-200 dark:bg-purple-900/40 dark:group-hover:bg-purple-900/60'}`}>
+                                        <div className="rounded-lg bg-purple-100 p-2.5 transition-colors group-hover:bg-purple-200 dark:bg-purple-900/40 dark:group-hover:bg-purple-900/60">
                                             {isLoading ? (
-                                                <Loader2 className={`h-5 w-5 animate-spin ${!hasAnyPermit ? 'text-red-600' : 'text-purple-600 dark:text-purple-400'}`} />
+                                                <Loader2 className="h-5 w-5 animate-spin text-purple-600 dark:text-purple-400" />
                                             ) : (
-                                                <GraduationCap className={`h-5 w-5 ${!hasAnyPermit ? 'text-red-600' : 'text-purple-600 dark:text-purple-400'}`} />
+                                                <GraduationCap className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                                             )}
                                         </div>
 
@@ -158,46 +186,35 @@ export default function ProgramsList({
                                             )}
 
                                             <div className="flex flex-wrap items-center gap-2">
-                                                {/* Case 1: Public (COP) */}
+                                                {/* Public (COP) */}
                                                 {program.copNumber && (
                                                     <Badge
                                                         variant="outline"
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
-                                                        <span className="font-medium">COP:</span>
-                                                        <span className="ml-1 font-mono text-[10px]">{program.copNumber}</span>
+                                                        <span className="font-medium">No:</span>
+                                                        <span className="ml-1 font-mono text-sm ">{program.copNumber}</span>
                                                     </Badge>
                                                 )}
 
-                                                {/* Case 2: Private (GR) */}
+                                                {/* Private (GR) */}
                                                 {program.grNumber && (
                                                     <Badge
                                                         variant="outline"
                                                         className={`px-2 py-0.5 text-[11px] ${getPermitStyle(hasPdf)}`}
                                                     >
-                                                        <span className="font-medium">GR:</span>
-                                                        <span className="ml-1 font-mono text-[10px]">{program.grNumber}</span>
+                                                        <span className="font-medium">No:</span>
+                                                        <span className="ml-1 font-mono text-sm">{program.grNumber}</span>
                                                     </Badge>
                                                 )}
 
-                                                {/* ✅ Status Badge - Display next to permit number */}
+                                                {/* Status Badge */}
                                                 {program.status && (
                                                     <Badge
                                                         variant="outline"
-                                                        className={`px-2 py-0.5 text-[10px] ${getStatusColor(program.status)}`}
+                                                        className={`px-2 py-0.5 text-sm ${getStatusColor(program.status)}`}
                                                     >
                                                         {program.status}
-                                                    </Badge>
-                                                )}
-
-                                                {/* Case 3: No Permit Number */}
-                                                {!hasAnyPermit && (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
-                                                    >
-                                                        <AlertCircle className="mr-1 h-3 w-3" />
-                                                        <span className="font-bold text-[10px]">CHECK WITH CHED</span>
                                                     </Badge>
                                                 )}
                                             </div>
@@ -210,7 +227,7 @@ export default function ProgramsList({
                                             size="sm"
                                             disabled={isLoading || !hasPdf}
                                             onClick={() => !isLoading && hasPdf && onProgramClick(program)}
-                                            className={`mt-0.5 h-8 px-3 text-xs ${!hasPdf ? 'opacity-50 cursor-not-allowed' : ''} ${!hasAnyPermit ? 'border-red-200 bg-white hover:bg-red-50 text-red-700' : ''}`}
+                                            className={`mt-0.5 h-8 px-3 text-xs ${!hasPdf ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             {isLoading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                                             {isLoading ? 'Loading…' : (hasPdf ? 'View permit' : 'No PDF')}
