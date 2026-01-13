@@ -75,6 +75,9 @@ class ProgramController extends Controller
                 $majorName   = trim((string) ($r['majorName'] ?? ''));
                 $permit4th   = trim((string) ($r['permit_4thyr'] ?? ''));
 
+                // ✅ Get program_status from API
+                $programStatus = trim((string) ($r['program_status'] ?? 'Unknown'));
+
                 // ✅ Get the filename for building PDF URL
                 $filename = trim((string) ($r['filename'] ?? ''));
 
@@ -109,14 +112,15 @@ class ProgramController extends Controller
                 }
 
                 return [
-                    'id'            => $i + 1,
-                    'program_name'  => $programName,
-                    'major'         => $majorName !== '' ? $majorName : null,
-                    'program_type'  => $programType,
-                    'permit_number' => $permit4th !== '' ? $permit4th : null,
+                    'id'             => $i + 1,
+                    'program_name'   => $programName,
+                    'major'          => $majorName !== '' ? $majorName : null,
+                    'program_type'   => $programType,
+                    'program_status' => $programStatus, // ✅ Added
+                    'permit_number'  => $permit4th !== '' ? $permit4th : null,
                     'permit_pdf_url' => $permitPdfUrl,
-                    'badge_priority' => $badgePriority, // ✅ For sorting
-                    'institution'   => [
+                    'badge_priority' => $badgePriority,
+                    'institution'    => [
                         'institution_code' => $selectedInstCode,
                         'name'             => $instName ?? $selectedInstCode,
                         'type'             => '-',
@@ -133,10 +137,10 @@ class ProgramController extends Controller
             ->values();
 
         return Inertia::render('programs/index', [
-            'programs'       => $programs,
-            'hei'            => $hei,
+            'programs'         => $programs,
+            'hei'              => $hei,
             'selectedInstCode' => $selectedInstCode,
-            'error'          => $error,
+            'error'            => $error,
         ]);
     }
 }

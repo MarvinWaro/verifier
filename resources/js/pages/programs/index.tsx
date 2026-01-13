@@ -33,7 +33,6 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-// ✅ Added FileText and AlertCircle icons
 import { Check, ChevronsUpDown, Search, AlertCircle, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -55,8 +54,9 @@ interface Program {
     program_name: string;
     major: string | null;
     program_type: string | null;
+    program_status: string; // ✅ Added
     permit_number: string | null;
-    permit_pdf_url: string | null; // ✅ Make sure this matches your Controller
+    permit_pdf_url: string | null;
     institution: Institution;
 }
 
@@ -106,6 +106,22 @@ export default function ProgramIndex({
             case 'Unknown':
             default:
                 return 'bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300';
+        }
+    };
+
+    // ✅ Added: Program Status Badge Color
+    const getProgramStatusColor = (status: string) => {
+        const normalizedStatus = status.toLowerCase();
+        switch (normalizedStatus) {
+            case 'active':
+                return 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300';
+            case 'inactive':
+            case 'closed':
+                return 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300';
+            case 'suspended':
+                return 'bg-orange-100 text-orange-800 hover:bg-orange-100 dark:bg-orange-900 dark:text-orange-300';
+            default:
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
         }
     };
 
@@ -228,13 +244,14 @@ export default function ProgramIndex({
                                         <TableHead className="h-12">Program Name</TableHead>
                                         <TableHead className="h-12">Major</TableHead>
                                         <TableHead className="h-12">Type</TableHead>
+                                        <TableHead className="h-12">Status</TableHead> {/* ✅ Added */}
                                         <TableHead className="h-12">Permit Number</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredPrograms.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="h-32 text-center text-gray-500">
+                                            <TableCell colSpan={7} className="h-32 text-center text-gray-500">
                                                 No programs available
                                             </TableCell>
                                         </TableRow>
@@ -261,6 +278,13 @@ export default function ProgramIndex({
                                                     <TableCell className="py-4">
                                                         <Badge className={getProgramTypeColor(program.program_type)}>
                                                             {typeLabel}
+                                                        </Badge>
+                                                    </TableCell>
+
+                                                    {/* ✅ PROGRAM STATUS BADGE */}
+                                                    <TableCell className="py-4">
+                                                        <Badge className={getProgramStatusColor(program.program_status)}>
+                                                            {program.program_status}
                                                         </Badge>
                                                     </TableCell>
 

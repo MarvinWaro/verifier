@@ -27,6 +27,7 @@ Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 // Public Proxy endpoint for permit viewing
 Route::post('/api/permit-pdf-proxy', [PermitPdfProxyController::class, 'proxy'])
     ->name('permit.pdf.proxy');
+    
 
 /*
 |--------------------------------------------------------------------------
@@ -117,6 +118,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Concerns
         Route::get('/concerns', [ConcernController::class, 'index'])->name('concerns.index');
         });
+
+
 });
 
 require __DIR__.'/settings.php';
