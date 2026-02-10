@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, School, AlertCircle, Loader2, Maximize2, ChevronLeft, ChevronRight, X, FileText, FileWarning } from 'lucide-react';
+import { GraduationCap, School, AlertCircle, Loader2, Maximize2, ChevronLeft, ChevronRight, X, FileText, FileWarning, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import axios from 'axios';
@@ -50,6 +50,7 @@ export default function PermitDialog({
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const [isLoadingBlob, setIsLoadingBlob] = useState(false);
     const [blobError, setBlobError] = useState<string | null>(null);
+    const [directUrl, setDirectUrl] = useState<string | null>(null);
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -107,6 +108,7 @@ export default function PermitDialog({
 
         setIsLoadingBlob(true);
         setBlobError(null);
+        setDirectUrl(null);
         setPageNumber(1);
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -118,14 +120,47 @@ export default function PermitDialog({
             }
         })
         .then(response => {
+            // Check if the response is actually JSON (error) instead of a PDF blob
+            if (response.data.type === 'application/json') {
+                // Proxy returned JSON error — read it to get direct_url
+                response.data.text().then((text: string) => {
+                    try {
+                        const json = JSON.parse(text);
+                        setDirectUrl(json.direct_url || permitUrl);
+                    } catch {
+                        setDirectUrl(permitUrl);
+                    }
+                    setBlobError('proxy_failed');
+                    setIsLoadingBlob(false);
+                });
+                return;
+            }
+
             const url = URL.createObjectURL(response.data);
             setBlobUrl(url);
             setIsLoadingBlob(false);
         })
         .catch(error => {
             console.error('Error fetching PDF:', error);
-            setBlobError('Failed to load PDF document');
-            setIsLoadingBlob(false);
+
+            // Try to extract direct_url from error response
+            const errorData = error.response?.data;
+            if (errorData instanceof Blob) {
+                errorData.text().then((text: string) => {
+                    try {
+                        const json = JSON.parse(text);
+                        setDirectUrl(json.direct_url || permitUrl);
+                    } catch {
+                        setDirectUrl(permitUrl);
+                    }
+                    setBlobError('proxy_failed');
+                    setIsLoadingBlob(false);
+                });
+            } else {
+                setDirectUrl(permitUrl);
+                setBlobError('proxy_failed');
+                setIsLoadingBlob(false);
+            }
         });
 
         return () => {
@@ -145,6 +180,8 @@ export default function PermitDialog({
             setNumPages(null);
             setPageNumber(1);
             setIsFullscreen(false);
+            setDirectUrl(null);
+            setBlobError(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
@@ -222,8 +259,19 @@ export default function PermitDialog({
                                 }
                                 error={
                                     <div className="flex min-h-[500px] flex-col items-center justify-center p-8">
-                                        <AlertCircle className="mb-4 h-12 w-12 text-red-500" />
-                                        <p className="text-sm font-semibold text-white">Failed to load PDF</p>
+                                        <AlertCircle className="mb-4 h-12 w-12 text-amber-500" />
+                                        <p className="text-sm font-semibold text-white">Unable to render PDF</p>
+                                        {permitUrl && (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => window.open(permitUrl, '_blank', 'noopener,noreferrer')}
+                                                variant="secondary"
+                                                className="mt-4 gap-2"
+                                            >
+                                                <ExternalLink className="h-4 w-4" />
+                                                Open in New Tab
+                                            </Button>
+                                        )}
                                     </div>
                                 }
                             >
@@ -366,9 +414,22 @@ export default function PermitDialog({
                                             </div>
                                         ) : blobError ? (
                                             <div className="flex min-h-[500px] flex-col items-center justify-center p-8">
-                                                <AlertCircle className="mb-4 h-12 w-12 text-red-600 dark:text-red-400" />
-                                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">{blobError}</p>
-                                                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Please try again later</p>
+                                                <AlertCircle className="mb-4 h-12 w-12 text-amber-500 dark:text-amber-400" />
+                                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                    Unable to preview PDF inline
+                                                </p>
+                                                <p className="mt-1 mb-4 max-w-xs text-center text-xs text-gray-500 dark:text-gray-400">
+                                                    The document is available on the portal but cannot be previewed here. You can view it directly in a new tab.
+                                                </p>
+                                                {(directUrl || permitUrl) && (
+                                                    <Button
+                                                        onClick={() => window.open(directUrl || permitUrl!, '_blank', 'noopener,noreferrer')}
+                                                        className="gap-2"
+                                                    >
+                                                        <ExternalLink className="h-4 w-4" />
+                                                        Open Permit in New Tab
+                                                    </Button>
+                                                )}
                                             </div>
                                         ) : blobUrl ? (
                                             <div className="relative flex justify-center p-6">
@@ -383,8 +444,19 @@ export default function PermitDialog({
                                                         }
                                                         error={
                                                             <div className="flex min-h-[500px] flex-col items-center justify-center p-8">
-                                                                <AlertCircle className="mb-4 h-12 w-12 text-red-600 dark:text-red-400" />
-                                                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">Failed to load PDF</p>
+                                                                <AlertCircle className="mb-4 h-12 w-12 text-amber-500 dark:text-amber-400" />
+                                                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Unable to render PDF</p>
+                                                                <p className="mt-1 mb-4 text-xs text-gray-500 dark:text-gray-400">You can still view it directly.</p>
+                                                                {permitUrl && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={(e) => { e.stopPropagation(); window.open(permitUrl, '_blank', 'noopener,noreferrer'); }}
+                                                                        className="gap-2"
+                                                                    >
+                                                                        <ExternalLink className="h-4 w-4" />
+                                                                        Open in New Tab
+                                                                    </Button>
+                                                                )}
                                                             </div>
                                                         }
                                                     >

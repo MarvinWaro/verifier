@@ -205,19 +205,30 @@ class PortalService
     }
 
     /**
-     * Build full URL for a permit PDF based on permit number (e.g. GR-2012-041).
+     * Build full URL for a permit PDF based on filename from the portal API.
+     *
+     * IMPORTANT: Do NOT use urlencode() here. The portal stores filenames with
+     * literal characters like parentheses and commas (e.g. "file_compressed_(1).pdf").
+     * URL-encoding them produces "%281%29" which the portal does NOT recognise,
+     * returning a 1-byte empty response or 404.
+     *
+     * We only encode the bare minimum (spaces → %20) so the URL is valid without
+     * breaking the portal's path matching.
      */
-    public function buildPermitUrl(?string $permitNumber): ?string
+    public function buildPermitUrl(?string $filename): ?string
     {
-        $permitNumber = trim((string) $permitNumber);
+        $filename = trim((string) $filename);
 
-        if ($permitNumber === '') {
+        if ($filename === '') {
             return null;
         }
 
         $base = rtrim($this->permitBaseUrl, '/');
 
-        return $base . '/' . urlencode($permitNumber);
+        // Only encode spaces; leave parentheses, commas, etc. as-is
+        $safeName = str_replace(' ', '%20', $filename);
+
+        return $base . '/' . $safeName;
     }
 
     /**
