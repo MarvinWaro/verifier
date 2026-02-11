@@ -220,6 +220,18 @@ class WelcomeController extends Controller
                 $hasPermitNumber = !empty($p['permit_number']);
                 $graduatesCount  = ($matchingLocal && $localId) ? (int) ($graduatesCounts[$localId] ?? 0) : null;
 
+                $permitPdfUrl = $portal->buildPermitUrl($p['filename'] ?? '') ?? null;
+
+                // Debug logging for troubleshooting
+                if ($hasPermitNumber && !empty($p['filename'])) {
+                    Log::debug('Building permit URL', [
+                        'program'  => $p['program_name'],
+                        'permit'   => $p['permit_number'],
+                        'filename' => $p['filename'],
+                        'url'      => $permitPdfUrl,
+                    ]);
+                }
+
                 $programsPayload[] = [
                     'id'              => $localId,
                     'name'            => $p['program_name'],
@@ -227,12 +239,14 @@ class WelcomeController extends Controller
                     'copNumber'       => ($isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'grNumber'        => (!$isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'graduates_count' => $graduatesCount,
-                    'permitPdfUrl'    => $portal->buildPermitUrl($p['filename'] ?? '') ?? null,
+                    'permitPdfUrl'    => $permitPdfUrl,
                     'status'          => $p['status'],
                 ];
             }
 
-            return response()->json(['programs' => $programsPayload]);
+            return response()->json(['programs' => $programsPayload])
+                ->header('Cache-Control', 'no-cache, must-revalidate')
+                ->header('X-Programs-Count', count($programsPayload));
 
         } catch (\Throwable $e) {
             Log::error('Get institution programs error', [

@@ -107,8 +107,8 @@ export default function Concerns() {
                         <h4 className="font-semibold text-amber-900 dark:text-amber-400">
                             Important Notice
                         </h4>
-                        <p className="mt-1 flex flex-col leading-6 text-amber-800 dark:text-amber-500">
-                            <div>
+                        <div className="mt-1 flex flex-col gap-1 leading-6 text-amber-800 dark:text-amber-500">
+                            <p>
                                 For permit corrections, discrepancies, and/or
                                 other concerns, please notify us here:{' '}
                                 <span className="font-semibold">
@@ -121,14 +121,14 @@ export default function Concerns() {
                                     </a>
                                 </span>
                                 .
-                            </div>
+                            </p>
 
-                            <span className="text-red-600">
+                            <p className="text-red-600">
                                 Only programs with Government Recognition (GR)
                                 or a Certificate of Program Compliance (COPC)
                                 are displayed.
-                            </span>
-                        </p>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

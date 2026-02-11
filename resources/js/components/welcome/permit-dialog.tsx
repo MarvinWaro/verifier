@@ -9,7 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GraduationCap, School, AlertCircle, Loader2, Maximize2, ChevronLeft, ChevronRight, X, FileText, FileWarning, ExternalLink } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import axios from 'axios';
 
@@ -55,6 +55,7 @@ export default function PermitDialog({
     const [pageNumber, setPageNumber] = useState(1);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [pdfWidth, setPdfWidth] = useState(600);
+    const [pdfRenderFailed, setPdfRenderFailed] = useState(false);
 
     const permitUrl = program?.permitPdfUrl ?? null;
 
@@ -110,6 +111,7 @@ export default function PermitDialog({
         setBlobError(null);
         setDirectUrl(null);
         setPageNumber(1);
+        setPdfRenderFailed(false);
 
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -182,6 +184,7 @@ export default function PermitDialog({
             setIsFullscreen(false);
             setDirectUrl(null);
             setBlobError(null);
+            setPdfRenderFailed(false);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
@@ -223,6 +226,73 @@ export default function PermitDialog({
         setIsFullscreen(!isFullscreen);
     }
 
+    function openInNewTab() {
+        if (blobUrl) {
+            window.open(blobUrl, '_blank', 'noopener');
+        } else if (directUrl || permitUrl) {
+            window.open(directUrl || permitUrl!, '_blank', 'noopener,noreferrer');
+        }
+    }
+
+    function onPageRenderError() {
+        setPdfRenderFailed(true);
+    }
+
+    // Ref for the container that holds the react-pdf Page canvas
+    const pageContainerRef = useRef<HTMLDivElement>(null);
+
+    // After react-pdf renders "successfully", check if the canvas is actually blank
+    const onPageRenderSuccess = useCallback(() => {
+        // Give the canvas a moment to fully paint
+        setTimeout(() => {
+            const container = pageContainerRef.current;
+            if (!container) return;
+
+            const canvas = container.querySelector('canvas');
+            if (!canvas) return;
+
+            try {
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                // Sample pixels from several spots across the canvas
+                const w = canvas.width;
+                const h = canvas.height;
+                if (w === 0 || h === 0) {
+                    setPdfRenderFailed(true);
+                    return;
+                }
+
+                const samplePoints = [
+                    { x: Math.floor(w * 0.25), y: Math.floor(h * 0.25) },
+                    { x: Math.floor(w * 0.5), y: Math.floor(h * 0.5) },
+                    { x: Math.floor(w * 0.75), y: Math.floor(h * 0.75) },
+                    { x: Math.floor(w * 0.5), y: Math.floor(h * 0.25) },
+                    { x: Math.floor(w * 0.25), y: Math.floor(h * 0.75) },
+                ];
+
+                let allBlank = true;
+                for (const pt of samplePoints) {
+                    const pixel = ctx.getImageData(pt.x, pt.y, 1, 1).data;
+                    // Check if pixel is white (255,255,255) or transparent (alpha=0)
+                    const isWhite = pixel[0] >= 250 && pixel[1] >= 250 && pixel[2] >= 250 && pixel[3] > 200;
+                    const isTransparent = pixel[3] === 0;
+                    if (!isWhite && !isTransparent) {
+                        allBlank = false;
+                        break;
+                    }
+                }
+
+                if (allBlank) {
+                    setPdfRenderFailed(true);
+                }
+            } catch {
+                // Canvas access can fail due to CORS — treat as render failure
+                setPdfRenderFailed(true);
+            }
+        }, 300);
+    }, []);
+
     // Fullscreen PDF Viewer
     if (isFullscreen && hasPermitFile) {
         return (
@@ -236,19 +306,30 @@ export default function PermitDialog({
                             </p>
                         )}
                     </div>
-                    <Button
-                        onClick={() => setIsFullscreen(false)}
-                        variant="ghost"
-                        size="icon"
-                        className="text-white hover:bg-white/10"
-                    >
-                        <X className="h-6 w-6" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={openInNewTab}
+                            variant="secondary"
+                            size="sm"
+                            className="gap-2 bg-white/10 text-white hover:bg-white/20"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Open in New Tab
+                        </Button>
+                        <Button
+                            onClick={() => setIsFullscreen(false)}
+                            variant="ghost"
+                            size="icon"
+                            className="text-white hover:bg-white/10"
+                        >
+                            <X className="h-6 w-6" />
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                    <div className="flex min-h-full items-start justify-center py-8">
-                        {blobUrl && (
+                    {blobUrl && !pdfRenderFailed ? (
+                        <div ref={pageContainerRef} className="flex min-h-full items-start justify-center py-8">
                             <Document
                                 file={blobUrl}
                                 onLoadSuccess={onDocumentLoadSuccess}
@@ -261,17 +342,15 @@ export default function PermitDialog({
                                     <div className="flex min-h-[500px] flex-col items-center justify-center p-8">
                                         <AlertCircle className="mb-4 h-12 w-12 text-amber-500" />
                                         <p className="text-sm font-semibold text-white">Unable to render PDF</p>
-                                        {permitUrl && (
-                                            <Button
-                                                size="sm"
-                                                onClick={() => window.open(permitUrl, '_blank', 'noopener,noreferrer')}
-                                                variant="secondary"
-                                                className="mt-4 gap-2"
-                                            >
-                                                <ExternalLink className="h-4 w-4" />
-                                                Open in New Tab
-                                            </Button>
-                                        )}
+                                        <Button
+                                            size="sm"
+                                            onClick={openInNewTab}
+                                            variant="secondary"
+                                            className="mt-4 gap-2"
+                                        >
+                                            <ExternalLink className="h-4 w-4" />
+                                            Open in New Tab
+                                        </Button>
                                     </div>
                                 }
                             >
@@ -281,10 +360,30 @@ export default function PermitDialog({
                                     renderAnnotationLayer={true}
                                     className="shadow-2xl"
                                     width={pdfWidth}
+                                    onRenderError={onPageRenderError}
+                                    onRenderSuccess={onPageRenderSuccess}
                                 />
                             </Document>
-                        )}
-                    </div>
+                        </div>
+                    ) : blobUrl && pdfRenderFailed ? (
+                        <div className="flex min-h-full flex-col items-center justify-center py-16">
+                            <div className="mb-6 rounded-full bg-white/10 p-5">
+                                <FileText className="h-10 w-10 text-white" />
+                            </div>
+                            <p className="text-base font-semibold text-white">Preview not available</p>
+                            <p className="mt-2 mb-6 max-w-sm text-center text-sm text-gray-400">
+                                This document cannot be previewed inline, but you can view it directly in your browser.
+                            </p>
+                            <Button
+                                onClick={openInNewTab}
+                                variant="secondary"
+                                className="gap-2"
+                            >
+                                <ExternalLink className="h-4 w-4" />
+                                Open Permit in New Tab
+                            </Button>
+                        </div>
+                    ) : null}
                 </div>
 
                 {numPages && numPages > 1 && (
@@ -396,14 +495,29 @@ export default function PermitDialog({
                                 // GREEN SCENARIO (Implicitly handled by showing PDF)
                                 <div className="rounded-lg border-2 border-green-200 bg-white dark:border-green-900 dark:bg-gray-900">
                                     <div className="border-b border-green-200 bg-green-50 px-6 py-4 dark:border-green-900 dark:bg-green-900/10">
-                                        <h4 className="text-lg font-bold text-green-900 dark:text-green-100 flex items-center gap-2">
-                                            <FileText className="h-5 w-5" /> Permit Document
-                                        </h4>
-                                        {permitNumberValue && (
-                                            <p className="mt-1 text-sm text-green-700 dark:text-green-300">
-                                                {permitNumberLabel}: <span className="font-mono font-semibold">{permitNumberValue}</span>
-                                            </p>
-                                        )}
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <h4 className="text-lg font-bold text-green-900 dark:text-green-100 flex items-center gap-2">
+                                                    <FileText className="h-5 w-5" /> Permit Document
+                                                </h4>
+                                                {permitNumberValue && (
+                                                    <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+                                                        {permitNumberLabel}: <span className="font-mono font-semibold">{permitNumberValue}</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {blobUrl && (
+                                                <Button
+                                                    onClick={openInNewTab}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-2 border-green-300 text-green-700 hover:bg-green-100 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/30"
+                                                >
+                                                    <ExternalLink className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">Open in New Tab</span>
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="relative bg-gray-100 dark:bg-gray-950">
@@ -431,9 +545,9 @@ export default function PermitDialog({
                                                     </Button>
                                                 )}
                                             </div>
-                                        ) : blobUrl ? (
+                                        ) : blobUrl && !pdfRenderFailed ? (
                                             <div className="relative flex justify-center p-6">
-                                                <div className="relative group cursor-pointer" onClick={toggleFullscreen}>
+                                                <div ref={pageContainerRef} className="relative group cursor-pointer" onClick={toggleFullscreen}>
                                                     <Document
                                                         file={blobUrl}
                                                         onLoadSuccess={onDocumentLoadSuccess}
@@ -447,16 +561,14 @@ export default function PermitDialog({
                                                                 <AlertCircle className="mb-4 h-12 w-12 text-amber-500 dark:text-amber-400" />
                                                                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Unable to render PDF</p>
                                                                 <p className="mt-1 mb-4 text-xs text-gray-500 dark:text-gray-400">You can still view it directly.</p>
-                                                                {permitUrl && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={(e) => { e.stopPropagation(); window.open(permitUrl, '_blank', 'noopener,noreferrer'); }}
-                                                                        className="gap-2"
-                                                                    >
-                                                                        <ExternalLink className="h-4 w-4" />
-                                                                        Open in New Tab
-                                                                    </Button>
-                                                                )}
+                                                                <Button
+                                                                    size="sm"
+                                                                    onClick={(e) => { e.stopPropagation(); openInNewTab(); }}
+                                                                    className="gap-2"
+                                                                >
+                                                                    <ExternalLink className="h-4 w-4" />
+                                                                    Open in New Tab
+                                                                </Button>
                                                             </div>
                                                         }
                                                     >
@@ -466,6 +578,8 @@ export default function PermitDialog({
                                                             renderAnnotationLayer={true}
                                                             className="shadow-lg transition-opacity duration-200 group-hover:opacity-90"
                                                             width={280}
+                                                            onRenderError={onPageRenderError}
+                                                            onRenderSuccess={onPageRenderSuccess}
                                                         />
                                                     </Document>
 
@@ -476,6 +590,25 @@ export default function PermitDialog({
                                                         </div>
                                                     </div>
                                                 </div>
+                                            </div>
+                                        ) : blobUrl && pdfRenderFailed ? (
+                                            <div className="flex min-h-[300px] flex-col items-center justify-center p-8">
+                                                <div className="mb-4 rounded-full bg-green-100 p-4 dark:bg-green-900/30">
+                                                    <FileText className="h-8 w-8 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                    Preview not available
+                                                </p>
+                                                <p className="mt-1 mb-4 max-w-xs text-center text-xs text-gray-500 dark:text-gray-400">
+                                                    This document cannot be previewed inline, but you can view it directly in your browser.
+                                                </p>
+                                                <Button
+                                                    onClick={openInNewTab}
+                                                    className="gap-2"
+                                                >
+                                                    <ExternalLink className="h-4 w-4" />
+                                                    Open Permit in New Tab
+                                                </Button>
                                             </div>
                                         ) : null}
                                     </div>
