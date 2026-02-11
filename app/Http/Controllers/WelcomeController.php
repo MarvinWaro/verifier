@@ -220,6 +220,18 @@ class WelcomeController extends Controller
                 $hasPermitNumber = !empty($p['permit_number']);
                 $graduatesCount  = ($matchingLocal && $localId) ? (int) ($graduatesCounts[$localId] ?? 0) : null;
 
+                $permitPdfUrl = $portal->buildPermitUrl($p['filename'] ?? '') ?? null;
+
+                // Debug logging for troubleshooting
+                if ($hasPermitNumber && !empty($p['filename'])) {
+                    Log::debug('Building permit URL', [
+                        'program'  => $p['program_name'],
+                        'permit'   => $p['permit_number'],
+                        'filename' => $p['filename'],
+                        'url'      => $permitPdfUrl,
+                    ]);
+                }
+
                 $programsPayload[] = [
                     'id'              => $localId,
                     'name'            => $p['program_name'],
@@ -227,12 +239,14 @@ class WelcomeController extends Controller
                     'copNumber'       => ($isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'grNumber'        => (!$isPublic && $hasPermitNumber) ? $p['permit_number'] : null,
                     'graduates_count' => $graduatesCount,
-                    'permitPdfUrl'    => $portal->buildPermitUrl($p['filename'] ?? '') ?? null,
+                    'permitPdfUrl'    => $permitPdfUrl,
                     'status'          => $p['status'],
                 ];
             }
 
-            return response()->json(['programs' => $programsPayload]);
+            return response()->json(['programs' => $programsPayload])
+                ->header('Cache-Control', 'no-cache, must-revalidate')
+                ->header('X-Programs-Count', count($programsPayload));
 
         } catch (\Throwable $e) {
             Log::error('Get institution programs error', [
@@ -315,9 +329,30 @@ class WelcomeController extends Controller
             $hasPermitNumber = !empty($program->permit_number);
             $isBoard         = ($program->program_type === 'Board');
 
-            $permitPdfUrl = $hasPermitNumber
-                ? $portal->buildPermitUrl($program->permit_number)
-                : null;
+            // ✅ Fetch actual filename from portal API for correct PDF URL
+            $permitPdfUrl = null;
+            if ($hasPermitNumber && $program->institution) {
+                $instCode = $program->institution->institution_code;
+                $portalRecords = $portal->fetchProgramRecords($instCode);
+
+                // Find matching program in portal records
+                $matchingRecord = collect($portalRecords)->first(function ($r) use ($program) {
+                    $portalProgramName = strtoupper(trim((string) ($r['programName'] ?? '')));
+                    $portalMajorName = strtoupper(trim((string) ($r['majorName'] ?? '')));
+                    $localProgramName = strtoupper(trim((string) $program->program_name));
+                    $localMajorName = strtoupper(trim((string) ($program->major ?? '')));
+
+                    return $portalProgramName === $localProgramName && $portalMajorName === $localMajorName;
+                });
+
+                // Use filename from portal if found, otherwise fallback to permit_number
+                if ($matchingRecord && !empty($matchingRecord['filename'])) {
+                    $permitPdfUrl = $portal->buildPermitUrl($matchingRecord['filename']);
+                } elseif ($hasPermitNumber) {
+                    // Fallback: try using permit_number (might work for some portals)
+                    $permitPdfUrl = $portal->buildPermitUrl($program->permit_number);
+                }
+            }
 
             $graduatesList = [];
 

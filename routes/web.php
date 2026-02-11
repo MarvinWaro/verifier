@@ -24,11 +24,6 @@ use App\Http\Controllers\ConcernController;
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 
-// Public Proxy endpoint for permit viewing
-Route::post('/api/permit-pdf-proxy', [PermitPdfProxyController::class, 'proxy'])
-    ->name('permit.pdf.proxy');
-    
-
 /*
 |--------------------------------------------------------------------------
 | Authenticated App Routes

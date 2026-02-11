@@ -3,7 +3,9 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { GraduationCap, Loader2, Search, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
 
 interface Program {
     id: number | null;
@@ -29,6 +31,7 @@ export default function ProgramsList({
     loadingProgramId = null,
     showHeader = true,
 }: ProgramsListProps) {
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Helper: Determine badge style based on PDF availability
     const getPermitStyle = (hasPdf: boolean) => {
@@ -123,7 +126,20 @@ export default function ProgramsList({
         });
     };
 
-    const sortedPrograms = sortPrograms(programs);
+    const filteredPrograms = useMemo(() => {
+        if (!searchQuery.trim()) return programs;
+        const query = searchQuery.toLowerCase().trim();
+        return programs.filter((p) => {
+            return (
+                p.name.toLowerCase().includes(query) ||
+                (p.major && p.major.toLowerCase().includes(query)) ||
+                (p.copNumber && p.copNumber.toLowerCase().includes(query)) ||
+                (p.grNumber && p.grNumber.toLowerCase().includes(query))
+            );
+        });
+    }, [programs, searchQuery]);
+
+    const sortedPrograms = sortPrograms(filteredPrograms);
 
     return (
         <>
@@ -135,6 +151,37 @@ export default function ProgramsList({
                     <span className="text-[11px] text-gray-500 dark:text-gray-400">
                         {programs.length} {programs.length === 1 ? 'program' : 'programs'}
                     </span>
+                </div>
+            )}
+
+            {/* Search bar - only show when there are enough programs to search */}
+            {programs.length > 3 && (
+                <div className="relative mb-3">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search programs, GR or COP number..."
+                        className="h-9 w-full rounded-md border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-purple-600 dark:focus:ring-purple-900/30"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {sortedPrograms.length === 0 && searchQuery.trim() !== '' && (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 py-8 dark:border-gray-700">
+                    <Search className="mb-2 h-6 w-6 text-gray-300 dark:text-gray-600" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No programs match "<span className="font-medium">{searchQuery}</span>"
+                    </p>
                 </div>
             )}
 

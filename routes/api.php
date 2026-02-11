@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\ConcernController;
+use App\Http\Controllers\PermitPdfProxyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,4 +35,8 @@ Route::middleware('throttle:60,1')->group(function () {
 
     // 6. Student Search (Placeholder)
     Route::post('/search-student', [WelcomeController::class, 'searchStudent']);
+
+    // 7. PDF Proxy (no CSRF needed for blob responses)
+    Route::post('/permit-pdf-proxy', [PermitPdfProxyController::class, 'proxy'])
+        ->name('permit.pdf.proxy');
 });
