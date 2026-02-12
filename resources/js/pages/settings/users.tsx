@@ -34,7 +34,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search, Plus, Edit, Trash2, Mail, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useState } from 'react';
-import { AppHeader } from '@/components/app-header';
+import AppLayout from '@/layouts/app-layout';
+import SettingsLayout from '@/layouts/settings/layout';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -98,7 +99,7 @@ export default function UsersIndex({ users, roles, filters }: Props) {
     // Handle search
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/users', { search }, { preserveState: true });
+        router.get('/settings/users', { search }, { preserveState: true });
     };
 
     // Handle create user
@@ -179,25 +180,20 @@ export default function UsersIndex({ users, roles, filters }: Props) {
     };
 
     return (
-        <>
-            <Head title="Users" />
-            <AppHeader
-                breadcrumbs={[
-                    { title: 'Dashboard', href: '/dashboard' },
-                    { title: 'Users', href: '/users' },
-                ]}
-            />
+        <AppLayout>
+        <SettingsLayout>
+            <Head title="Users - Settings" />
 
-            <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
-                <div className="space-y-6">
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-                            <p className="text-muted-foreground">
-                                Manage system users and their access
-                            </p>
-                        </div>
+            <div className="space-y-6">
+                {/* Header */}
+                <div>
+                    <h3 className="text-lg font-medium">User Management</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Manage system users and their access
+                    </p>
+                </div>
+
+                <div className="flex items-center justify-between">
                         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
                             <DialogTrigger asChild>
                                 <Button>
@@ -546,7 +542,6 @@ export default function UsersIndex({ users, roles, filters }: Props) {
                         )}
                     </div>
                 </div>
-            </div>
 
             {/* Edit User Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -660,6 +655,7 @@ export default function UsersIndex({ users, roles, filters }: Props) {
                     </form>
                 </DialogContent>
             </Dialog>
-        </>
+        </SettingsLayout>
+        </AppLayout>
     );
 }

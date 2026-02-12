@@ -8,6 +8,7 @@ use App\Models\Program;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -16,7 +17,9 @@ class ImportController extends Controller
 {
     public function index()
     {
-        return Inertia::render('import-page/index');
+        Gate::authorize('viewImports');
+
+        return Inertia::render('settings/import');
     }
 
     /**
@@ -24,6 +27,8 @@ class ImportController extends Controller
      */
     public function importInstitutions(Request $request)
     {
+        Gate::authorize('importInstitutions');
+
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
         ]);
@@ -126,6 +131,8 @@ class ImportController extends Controller
 
     public function clearInstitutions(Request $request)
     {
+        Gate::authorize('clearData');
+
         try {
             // Check if there are any records to clear
             $programCount = Program::count();
@@ -182,6 +189,8 @@ class ImportController extends Controller
      */
     public function importGraduates(Request $request)
     {
+        Gate::authorize('importGraduates');
+
         $request->validate([
             'file' => 'required|mimes:xlsx,xls|max:10240',
         ]);
@@ -408,6 +417,8 @@ class ImportController extends Controller
 
     public function clearGraduates(Request $request)
     {
+        Gate::authorize('clearData');
+
         try {
             // Check if there are any graduates to clear
             $graduateCount = Graduate::count();

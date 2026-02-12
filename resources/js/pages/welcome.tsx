@@ -114,6 +114,8 @@ export default function PRCCheckLanding({ stats }: Props) {
     const [heiMapCenter, setHeiMapCenter] = useState<{ lat: number; lng: number } | null>(null);
     const [heiMapZoom, setHeiMapZoom] = useState<number>(8);
     const [heiLocations, setHeiLocations] = useState<HeiLocation[]>([]);
+    const [mapFocusLocation, setMapFocusLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [mapFitLocations, setMapFitLocations] = useState<{ lat: number; lng: number }[] | null>(null);
 
     const { appearance, updateAppearance } = useAppearance();
 
@@ -133,6 +135,8 @@ export default function PRCCheckLanding({ stats }: Props) {
         setPermitDialogOpen(false);
         setSearchMessage(null);
         setSearchMessageType(null);
+        setMapFocusLocation(null);
+        setMapFitLocations(null);
     };
 
     const handleSearchTermChange = (value: string) => {
@@ -240,8 +244,26 @@ export default function PRCCheckLanding({ stats }: Props) {
             if (result.length === 0) {
                 setSearchMessage(`No institution found for "${trimmed}". Please check the code or name.`);
                 setSearchMessageType('warning');
+                setMapFocusLocation(null);
+                setMapFitLocations(null);
             } else {
                 setShouldScrollToResults(true);
+
+                // Find coordinates for all matched institutions
+                const matchedLocations = result
+                    .map((inst) => heiLocations.find((h) => h.instCode === inst.code))
+                    .filter((h): h is HeiLocation => h !== null && h !== undefined)
+                    .map((h) => ({ lat: h.latitude, lng: h.longitude }));
+
+                if (matchedLocations.length > 1) {
+                    // Multiple results: fit map to show all of them
+                    setMapFocusLocation(null);
+                    setMapFitLocations(matchedLocations);
+                } else if (matchedLocations.length === 1) {
+                    // Single result: fly directly to it
+                    setMapFitLocations(null);
+                    setMapFocusLocation(matchedLocations[0]);
+                }
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -299,6 +321,13 @@ export default function PRCCheckLanding({ stats }: Props) {
         if (!isSame) {
             void loadProgramsForInstitution(institution);
             scrollToResults();
+
+            // Focus map on the selected institution
+            const matchedHei = heiLocations.find((h) => h.instCode === code);
+            if (matchedHei) {
+                setMapFitLocations(null);
+                setMapFocusLocation({ lat: matchedHei.latitude, lng: matchedHei.longitude });
+            }
         }
     };
 
@@ -387,6 +416,8 @@ export default function PRCCheckLanding({ stats }: Props) {
                         isLoading={heiMapLoading}
                         error={heiMapError}
                         onHeiClick={handleHeiMarkerClick}
+                        focusLocation={mapFocusLocation}
+                        fitLocations={mapFitLocations}
                     />
 
                     <div className="flex flex-col gap-4 lg:col-span-4">

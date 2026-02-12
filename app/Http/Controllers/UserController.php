@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,8 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('viewAny', User::class);
+
         $query = User::query();
 
         // Search functionality
@@ -34,8 +37,12 @@ class UserController extends Controller
         // Pagination
         $users = $query->paginate(10)->withQueryString();
 
-        return Inertia::render('users/index', [
+        // Get all available roles for the dropdown
+        $roles = Role::select('id', 'name', 'display_name')->get();
+
+        return Inertia::render('settings/users', [
             'users' => $users,
+            'roles' => $roles,
             'filters' => [
                 'search' => $request->search,
                 'sort_by' => $sortBy,
@@ -49,18 +56,28 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', User::class);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'role' => 'required|in:admin,prc',
+            'role_id' => 'required|exists:roles,id',
         ]);
+
+        // Get the role to set the legacy role column for backward compatibility
+        $role = Role::find($request->role_id);
+
+        // Only set legacy role column for default roles (admin/prc)
+        // Custom roles will have role = null, role_id is the source of truth
+        $legacyRole = in_array($role->name, ['admin', 'prc']) ? $role->name : null;
 
         // Create user with default password "12345678"
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make('12345678'), // Default password
-            'role' => $request->role,
+            'role_id' => $request->role_id,
+            'role' => $legacyRole, // Only set for admin/prc, null for custom roles
             'is_active' => true, // Admin-created users are active by default
         ]);
 
@@ -72,17 +89,27 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        $this->authorize('update', $user);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'role' => 'required|in:admin,prc',
+            'role_id' => 'required|exists:roles,id',
         ]);
+
+        // Get the role to set the legacy role column for backward compatibility
+        $role = Role::find($request->role_id);
+
+        // Only set legacy role column for default roles (admin/prc)
+        // Custom roles will have role = null, role_id is the source of truth
+        $legacyRole = in_array($role->name, ['admin', 'prc']) ? $role->name : null;
 
         $user->update([
             'name' => $request->name,
             'email' => $request->email,
-            'role' => $request->role,
+            'role_id' => $request->role_id,
+            'role' => $legacyRole, // Only set for admin/prc, null for custom roles
         ]);
 
         // Only update password if provided
@@ -100,10 +127,7 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Prevent deleting own account
-        if ($user->id === auth()->id()) {
-            return redirect()->back()->with('error', 'You cannot delete your own account.');
-        }
+        $this->authorize('delete', $user);
 
         $user->delete();
 
@@ -115,10 +139,7 @@ class UserController extends Controller
      */
     public function toggleActive(User $user)
     {
-        // Prevent deactivating own account
-        if ($user->id === auth()->id()) {
-            return redirect()->back()->with('error', 'You cannot deactivate your own account.');
-        }
+        $this->authorize('toggleActive', $user);
 
         $user->update([
             'is_active' => !$user->is_active,

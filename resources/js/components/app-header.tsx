@@ -29,6 +29,7 @@ import {
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
 import { useAppearance } from '@/hooks/use-appearance';
+import { usePermissions } from '@/hooks/use-permissions';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
@@ -38,13 +39,11 @@ import {
     Building2,
     Ribbon,
     GraduationCap,
-    Import,
     Menu,
     Moon,
     Sun,
     Monitor,
     ChevronDown,
-    MessageSquareWarning, // ✅ Ensure this is imported
 } from 'lucide-react';
 import AppLogoIcon from './app-logo-icon';
 import { useMemo } from 'react';
@@ -71,17 +70,6 @@ const mainNavItems: NavItem[] = [
         href: '/graduates',
         icon: GraduationCap,
     },
-    // ✅ Added Concerns Tab
-    {
-        title: 'Concerns',
-        href: '/concerns',
-        icon: MessageSquareWarning,
-    },
-    {
-        title: 'Import',
-        href: '/import',
-        icon: Import,
-    },
 ];
 
 interface AppHeaderProps {
@@ -93,21 +81,20 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const { auth } = page.props;
     const getInitials = useInitials();
     const { appearance, updateAppearance } = useAppearance();
+    const { can } = usePermissions();
 
-    // Filter Navigation Items based on Role
+    // Filter Navigation Items based on Permissions
     const navItems = useMemo(() => {
         return mainNavItems.filter((item) => {
-            // Logic: Hide 'Import', 'Graduates', and 'Concerns' from non-admin users
-            const adminOnlyItems = ['Import', 'Graduates', 'Concerns'];
-
-            if (adminOnlyItems.includes(item.title)) {
-                return auth.user.role === 'admin';
+            // Permission-based filtering
+            if (item.title === 'Graduates') {
+                return can('view_graduates');
             }
 
-            // Show all other items to everyone
+            // Show all other items to authenticated users
             return true;
         });
-    }, [auth.user.role]);
+    }, [can]);
 
     const toggleTheme = () => {
         switch (appearance) {

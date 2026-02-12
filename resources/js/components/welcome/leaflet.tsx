@@ -2,11 +2,11 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { MapPin } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 
 export interface HeiLocation {
     instCode: string;
@@ -26,6 +26,35 @@ interface WelcomeLeafletProps {
     isLoading?: boolean;
     error?: string | null;
     onHeiClick?: (instCode: string) => void;
+    focusLocation?: { lat: number; lng: number } | null;
+    fitLocations?: { lat: number; lng: number }[] | null;
+}
+
+/**
+ * Inner component that uses useMap() to fly/fit the map view.
+ * - Single location: flies to it at zoom 14
+ * - Multiple locations: fits bounds to show all of them
+ * Must be rendered inside <MapContainer>.
+ */
+function MapFocusHandler({
+    location,
+    fitLocations,
+}: {
+    location: { lat: number; lng: number } | null;
+    fitLocations: { lat: number; lng: number }[] | null;
+}) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (fitLocations && fitLocations.length > 1) {
+            const bounds = L.latLngBounds(fitLocations.map((loc) => [loc.lat, loc.lng]));
+            map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5, maxZoom: 13 });
+        } else if (location) {
+            map.flyTo([location.lat, location.lng], 14, { duration: 1.5 });
+        }
+    }, [location, fitLocations, map]);
+
+    return null;
 }
 
 /**
@@ -135,6 +164,8 @@ export default function WelcomeLeaflet({
     isLoading = false,
     error,
     onHeiClick,
+    focusLocation = null,
+    fitLocations = null,
 }: WelcomeLeafletProps) {
     const mapCenter = useMemo(
         () => [center?.lat ?? 6.5, center?.lng ?? 124.5] as [number, number],
@@ -201,6 +232,8 @@ export default function WelcomeLeaflet({
                                 url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                             } as any)}
                         />
+
+                        <MapFocusHandler location={focusLocation} fitLocations={fitLocations} />
 
                         {/* CHED Regional Office marker */}
                         <Marker

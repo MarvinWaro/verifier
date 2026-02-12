@@ -16,9 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
-        // Register the 'admin' alias here
+        // Register middleware aliases
         $middleware->alias([
-            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class, // Legacy
+            'can' => \App\Http\Middleware\EnsureUserCan::class,       // New RBAC middleware
         ]);
 
         $middleware->web(append: [

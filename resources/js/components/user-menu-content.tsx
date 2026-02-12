@@ -6,6 +6,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { usePermissions } from '@/hooks/use-permissions';
 import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import { type User } from '@/types';
@@ -18,6 +19,7 @@ interface UserMenuContentProps {
 
 export function UserMenuContent({ user }: UserMenuContentProps) {
     const cleanup = useMobileNavigation();
+    const { can } = usePermissions();
 
     const handleLogout = () => {
         cleanup();
@@ -49,35 +51,36 @@ export function UserMenuContent({ user }: UserMenuContentProps) {
                     </Link>
                 </DropdownMenuItem>
 
-                {/* Admin Only Items: Users & Logs */}
-                {user.role === 'admin' && (
-                    <>
-                        <DropdownMenuItem asChild>
-                            <Link
-                                className="block w-full"
-                                href="/users"
-                                as="button"
-                                prefetch
-                                onClick={cleanup}
-                            >
-                                <Users className="mr-2" />
-                                Users
-                            </Link>
-                        </DropdownMenuItem>
+                {/* Users - Permission-based */}
+                {can('view_users') && (
+                    <DropdownMenuItem asChild>
+                        <Link
+                            className="block w-full"
+                            href="/users"
+                            as="button"
+                            prefetch
+                            onClick={cleanup}
+                        >
+                            <Users className="mr-2" />
+                            Users
+                        </Link>
+                    </DropdownMenuItem>
+                )}
 
-                        <DropdownMenuItem asChild>
-                            <Link
-                                className="block w-full"
-                                href="/logs"
-                                as="button"
-                                prefetch
-                                onClick={cleanup}
-                            >
-                                <History className="mr-2" />
-                                Logs
-                            </Link>
-                        </DropdownMenuItem>
-                    </>
+                {/* Logs - Permission-based */}
+                {can('view_activity_logs') && (
+                    <DropdownMenuItem asChild>
+                        <Link
+                            className="block w-full"
+                            href="/logs"
+                            as="button"
+                            prefetch
+                            onClick={cleanup}
+                        >
+                            <History className="mr-2" />
+                            Logs
+                        </Link>
+                    </DropdownMenuItem>
                 )}
             </DropdownMenuGroup>
 

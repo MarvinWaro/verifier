@@ -239,19 +239,17 @@ export default function ProgramIndex({
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
-                                        <TableHead className="h-12">Institution</TableHead>
-                                        <TableHead className="h-12">Code</TableHead>
                                         <TableHead className="h-12">Program Name</TableHead>
                                         <TableHead className="h-12">Major</TableHead>
                                         <TableHead className="h-12">Type</TableHead>
-                                        <TableHead className="h-12">Status</TableHead> {/* ✅ Added */}
+                                        <TableHead className="h-12">Status</TableHead>
                                         <TableHead className="h-12">Permit Number</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredPrograms.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="h-32 text-center text-gray-500">
+                                            <TableCell colSpan={5} className="h-32 text-center text-gray-500">
                                                 No programs available
                                             </TableCell>
                                         </TableRow>
@@ -263,12 +261,6 @@ export default function ProgramIndex({
 
                                             return (
                                                 <TableRow key={program.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                                    <TableCell className="py-4 font-medium">
-                                                        {program.institution.name}
-                                                    </TableCell>
-                                                    <TableCell className="py-4 font-mono text-sm text-gray-600 dark:text-gray-400">
-                                                        {program.institution.institution_code}
-                                                    </TableCell>
                                                     <TableCell className="py-4 font-medium">
                                                         {program.program_name}
                                                     </TableCell>
