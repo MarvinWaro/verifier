@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use App\Models\Concern;
 use Inertia\Inertia;
 
@@ -13,6 +14,8 @@ class ConcernController extends Controller
      */
     public function index(Request $request)
     {
+        Gate::authorize('viewConcerns');
+
         $query = Concern::latest();
 
         // Handle Search
@@ -35,7 +38,7 @@ class ConcernController extends Controller
             ])
             ->withQueryString();
 
-        return Inertia::render('concerns/index', [
+        return Inertia::render('settings/concerns', [
             'concerns' => $concerns,
             'filters'  => $request->only(['q']),
         ]);

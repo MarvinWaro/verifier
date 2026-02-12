@@ -20,6 +20,8 @@ class GraduateController extends Controller
      */
     public function index(Request $request, PortalService $portalService)
     {
+        $this->authorize('viewAny', Graduate::class);
+
         $q = (string) $request->query('q', '');
 
         // Get all HEIs from the Portal once (cached)
@@ -132,6 +134,8 @@ class GraduateController extends Controller
      */
     public function update(Request $request, Graduate $graduate)
     {
+        $this->authorize('update', $graduate);
+
         $validated = $request->validate([
             'last_name'      => 'required|string|max:255',
             'first_name'     => 'required|string|max:255',
@@ -217,6 +221,8 @@ class GraduateController extends Controller
      */
     public function destroy(Request $request, Graduate $graduate)
     {
+        $this->authorize('delete', $graduate);
+
         $id       = $graduate->id;
         $soNumber = $graduate->so_number;
         $name     = trim($graduate->first_name . ' ' . $graduate->last_name);

@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class ActivityLogController extends Controller
 {
     public function index(Request $request)
     {
+        Gate::authorize('viewActivityLogs');
+
         $logs = ActivityLog::with('user')
             ->orderByDesc('created_at')
             ->paginate(50)

@@ -14,6 +14,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PermitPdfProxyController;
 use App\Http\Controllers\ConcernController;
+use App\Http\Controllers\RoleController;
 // Note: ConcernController and WelcomeController API methods are handled in api.php
 
 /*
@@ -35,7 +36,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/search', [DashboardController::class, 'searchGraduates'])->name('dashboard.search');
     Route::get('dashboard/graduate/{id}', [DashboardController::class, 'getGraduateDetails'])->name('dashboard.graduate.details');
-    Route::get('logs', [ActivityLogController::class, 'index'])->name('logs.index');
+    Route::get('logs', [ActivityLogController::class, 'index'])
+        ->middleware('can:view_activity_logs')
+        ->name('logs.index');
 
     /*
     |--------------------------------------------------------------------------
@@ -76,44 +79,75 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Admin Only Routes
+    | Protected Routes - Permission-Based Access Control
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['admin'])->group(function () {
 
-        // Graduates Management
-        Route::prefix('graduates')->name('graduates.')->group(function () {
-            Route::get('/', [GraduateController::class, 'index'])->name('index');
-            Route::put('{graduate}', [GraduateController::class, 'update'])->name('update');
-            Route::delete('{graduate}', [GraduateController::class, 'destroy'])->name('destroy');
-        });
+    // Graduates Management
+    Route::prefix('graduates')->name('graduates.')->group(function () {
+        Route::get('/', [GraduateController::class, 'index'])
+            ->middleware('can:view_graduates')
+            ->name('index');
+        Route::put('{graduate}', [GraduateController::class, 'update'])
+            ->middleware('can:update_graduates')
+            ->name('update');
+        Route::delete('{graduate}', [GraduateController::class, 'destroy'])
+            ->middleware('can:delete_graduates')
+            ->name('destroy');
+    });
 
-        // User Management
-        Route::prefix('users')->name('users.')->group(function () {
-            Route::get('/', [UserController::class, 'index'])->name('index');
-            Route::post('/', [UserController::class, 'store'])->name('store');
-            Route::put('{user}', [UserController::class, 'update'])->name('update');
-            Route::delete('{user}', [UserController::class, 'destroy'])->name('destroy');
-            Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])->name('toggle-active');
-        });
+    // User Management
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', [UserController::class, 'index'])
+            ->middleware('can:view_users')
+            ->name('index');
+        Route::post('/', [UserController::class, 'store'])
+            ->middleware('can:create_users')
+            ->name('store');
+        Route::put('{user}', [UserController::class, 'update'])
+            ->middleware('can:update_users')
+            ->name('update');
+        Route::delete('{user}', [UserController::class, 'destroy'])
+            ->middleware('can:delete_users')
+            ->name('destroy');
+        Route::patch('{user}/toggle-active', [UserController::class, 'toggleActive'])
+            ->middleware('can:toggle_user_active')
+            ->name('toggle-active');
+    });
 
-        // Import Tools
-        Route::prefix('import')->name('import.')->group(function () {
-            Route::get('/', [ImportController::class, 'index'])->name('index');
-            Route::post('institutions', [ImportController::class, 'importInstitutions'])->name('institutions');
-            Route::post('institutions/clear', [ImportController::class, 'clearInstitutions'])->name('institutions.clear');
-            Route::post('graduates', [ImportController::class, 'importGraduates'])->name('graduates');
-            Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])->name('graduates.clear');
-        });
+    // Role Management
+    Route::prefix('roles')->name('roles.')->middleware('can:manage_roles')->group(function () {
+        Route::get('/', [RoleController::class, 'index'])->name('index');
+        Route::post('/', [RoleController::class, 'store'])->name('store');
+        Route::put('{role}', [RoleController::class, 'update'])->name('update');
+        Route::delete('{role}', [RoleController::class, 'destroy'])->name('destroy');
+        Route::get('list', [RoleController::class, 'list'])->name('list');
+        Route::get('permissions', [RoleController::class, 'permissions'])->name('permissions');
+    });
 
-        /* |--------------------------------------------------------------------------
-        | Concerns (Admin)
-        |--------------------------------------------------------------------------
-        */
-        // Concerns
-        Route::get('/concerns', [ConcernController::class, 'index'])->name('concerns.index');
-        });
+    // Import Tools
+    Route::prefix('import')->name('import.')->group(function () {
+        Route::get('/', [ImportController::class, 'index'])
+            ->middleware('can:view_imports')
+            ->name('index');
+        Route::post('institutions', [ImportController::class, 'importInstitutions'])
+            ->middleware('can:import_institutions')
+            ->name('institutions');
+        Route::post('institutions/clear', [ImportController::class, 'clearInstitutions'])
+            ->middleware('can:clear_data')
+            ->name('institutions.clear');
+        Route::post('graduates', [ImportController::class, 'importGraduates'])
+            ->middleware('can:import_graduates')
+            ->name('graduates');
+        Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])
+            ->middleware('can:clear_data')
+            ->name('graduates.clear');
+    });
 
+    // Concerns
+    Route::get('/concerns', [ConcernController::class, 'index'])
+        ->middleware('can:view_concerns')
+        ->name('concerns.index');
 
 });
 
