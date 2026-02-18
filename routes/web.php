@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\InstitutionController;
@@ -25,6 +26,13 @@ use App\Http\Controllers\RoleController;
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
 
+// Cache Clear (public — used on both landing page and admin programs page)
+Route::get('artisan/optimize-clear', function () {
+    Artisan::call('optimize:clear');
+    return response('Cache cleared successfully.', 200)
+        ->header('Content-Type', 'text/plain');
+})->name('artisan.optimize-clear');
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated App Routes
@@ -36,6 +44,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard/search', [DashboardController::class, 'searchGraduates'])->name('dashboard.search');
     Route::get('dashboard/graduate/{id}', [DashboardController::class, 'getGraduateDetails'])->name('dashboard.graduate.details');
+
     Route::get('logs', [ActivityLogController::class, 'index'])
         ->middleware('can:view_activity_logs')
         ->name('logs.index');

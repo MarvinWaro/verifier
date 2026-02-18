@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { GraduationCap, Loader2, Search, X } from 'lucide-react';
+import { GraduationCap, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 interface Program {
@@ -23,6 +23,9 @@ interface ProgramsListProps {
     onProgramClick: (program: Program) => void;
     loadingProgramId?: number | null;
     showHeader?: boolean;
+    canClearCache?: boolean;
+    onClearCache?: () => void;
+    isClearingCache?: boolean;
 }
 
 export default function ProgramsList({
@@ -30,6 +33,9 @@ export default function ProgramsList({
     onProgramClick,
     loadingProgramId = null,
     showHeader = true,
+    canClearCache = false,
+    onClearCache,
+    isClearingCache = false,
 }: ProgramsListProps) {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -154,24 +160,41 @@ export default function ProgramsList({
                 </div>
             )}
 
-            {/* Search bar - only show when there are enough programs to search */}
-            {programs.length > 3 && (
-                <div className="relative mb-3">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search programs, GR or COP number..."
-                        className="h-9 w-full rounded-md border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-purple-600 dark:focus:ring-purple-900/30"
-                    />
-                    {searchQuery && (
-                        <button
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+            {/* Search bar + Clear Cache button row */}
+            {(programs.length > 3 || canClearCache) && (
+                <div className="mb-3 flex items-center gap-2">
+                    {programs.length > 3 && (
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search programs, GR or COP number..."
+                                className="h-9 w-full rounded-md border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-purple-600 dark:focus:ring-purple-900/30"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    {canClearCache && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onClearCache}
+                            disabled={isClearingCache}
+                            className="h-9 shrink-0 gap-1.5 text-xs"
+                            title="Clear application cache"
                         >
-                            <X className="h-4 w-4" />
-                        </button>
+                            <RefreshCw className={`h-3.5 w-3.5 ${isClearingCache ? 'animate-spin' : ''}`} />
+                            {isClearingCache ? 'Clearing…' : 'Clear Cache'}
+                        </Button>
                     )}
                 </div>
             )}
