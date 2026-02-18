@@ -33,10 +33,12 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Check, ChevronsUpDown, Search, AlertCircle, FileText } from 'lucide-react';
+import { Check, ChevronsUpDown, Search, AlertCircle, FileText, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { usePage } from '@inertiajs/react';
+import { type SharedData } from '@/types';
 
 interface HeiItem {
     instCode: string;
@@ -78,8 +80,34 @@ export default function ProgramIndex({
     selectedInstCode,
     error,
 }: Props) {
+    const { auth } = usePage<SharedData>().props;
+    const canClearCache = auth.user.permissions.includes('manage_roles');
+
     const [search, setSearch] = useState('');
     const [open, setOpen] = useState(false);
+    const [clearingCache, setClearingCache] = useState(false);
+
+    const handleClearCache = async () => {
+        setClearingCache(true);
+        try {
+            const res = await fetch('/artisan/optimize-clear');
+            if (res.ok) {
+                toast.success('Cache cleared', {
+                    description: 'All application caches have been cleared successfully.',
+                });
+            } else {
+                toast.error('Failed to clear cache', {
+                    description: 'Something went wrong. Please try again.',
+                });
+            }
+        } catch {
+            toast.error('Failed to clear cache', {
+                description: 'Network error. Please check your connection.',
+            });
+        } finally {
+            setClearingCache(false);
+        }
+    };
 
     useEffect(() => {
         if (error) {
@@ -142,17 +170,31 @@ export default function ProgramIndex({
 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>All Programs</CardTitle>
-                        <CardDescription>
-                            {selectedInstCode
-                                ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
-                                      filteredPrograms.length !== 1 ? 's' : ''
-                                  }`
-                                : `Total of ${filteredPrograms.length} program${
-                                      filteredPrograms.length !== 1 ? 's' : ''
-                                  }`}
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-start justify-between gap-4">
+                        <div>
+                            <CardTitle>All Programs</CardTitle>
+                            <CardDescription>
+                                {selectedInstCode
+                                    ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
+                                          filteredPrograms.length !== 1 ? 's' : ''
+                                      }`
+                                    : `Total of ${filteredPrograms.length} program${
+                                          filteredPrograms.length !== 1 ? 's' : ''
+                                      }`}
+                            </CardDescription>
+                        </div>
+                        {canClearCache && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleClearCache}
+                                disabled={clearingCache}
+                                className="shrink-0 gap-2"
+                            >
+                                <RefreshCw className={cn('h-4 w-4', clearingCache && 'animate-spin')} />
+                                {clearingCache ? 'Clearing Cache…' : 'Clear Cache'}
+                            </Button>
+                        )}
                     </CardHeader>
 
                     <CardContent>

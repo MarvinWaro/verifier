@@ -16,6 +16,7 @@ import { Toaster } from '@/components/ui/sonner';
 import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 // --- Types ---
 interface Graduate {
@@ -90,6 +91,31 @@ interface Props {
 }
 
 export default function PRCCheckLanding({ stats }: Props) {
+    const canClearCache = true;
+    const [isClearingCache, setIsClearingCache] = useState(false);
+
+    const handleClearCache = async () => {
+        setIsClearingCache(true);
+        try {
+            const res = await fetch('/artisan/optimize-clear');
+            if (res.ok) {
+                toast.success('Cache cleared', {
+                    description: 'All application caches have been cleared successfully.',
+                });
+            } else {
+                toast.error('Failed to clear cache', {
+                    description: 'Something went wrong. Please try again.',
+                });
+            }
+        } catch {
+            toast.error('Failed to clear cache', {
+                description: 'Network error. Please check your connection.',
+            });
+        } finally {
+            setIsClearingCache(false);
+        }
+    };
+
     // --- State ---
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [institutions, setInstitutions] = useState<Institution[]>([]);
@@ -558,6 +584,9 @@ export default function PRCCheckLanding({ stats }: Props) {
                                                             onProgramClick={handleProgramClick}
                                                             loadingProgramId={loadingProgramId}
                                                             showHeader={false}
+                                                            canClearCache={canClearCache}
+                                                            onClearCache={handleClearCache}
+                                                            isClearingCache={isClearingCache}
                                                         />
                                                     )}
                                                 </CardContent>
