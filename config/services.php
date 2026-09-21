@@ -2,6 +2,12 @@
 
 return [
 
+    'portal' => [
+        'key' => env('PORTAL_API', ''),
+        'base_url' => env('PORTAL_BASE_URL', 'https://portal.chedro12.com/api'),
+        'permit_base_url' => env('PORTAL_PERMIT_BASE_URL', 'https://portal.chedro12.com/govt_auth/view_file'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

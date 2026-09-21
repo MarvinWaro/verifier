@@ -468,7 +468,12 @@ export default function PermitDialog({
                                             <span className="ml-1 font-mono">{program.grNumber}</span>
                                         </Badge>
                                     )}
-                                    {!hasPermitNumber && (
+                                    {!hasPermitNumber && hasPermitFile && (
+                                        <Badge variant="outline" className={`text-[11px] ${getBadgeStyle(true)}`}>
+                                            <FileText className="mr-1 h-3 w-3" /> Document linked
+                                        </Badge>
+                                    )}
+                                    {!hasPermitNumber && !hasPermitFile && (
                                         <Badge
                                             variant="outline"
                                             className="border-red-200 bg-red-50 text-[11px] text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
@@ -503,6 +508,11 @@ export default function PermitDialog({
                                                 {permitNumberValue && (
                                                     <p className="mt-1 text-sm text-green-700 dark:text-green-300">
                                                         {permitNumberLabel}: <span className="font-mono font-semibold">{permitNumberValue}</span>
+                                                    </p>
+                                                )}
+                                                {!permitNumberValue && (
+                                                    <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+                                                        Permit number not recorded
                                                     </p>
                                                 )}
                                             </div>

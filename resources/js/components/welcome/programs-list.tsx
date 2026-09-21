@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { GraduationCap, Loader2, RefreshCw, Search, X } from 'lucide-react';
+import { GraduationCap, Loader2, Search, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
 interface Program {
@@ -23,9 +23,6 @@ interface ProgramsListProps {
     onProgramClick: (program: Program) => void;
     loadingProgramId?: number | null;
     showHeader?: boolean;
-    canClearCache?: boolean;
-    onClearCache?: () => void;
-    isClearingCache?: boolean;
 }
 
 export default function ProgramsList({
@@ -33,9 +30,6 @@ export default function ProgramsList({
     onProgramClick,
     loadingProgramId = null,
     showHeader = true,
-    canClearCache = false,
-    onClearCache,
-    isClearingCache = false,
 }: ProgramsListProps) {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -160,8 +154,8 @@ export default function ProgramsList({
                 </div>
             )}
 
-            {/* Search bar + Clear Cache button row */}
-            {(programs.length > 3 || canClearCache) && (
+            {/* Search programs */}
+            {(programs.length > 3) && (
                 <div className="mb-3 flex items-center gap-2">
                     {programs.length > 3 && (
                         <div className="relative flex-1">
@@ -182,19 +176,6 @@ export default function ProgramsList({
                                 </button>
                             )}
                         </div>
-                    )}
-                    {canClearCache && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onClearCache}
-                            disabled={isClearingCache}
-                            className="h-9 shrink-0 gap-1.5 text-xs"
-                            title="Clear application cache"
-                        >
-                            <RefreshCw className={`h-3.5 w-3.5 ${isClearingCache ? 'animate-spin' : ''}`} />
-                            {isClearingCache ? 'Clearing…' : 'Clear Cache'}
-                        </Button>
                     )}
                 </div>
             )}

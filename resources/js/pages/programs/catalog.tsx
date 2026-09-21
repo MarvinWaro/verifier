@@ -1,4 +1,6 @@
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -8,6 +10,13 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Table,
     TableBody,
     TableCell,
@@ -15,372 +24,559 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { usePermissions } from '@/hooks/use-permissions';
 import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import type { CatalogSyncRun, Classification } from '@/types/programs';
 import { Head, router } from '@inertiajs/react';
-import { Search, Filter } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
+import axios from 'axios';
+import {
+    AlertCircle,
+    ChevronLeft,
+    ChevronRight,
+    Loader2,
+    RefreshCw,
+    Search,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-interface ProgramCatalogItem {
+interface CatalogItem {
     id: number;
     program_name: string;
-    program_type: 'Board' | 'Non-Board' | 'Unknown';
-    notes?: string | null;
+    program_type: Classification;
 }
-
-interface Pagination<T> {
-    data: T[];
-    links: {
-        url: string | null;
-        label: string;
-        active: boolean;
-    }[];
-}
-
-interface Filters {
-    q?: string;
-    type?: string;
-}
-
 interface Props {
-    programs: Pagination<ProgramCatalogItem>;
-    filters: Filters;
+    programs: {
+        data: CatalogItem[];
+        current_page: number;
+        last_page: number;
+        from: number | null;
+        to: number | null;
+        total: number;
+    };
+    filters: { q: string; type: string; per_page: number };
+    counts: Record<'all' | Classification, number>;
+    sync_run: CatalogSyncRun | null;
 }
+const classifications: Classification[] = ['Unknown', 'Board', 'Non-Board'];
+const label = (value: string) => (value === 'Unknown' ? 'Unclassified' : value);
+const active = (run: CatalogSyncRun | null) =>
+    !!run && ['queued', 'running'].includes(run.status);
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Program Catalog', href: '/programs/catalog' },
-];
+export default function ProgramCatalogIndex({
+    programs,
+    filters,
+    counts,
+    sync_run,
+}: Props) {
+    const { can } = usePermissions();
+    const canEdit = can('update_program_catalog');
+    const [search, setSearch] = useState(filters.q);
+    const [saving, setSaving] = useState<Record<number, Classification>>({});
+    const savingRef = useRef(new Set<number>());
+    const [run, setRun] = useState(sync_run);
+    const [starting, setStarting] = useState(false);
+    const [syncError, setSyncError] = useState<string | null>(null);
+    const [navigating, setNavigating] = useState(false);
 
-export default function ProgramCatalogIndex({ programs, filters }: Props) {
-    const [search, setSearch] = useState(filters.q ?? '');
-    const [typeFilter, setTypeFilter] = useState<string>(filters.type ?? '');
-    const [items, setItems] = useState<ProgramCatalogItem[]>(programs.data);
-
-    // When Inertia sends new props (pagination / filters), sync local items
     useEffect(() => {
-        setItems(programs.data);
-    }, [programs.data]);
+        setRun(sync_run);
+    }, [sync_run]);
+    useEffect(() => {
+        setSearch(filters.q);
+    }, [filters.q]);
+    const runId = run?.id;
+    const running = active(run);
 
-    const applyFilters = (nextSearch: string, nextType: string) => {
+    useEffect(() => {
+        if (!canEdit || !runId || !running) return;
+        const controller = new AbortController();
+        let timer: ReturnType<typeof setTimeout>;
+        const poll = async () => {
+            if (controller.signal.aborted) return;
+            if (document.visibilityState !== 'visible' || !navigator.onLine) {
+                timer = setTimeout(() => void poll(), 2000);
+                return;
+            }
+            try {
+                const response = await axios.get<CatalogSyncRun>(
+                    '/programs/catalog/sync/' + runId,
+                    { signal: controller.signal },
+                );
+                if (controller.signal.aborted) return;
+                setRun(response.data);
+                setSyncError(null);
+                if (!active(response.data)) {
+                    router.reload({ only: ['programs', 'counts', 'sync_run'] });
+                    return;
+                }
+            } catch {
+                if (controller.signal.aborted) return;
+                setSyncError(
+                    'Could not check sync progress. Retrying when connected.',
+                );
+            }
+            timer = setTimeout(() => void poll(), 2000);
+        };
+        timer = setTimeout(() => void poll(), 2000);
+        return () => {
+            controller.abort();
+            clearTimeout(timer);
+        };
+    }, [canEdit, runId, running]);
+
+    const navigate = (overrides: Record<string, string | number> = {}) => {
         router.get(
             '/programs/catalog',
             {
-                q: nextSearch || undefined,
-                type: nextType || undefined,
+                q: search,
+                type: filters.type,
+                per_page: filters.per_page,
+                ...overrides,
             },
             {
                 preserveScroll: true,
                 preserveState: true,
+                onStart: () => setNavigating(true),
+                onFinish: () => setNavigating(false),
             },
         );
     };
 
-    const onSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        applyFilters(search, typeFilter);
-    };
-
-    const handleTypeFilter = (type: string) => {
-        const newType = type === typeFilter ? '' : type;
-        setTypeFilter(newType);
-        applyFilters(search, newType);
-    };
-
-    const getProgramTypeBadgeClasses = (type: string) => {
-        switch (type) {
-            case 'Board':
-                return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300';
-            case 'Non-Board':
-                return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-            default:
-                return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300';
-        }
-    };
-
-    const handleToggleType = async (
-        program: ProgramCatalogItem,
-        checked: boolean,
-    ) => {
-        const previousType = program.program_type;
-        const newType: ProgramCatalogItem['program_type'] = checked
-            ? 'Board'
-            : 'Non-Board';
-
-        // Optimistic update
-        setItems((prev) =>
-            prev.map((p) =>
-                p.id === program.id ? { ...p, program_type: newType } : p,
-            ),
-        );
-
+    const save = async (program: CatalogItem, value: Classification) => {
+        if (savingRef.current.has(program.id) || program.program_type === value)
+            return;
+        savingRef.current.add(program.id);
+        setSaving((previous) => ({ ...previous, [program.id]: value }));
         try {
-            // 🔐 read CSRF token from the meta tag you added in app.blade.php
-            const tokenElement = document.querySelector(
-                'meta[name="csrf-token"]',
-            ) as HTMLMetaElement | null;
-            const csrfToken = tokenElement?.content ?? '';
-
-            const response = await fetch(`/programs/catalog/${program.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
-                },
-                // 👇 very important so Laravel sees your session cookie
-                credentials: 'same-origin',
-                body: JSON.stringify({ program_type: newType }),
+            await axios.patch('/programs/catalog/' + program.id, {
+                program_type: value,
             });
-
-            if (!response.ok) {
-                const text = await response.text().catch(() => '');
-                console.error('Toggle update failed:', response.status, text);
-                throw new Error(`Request failed (${response.status})`);
-            }
-
-            toast.success('Program type updated', {
-                description: `${program.program_name} is now marked as ${newType}.`,
-            });
-        } catch (error) {
-            console.error(error);
-            // Revert optimistic update if something goes wrong
-            setItems((prev) =>
-                prev.map((p) =>
-                    p.id === program.id
-                        ? { ...p, program_type: previousType }
-                        : p,
-                ),
+            toast.success('Classification saved');
+            await new Promise<void>((resolve) =>
+                router.reload({
+                    only: ['programs', 'counts'],
+                    onFinish: () => resolve(),
+                }),
             );
-            toast.error('Failed to update program type');
+        } catch {
+            toast.error(
+                'Classification was not saved. Your previous value is unchanged.',
+            );
+        } finally {
+            savingRef.current.delete(program.id);
+            setSaving((previous) => {
+                const next = { ...previous };
+                delete next[program.id];
+                return next;
+            });
         }
     };
 
-
+    const startSync = async (retry = false) => {
+        if (starting) return;
+        setStarting(true);
+        setSyncError(null);
+        try {
+            const response = await axios.post<CatalogSyncRun>(
+                '/programs/catalog/sync',
+                retry && run ? { retry_run_id: run.id } : {},
+            );
+            setRun(response.data);
+            toast.success(
+                retry
+                    ? 'Failed schools queued for retry'
+                    : 'Catalog sync queued',
+            );
+        } catch (error: unknown) {
+            const message = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data.message
+                : null;
+            setSyncError(message ?? 'Could not start sync. Please try again.');
+        } finally {
+            setStarting(false);
+        }
+    };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout
+            breadcrumbs={[
+                { title: 'Dashboard', href: '/dashboard' },
+                { title: 'Program Catalog', href: '/programs/catalog' },
+            ]}
+        >
             <Head title="Program Catalog" />
-
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex flex-1 flex-col gap-4 p-4">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Program Catalog</CardTitle>
-                        <CardDescription>
-                            Central list of unique programs across all HEIs.
-                            Toggle whether each program is classified as Board or
-                            Non-Board.
-                        </CardDescription>
+                    <CardHeader className="gap-4 sm:flex-row sm:justify-between">
+                        <div className="space-y-1">
+                            <CardTitle>Program Catalog</CardTitle>
+                            <CardDescription>
+                                Unique program names from the portal.
+                                Classifications are managed here.
+                            </CardDescription>
+                        </div>
+                        {canEdit && (
+                            <Button
+                                variant="outline"
+                                disabled={starting || running}
+                                onClick={() => void startSync()}
+                                className="shrink-0 gap-2"
+                            >
+                                <RefreshCw
+                                    className={
+                                        starting || running
+                                            ? 'h-4 w-4 animate-spin'
+                                            : 'h-4 w-4'
+                                    }
+                                />
+                                {running
+                                    ? 'Sync in progress'
+                                    : 'Sync catalog from portal'}
+                            </Button>
+                        )}
                     </CardHeader>
-
-                    <CardContent>
-                        {/* Search + Filters */}
-                        <div className="mb-6 space-y-3">
-                            {/* Search bar */}
-                            <form onSubmit={onSearchSubmit}>
-                                <div className="relative w-full">
-                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Search program name..."
-                                        value={search}
-                                        onChange={(e) =>
-                                            setSearch(e.target.value)
-                                        }
-                                        className="h-10 w-full pl-10"
-                                        aria-label="Search programs in catalog"
-                                    />
+                    <CardContent className="space-y-5">
+                        {syncError && (
+                            <Alert role="status">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>{syncError}</AlertDescription>
+                            </Alert>
+                        )}
+                        {canEdit && run && (
+                            <section
+                                className="space-y-3 rounded-lg border bg-muted/30 p-4"
+                                aria-label="Catalog synchronization"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-sm font-medium">
+                                        Sync #{run.id} ·{' '}
+                                        <span className="capitalize">
+                                            {run.status}
+                                        </span>
+                                    </p>
+                                    {['failed', 'partial'].includes(
+                                        run.status,
+                                    ) && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={starting}
+                                            onClick={() => void startSync(true)}
+                                        >
+                                            Retry failed schools
+                                        </Button>
+                                    )}
                                 </div>
-                            </form>
-
-                            {/* Type filter row */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                    <Filter className="h-4 w-4" />
-                                    <span>Filter by type:</span>
-                                </div>
-                                <div className="flex gap-2">
+                                <progress
+                                    value={run.processed}
+                                    max={Math.max(1, run.total)}
+                                    className="h-2 w-full accent-blue-600"
+                                    aria-label="Schools processed"
+                                />
+                                <p
+                                    className="text-sm text-muted-foreground"
+                                    aria-live="polite"
+                                >
+                                    {run.processed} of {run.total} schools
+                                    processed · {run.created} program names
+                                    added · {run.failed_schools.length} failed
+                                </p>
+                                {run.status === 'queued' && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Waiting to start. You can leave this
+                                        page and return to check progress.
+                                    </p>
+                                )}
+                                {run.error && (
+                                    <p className="text-sm text-destructive">
+                                        {run.error}
+                                    </p>
+                                )}
+                                {run.finished_at && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Finished{' '}
+                                        {new Date(
+                                            run.finished_at,
+                                        ).toLocaleString()}
+                                    </p>
+                                )}
+                                {run.failed_schools.length > 0 && (
+                                    <details>
+                                        <summary className="cursor-pointer text-sm font-medium">
+                                            Failed schools
+                                        </summary>
+                                        <ul className="mt-2 space-y-2 text-sm">
+                                            {run.failed_schools.map(
+                                                (school) => (
+                                                    <li key={school.code}>
+                                                        <span className="font-medium">
+                                                            {school.name} (
+                                                            {school.code})
+                                                        </span>
+                                                        <p className="text-muted-foreground">
+                                                            {school.error}
+                                                        </p>
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    </details>
+                                )}
+                            </section>
+                        )}
+                        <form
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                navigate({ page: 1 });
+                            }}
+                            className="flex gap-2"
+                        >
+                            <div className="relative flex-1">
+                                <Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="search"
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Search program names…"
+                                    aria-label="Search catalog"
+                                    className="h-10 pl-10"
+                                />
+                            </div>
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                disabled={navigating}
+                            >
+                                Search
+                            </Button>
+                        </form>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div
+                                className="flex flex-wrap gap-2"
+                                role="group"
+                                aria-label="Filter classification"
+                            >
+                                {['all', ...classifications].map((value) => (
                                     <Button
-                                        type="button"
+                                        key={value}
                                         variant={
-                                            typeFilter === ''
+                                            (filters.type || 'all') === value
                                                 ? 'default'
                                                 : 'outline'
                                         }
                                         size="sm"
-                                        onClick={() => handleTypeFilter('')}
-                                    >
-                                        All
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant={
-                                            typeFilter === 'Board'
-                                                ? 'default'
-                                                : 'outline'
+                                        aria-pressed={
+                                            (filters.type || 'all') === value
                                         }
-                                        size="sm"
+                                        disabled={navigating}
                                         onClick={() =>
-                                            handleTypeFilter('Board')
+                                            navigate({
+                                                type:
+                                                    value === 'all'
+                                                        ? ''
+                                                        : value,
+                                                page: 1,
+                                            })
                                         }
                                     >
-                                        Board
+                                        {value === 'all' ? 'All' : label(value)}{' '}
+                                        ({counts[value as keyof typeof counts]})
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        variant={
-                                            typeFilter === 'Non-Board'
-                                                ? 'default'
-                                                : 'outline'
-                                        }
-                                        size="sm"
-                                        onClick={() =>
-                                            handleTypeFilter('Non-Board')
-                                        }
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label
+                                    htmlFor="catalog-page-size"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    Rows per page
+                                </label>
+                                <Select
+                                    value={String(filters.per_page)}
+                                    onValueChange={(value) =>
+                                        navigate({
+                                            per_page: Number(value),
+                                            page: 1,
+                                        })
+                                    }
+                                    disabled={navigating}
+                                >
+                                    <SelectTrigger
+                                        id="catalog-page-size"
+                                        className="w-20"
                                     >
-                                        Non-Board
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant={
-                                            typeFilter === 'Unknown'
-                                                ? 'default'
-                                                : 'outline'
-                                        }
-                                        size="sm"
-                                        onClick={() =>
-                                            handleTypeFilter('Unknown')
-                                        }
-                                    >
-                                        Unknown
-                                    </Button>
-                                </div>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {[10, 25, 50].map((value) => (
+                                            <SelectItem
+                                                key={value}
+                                                value={String(value)}
+                                            >
+                                                {value}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
-
-                        {/* Table */}
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="h-12">
-                                            Program Name
-                                        </TableHead>
-                                        <TableHead className="h-12 w-40">
-                                            Type
-                                        </TableHead>
-                                        <TableHead className="h-12 w-40">
-                                            Toggle
-                                        </TableHead>
+                                    <TableRow>
+                                        <TableHead>Program name</TableHead>
+                                        <TableHead>Classification</TableHead>
+                                        {canEdit && (
+                                            <TableHead>
+                                                Change classification
+                                            </TableHead>
+                                        )}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {items.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={3}
-                                                className="h-32 text-center text-gray-500 dark:text-gray-400"
-                                            >
-                                                No programs found.
+                                    {programs.data.map((program) => (
+                                        <TableRow key={program.id}>
+                                            <TableCell className="max-w-xl py-4 font-medium whitespace-normal">
+                                                {program.program_name}
                                             </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        items.map((program) => {
-                                            const isBoard =
-                                                program.program_type ===
-                                                'Board';
-
-                                            return (
-                                                <TableRow
-                                                    key={program.id}
-                                                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                                                >
-                                                    <TableCell className="py-3 text-sm font-medium">
-                                                        {program.program_name}
-                                                    </TableCell>
-                                                    <TableCell className="py-3">
-                                                        <Badge
-                                                            className={cn(
-                                                                'text-xs',
-                                                                getProgramTypeBadgeClasses(
-                                                                    program.program_type,
-                                                                ),
-                                                            )}
-                                                        >
-                                                            {
+                                            <TableCell>
+                                                <Badge variant="secondary">
+                                                    {label(
+                                                        program.program_type,
+                                                    )}
+                                                </Badge>
+                                            </TableCell>
+                                            {canEdit && (
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Select
+                                                            value={
+                                                                saving[
+                                                                    program.id
+                                                                ] ??
                                                                 program.program_type
                                                             }
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="py-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <Switch
-                                                                checked={
-                                                                    isBoard
+                                                            disabled={
+                                                                !!saving[
+                                                                    program.id
+                                                                ]
+                                                            }
+                                                            onValueChange={(
+                                                                value,
+                                                            ) =>
+                                                                void save(
+                                                                    program,
+                                                                    value as Classification,
+                                                                )
+                                                            }
+                                                        >
+                                                            <SelectTrigger
+                                                                className="w-40"
+                                                                aria-label={
+                                                                    'Classification for ' +
+                                                                    program.program_name
                                                                 }
-                                                                onCheckedChange={(
-                                                                    checked: boolean,
-                                                                ) =>
-                                                                    handleToggleType(
-                                                                        program,
-                                                                        checked,
-                                                                    )
-                                                                }
-                                                                aria-label="Toggle board/non-board"
-                                                            />
-                                                            <span className="text-xs text-gray-600 dark:text-gray-400">
-                                                                {isBoard
-                                                                    ? 'Board'
-                                                                    : 'Non-Board'}
+                                                            >
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {classifications.map(
+                                                                    (value) => (
+                                                                        <SelectItem
+                                                                            key={
+                                                                                value
+                                                                            }
+                                                                            value={
+                                                                                value
+                                                                            }
+                                                                        >
+                                                                            {label(
+                                                                                value,
+                                                                            )}
+                                                                        </SelectItem>
+                                                                    ),
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {saving[program.id] && (
+                                                            <span
+                                                                role="status"
+                                                                className="flex items-center gap-1 text-xs text-muted-foreground"
+                                                            >
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                                Saving…
                                                             </span>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            )}
+                                        </TableRow>
+                                    ))}
+                                    {programs.data.length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={canEdit ? 3 : 2}
+                                                className="h-32 text-center text-muted-foreground"
+                                            >
+                                                {filters.q || filters.type
+                                                    ? 'No programs match your filters.'
+                                                    : 'No catalog entries yet. Sync from the portal to add program names.'}
+                                            </TableCell>
+                                        </TableRow>
                                     )}
                                 </TableBody>
                             </Table>
                         </div>
-
-                        {/* Pagination */}
-                        {programs.links && programs.links.length > 0 && (
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                {programs.links.map((link, idx) => {
-                                    const label = link.label
-                                        .replace('&laquo;', '«')
-                                        .replace('&raquo;', '»');
-
-                                    return (
-                                        <Button
-                                            key={idx}
-                                            variant={
-                                                link.active
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                            size="sm"
-                                            disabled={!link.url}
-                                            onClick={() => {
-                                                if (!link.url) return;
-                                                router.get(link.url, {}, {
-                                                    preserveScroll: true,
-                                                    preserveState: true,
-                                                });
-                                            }}
-                                        >
-                                            {label}
-                                        </Button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm text-muted-foreground">
+                                Showing {programs.from ?? 0}–{programs.to ?? 0}{' '}
+                                of {programs.total} programs
+                            </p>
+                            <nav
+                                className="flex items-center gap-2"
+                                aria-label="Catalog pagination"
+                            >
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={
+                                        navigating || programs.current_page <= 1
+                                    }
+                                    onClick={() =>
+                                        navigate({
+                                            page: programs.current_page - 1,
+                                        })
+                                    }
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Previous
+                                </Button>
+                                <span className="text-sm">
+                                    Page {programs.current_page} of{' '}
+                                    {programs.last_page}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={
+                                        navigating ||
+                                        programs.current_page >=
+                                            programs.last_page
+                                    }
+                                    onClick={() =>
+                                        navigate({
+                                            page: programs.current_page + 1,
+                                        })
+                                    }
+                                >
+                                    Next
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </nav>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

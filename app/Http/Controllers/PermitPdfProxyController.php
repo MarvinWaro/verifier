@@ -1,12 +1,13 @@
 <?php
+
 // app/Http/Controllers/PermitPdfProxyController.php
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 class PermitPdfProxyController extends Controller
 {
@@ -25,14 +26,15 @@ class PermitPdfProxyController extends Controller
         ]);
 
         $pdfUrl = $request->input('url');
-        $apiKey = (string) env('PORTAL_API', '');
+        $apiKey = (string) config('services.portal.key');
 
         if ($apiKey === '') {
             Log::error('PORTAL_API key is missing in .env');
+
             return response()->json(['error' => 'Server configuration error'], 500);
         }
 
-        $cacheKey = 'pdf_proxy_' . md5($pdfUrl);
+        $cacheKey = 'pdf_proxy_'.md5($pdfUrl);
 
         try {
             $cachedPdf = Cache::remember($cacheKey, 600, function () use ($pdfUrl, $apiKey) {
@@ -40,7 +42,7 @@ class PermitPdfProxyController extends Controller
             });
 
             // Failed or empty / too-small body → not a real PDF
-            if (!$cachedPdf || $cachedPdf['size'] < 100) {
+            if (! $cachedPdf || $cachedPdf['size'] < 100) {
                 Cache::forget($cacheKey);
 
                 // Return a JSON error with the direct URL so frontend can fallback
@@ -103,6 +105,7 @@ class PermitPdfProxyController extends Controller
         // Portal sometimes returns a 200 with a 1-byte body when the file doesn't exist
         if ($size < 100) {
             Log::warning('PDF response too small', ['url' => $pdfUrl, 'size' => $size]);
+
             return null;
         }
 
@@ -116,11 +119,11 @@ class PermitPdfProxyController extends Controller
     {
         try {
             $response = Http::withHeaders([
-                    'PORTAL-API'      => $apiKey,
-                    'Accept'          => 'application/pdf, */*',
-                    'Accept-Encoding' => $acceptEncoding,
-                    'User-Agent'      => 'VerifierApp/1.0',
-                ])
+                'PORTAL-API' => $apiKey,
+                'Accept' => 'application/pdf, */*',
+                'Accept-Encoding' => $acceptEncoding,
+                'User-Agent' => 'VerifierApp/1.0',
+            ])
                 ->withOptions([
                     // Prevent cURL from advertising encodings it can't decode
                     'decode_content' => true,
@@ -129,22 +132,24 @@ class PermitPdfProxyController extends Controller
                 ->retry(2, 500)
                 ->get($url);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('PDF fetch failed', [
-                    'url'      => $url,
-                    'status'   => $response->status(),
+                    'url' => $url,
+                    'status' => $response->status(),
                     'encoding' => $acceptEncoding,
                 ]);
+
                 return null;
             }
 
             return $response->body();
         } catch (\Exception $e) {
             Log::warning('PDF fetch exception', [
-                'url'      => $url,
+                'url' => $url,
                 'encoding' => $acceptEncoding,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }

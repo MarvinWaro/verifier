@@ -25,10 +25,18 @@ class InstitutionController extends Controller
         }
 
         $institutions = collect($hei)->values()->map(function ($row, $i) {
+            $province = trim((string) ($row['province'] ?? ''));
+            $normalizedProvince = strtoupper($province);
+            $region = in_array($normalizedProvince, ['MAGUINDANAO', 'LANAO DEL SUR'], true)
+                ? 'BARMM'
+                : 'REGION XII';
+
             return [
                 'id' => $i + 1,
                 'institution_code' => $row['instCode'],
                 'name' => $row['instName'],
+                'province' => $province ?: null,
+                'region' => $region,
                 'x_coordinate' => $row['xCoordinate'] ?? null,
                 'y_coordinate' => $row['yCoordinate'] ?? null,
                 'ownership_sector' => $row['ownershipSector'] ?? null,
@@ -90,59 +98,27 @@ class InstitutionController extends Controller
      */
     public function programGraduates(Request $request, string $instCode): JsonResponse
     {
-        $programName = trim($request->query('program_name', ''));
-
-        if (! $programName) {
-            return response()->json([]);
+        $validated = $request->validate([
+            'program_name' => ['required', 'string', 'max:1000'],
+            'major' => ['nullable', 'string', 'max:1000'],
+            'year' => ['nullable', 'integer', 'between:1900,2200'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $query = Graduate::where('hei_uii', $instCode)
+            ->where('program_key', \App\Services\GraduateData::nameKey($validated['program_name']))
+            ->where('major_key', \App\Services\GraduateData::nameKey($validated['major'] ?? null));
+        $years = (clone $query)->whereNotNull('graduation_year')->distinct()->orderByDesc('graduation_year')->pluck('graduation_year');
+        if (! empty($validated['year'])) {
+            $query->where('graduation_year', $validated['year']);
         }
+        $page = min((int) ($validated['page'] ?? 1), max(1, (int) ceil((clone $query)->count() / 25)));
+        $graduates = $query->orderBy('last_name')->orderBy('first_name')->orderBy('id')
+            ->paginate(25, ['id', 'first_name', 'last_name', 'middle_name', 'so_number', 'date_graduated'], 'page', $page)
+            ->through(fn ($grad) => [
+                'id' => $grad->id, 'first_name' => $grad->first_name, 'last_name' => $grad->last_name,
+                'middle_name' => $grad->middle_name, 'so_number' => $grad->so_number, 'year_graduated' => $grad->date_graduated,
+            ]);
 
-        try {
-            // Normalize the search term for better matching
-            $normalizedSearch = strtolower(preg_replace('/\s+/', '', $programName));
-
-            $graduates = Graduate::query()
-                ->where('hei_uii', $instCode)
-                ->where(function ($q) use ($programName, $normalizedSearch) {
-                    // Try exact match first
-                    $q->where('course_from_excel', $programName)
-                      // Then try case-insensitive exact match
-                        ->orWhereRaw('LOWER(course_from_excel) = ?', [strtolower($programName)])
-                      // Then try normalized match (removes spaces)
-                        ->orWhereRaw('LOWER(REPLACE(course_from_excel, " ", "")) = ?', [$normalizedSearch])
-                      // Finally, try partial match
-                        ->orWhere('course_from_excel', 'LIKE', "%{$programName}%")
-                      // Also check through program relation if exists
-                        ->orWhereHas('program', function ($p) use ($programName, $normalizedSearch) {
-                            $p->where('program_name', $programName)
-                                ->orWhereRaw('LOWER(program_name) = ?', [strtolower($programName)])
-                                ->orWhereRaw('LOWER(REPLACE(program_name, " ", "")) = ?', [$normalizedSearch])
-                                ->orWhere('program_name', 'LIKE', "%{$programName}%");
-                        });
-                })
-                ->orderBy('last_name')
-                ->orderBy('first_name')
-                ->select(['id', 'first_name', 'last_name', 'middle_name', 'so_number', 'date_graduated'])
-                ->get()
-                ->map(function ($grad) {
-                    return [
-                        'id' => $grad->id,
-                        'first_name' => $grad->first_name,
-                        'last_name' => $grad->last_name,
-                        'middle_name' => $grad->middle_name,
-                        'so_number' => $grad->so_number,
-                        'year_graduated' => $grad->date_graduated,
-                    ];
-                });
-
-            // Log for debugging
-            \Log::info("Graduate search for '{$programName}' at {$instCode}: found ".$graduates->count());
-
-            return response()->json($graduates);
-
-        } catch (\Exception $e) {
-            \Log::error("Error fetching graduates for HEI $instCode, program '{$programName}': ".$e->getMessage());
-
-            return response()->json(['error' => 'Server Error'], 500);
-        }
+        return response()->json(array_merge($graduates->toArray(), ['years' => $years]));
     }
 }

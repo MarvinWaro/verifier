@@ -1,4 +1,6 @@
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -21,6 +23,13 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
     Table,
     TableBody,
     TableCell,
@@ -28,342 +37,526 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+import PermitDialog from '@/components/welcome/permit-dialog';
+import { useProgramRefresh } from '@/hooks/use-program-refresh';
 import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/react';
-import { Check, ChevronsUpDown, Search, AlertCircle, FileText, RefreshCw } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import {
+    filterPrograms,
+    permitColors,
+    permitLabels,
+    permitState,
+} from '@/lib/programs';
 import { cn } from '@/lib/utils';
-import { usePage } from '@inertiajs/react';
-import { type SharedData } from '@/types';
+import type { PortalProgram, ProgramSnapshot } from '@/types/programs';
+import { Head, router } from '@inertiajs/react';
+import {
+    AlertCircle,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsUpDown,
+    FileText,
+    FileWarning,
+    RefreshCw,
+    Search,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
-interface HeiItem {
-    instCode: string;
-    instName: string;
-}
-
-interface Institution {
-    institution_code: string;
-    name: string;
-    type: string | null;
-}
-
-interface Program {
-    id: number;
-    program_name: string;
-    major: string | null;
-    program_type: string | null;
-    program_status: string; // ✅ Added
-    permit_number: string | null;
-    permit_pdf_url: string | null;
-    institution: Institution;
-}
-
-interface Props {
-    programs: Program[];
-    hei: HeiItem[];
+interface Props extends ProgramSnapshot {
+    hei: { instCode: string; instName: string }[];
     selectedInstCode: string | null;
-    error?: string | null;
+    schools_error: string | null;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard().url },
-    { title: 'Programs', href: '/programs' },
-];
+function Filter({
+    id,
+    label,
+    value,
+    options,
+    onChange,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className="space-y-1.5">
+            <label
+                htmlFor={id}
+                className="text-xs font-medium text-muted-foreground"
+            >
+                {label}
+            </label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger id={id} className="h-10">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
 
-export default function ProgramIndex({
+export default function ProgramIndex(props: Props) {
+    return (
+        <AppLayout
+            breadcrumbs={[
+                { title: 'Dashboard', href: '/dashboard' },
+                { title: 'Programs', href: '/programs' },
+            ]}
+        >
+            <Head title="Programs" />
+            <ProgramBrowser key={props.selectedInstCode ?? 'none'} {...props} />
+        </AppLayout>
+    );
+}
+
+function ProgramBrowser({
     programs,
+    last_fetched_at,
+    stale,
+    error,
     hei,
     selectedInstCode,
-    error,
+    schools_error,
 }: Props) {
-    const { auth } = usePage<SharedData>().props;
-    const canClearCache = auth.user.permissions.includes('manage_roles');
-
+    const initial = useMemo(
+        () => ({ programs, last_fetched_at, stale, error }),
+        [programs, last_fetched_at, stale, error],
+    );
+    const { snapshot, refreshing, refresh } = useProgramRefresh(
+        selectedInstCode,
+        initial,
+    );
     const [search, setSearch] = useState('');
+    const [classification, setClassification] = useState('all');
+    const [status, setStatus] = useState('all');
+    const [permit, setPermit] = useState('all');
+    const [page, setPage] = useState(1);
     const [open, setOpen] = useState(false);
-    const [clearingCache, setClearingCache] = useState(false);
-
-    const handleClearCache = async () => {
-        setClearingCache(true);
-        try {
-            const res = await fetch('/artisan/optimize-clear');
-            if (res.ok) {
-                toast.success('Cache cleared', {
-                    description: 'All application caches have been cleared successfully.',
-                });
-            } else {
-                toast.error('Failed to clear cache', {
-                    description: 'Something went wrong. Please try again.',
-                });
-            }
-        } catch {
-            toast.error('Failed to clear cache', {
-                description: 'Network error. Please check your connection.',
-            });
-        } finally {
-            setClearingCache(false);
-        }
-    };
-
+    const [selecting, setSelecting] = useState(false);
+    const [selectedPermit, setSelectedPermit] = useState<PortalProgram | null>(
+        null,
+    );
+    const school = hei.find((item) => item.instCode === selectedInstCode);
+    const filtered = useMemo(
+        () =>
+            filterPrograms(
+                snapshot.programs,
+                search,
+                classification,
+                status,
+                permit,
+            ),
+        [snapshot.programs, search, classification, status, permit],
+    );
+    const pages = Math.max(1, Math.ceil(filtered.length / 10));
     useEffect(() => {
-        if (error) {
-            toast.error('Failed to load programs', { description: error });
-        }
-    }, [error]);
-
-    const filteredPrograms = useMemo(() => {
-        const q = search.toLowerCase();
-        return programs.filter(
-            (p) =>
-                p.program_name.toLowerCase().includes(q) ||
-                p.institution.name.toLowerCase().includes(q) ||
-                (p.permit_number || '').toLowerCase().includes(q),
-        );
-    }, [programs, search]);
-
-    const getProgramTypeColor = (type: string | null) => {
-        switch (type) {
-            case 'Board':
-                return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-900 dark:text-emerald-300';
-            case 'Non-Board':
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
-            case 'Unknown':
-            default:
-                return 'bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-900 dark:text-amber-300';
-        }
-    };
-
-    // ✅ Added: Program Status Badge Color
-    const getProgramStatusColor = (status: string) => {
-        const normalizedStatus = status.toLowerCase();
-        switch (normalizedStatus) {
-            case 'active':
-                return 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300';
-            case 'inactive':
-            case 'closed':
-                return 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300';
-            case 'suspended':
-                return 'bg-orange-100 text-orange-800 hover:bg-orange-100 dark:bg-orange-900 dark:text-orange-300';
-            default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300';
-        }
-    };
-
-    const onSelectInst = (val: string) => {
-        setOpen(false);
-        router.get(
-            '/programs',
-            { instCode: val },
-            { preserveScroll: true, preserveState: true },
-        );
-    };
-
-    const selectedInstitution = hei.find((h) => h.instCode === selectedInstCode);
+        setPage((previous) => Math.min(previous, pages));
+    }, [pages]);
+    const activePage = Math.min(page, pages);
+    const start = (activePage - 1) * 10;
+    const statusOptions = [
+        ...new Set(
+            snapshot.programs.map((item) => item.program_status.toLowerCase()),
+        ),
+    ].sort();
+    const changeFilter =
+        (setter: (value: string) => void) => (value: string) => {
+            setter(value);
+            setPage(1);
+        };
+    const publicSchool = selectedPermit?.institution.type === 'public';
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Programs" />
-
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-start justify-between gap-4">
-                        <div>
-                            <CardTitle>All Programs</CardTitle>
-                            <CardDescription>
-                                {selectedInstCode
-                                    ? `Showing programs for ${selectedInstCode} — ${filteredPrograms.length} item${
-                                          filteredPrograms.length !== 1 ? 's' : ''
-                                      }`
-                                    : `Total of ${filteredPrograms.length} program${
-                                          filteredPrograms.length !== 1 ? 's' : ''
-                                      }`}
-                            </CardDescription>
+        <div className="flex flex-1 flex-col gap-4 p-4">
+            <Card>
+                <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                        <CardTitle>Programs</CardTitle>
+                        <CardDescription>
+                            {school?.instName ??
+                                'Choose an institution to browse programs'}
+                        </CardDescription>
+                        <p className="text-xs text-muted-foreground">
+                            {snapshot.programs.length} programs · Last fetched:{' '}
+                            {snapshot.last_fetched_at
+                                ? new Date(
+                                      snapshot.last_fetched_at,
+                                  ).toLocaleString()
+                                : 'Not yet available'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Checks for updates every 5 minutes while this page
+                            is visible.
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        disabled={!selectedInstCode || refreshing || selecting}
+                        onClick={() => void refresh()}
+                        className="shrink-0 gap-2"
+                    >
+                        <RefreshCw
+                            className={cn(
+                                'h-4 w-4',
+                                refreshing && 'animate-spin',
+                            )}
+                        />
+                        {refreshing ? 'Refreshing…' : 'Refresh from portal'}
+                    </Button>
+                </CardHeader>
+                <CardContent
+                    className="space-y-5"
+                    aria-busy={refreshing || selecting}
+                >
+                    {(snapshot.error || schools_error) && (
+                        <Alert role="status">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                                {snapshot.error ?? schools_error}{' '}
+                                {snapshot.last_fetched_at
+                                    ? 'Showing previously fetched data.'
+                                    : 'Portal data is currently unavailable.'}
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
+                        <Popover open={open} onOpenChange={setOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={open}
+                                    aria-label="Choose institution"
+                                    disabled={selecting}
+                                    className="h-10 w-full justify-between"
+                                >
+                                    <span className="truncate">
+                                        {selecting
+                                            ? 'Loading institution…'
+                                            : school
+                                              ? school.instCode +
+                                                ' — ' +
+                                                school.instName
+                                              : 'Choose an institution…'}
+                                    </span>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                                className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
+                                align="start"
+                            >
+                                <Command>
+                                    <CommandInput placeholder="Search institutions…" />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            No institution found.
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                            {hei.map((item, index) => (
+                                                <CommandItem
+                                                    key={item.instCode + index}
+                                                    value={
+                                                        item.instCode +
+                                                        ' ' +
+                                                        item.instName
+                                                    }
+                                                    onSelect={() => {
+                                                        setOpen(false);
+                                                        router.get(
+                                                            '/programs',
+                                                            {
+                                                                instCode:
+                                                                    item.instCode,
+                                                            },
+                                                            {
+                                                                preserveScroll: true,
+                                                                onStart: () =>
+                                                                    setSelecting(
+                                                                        true,
+                                                                    ),
+                                                                onFinish: () =>
+                                                                    setSelecting(
+                                                                        false,
+                                                                    ),
+                                                            },
+                                                        );
+                                                    }}
+                                                    className="gap-2 py-3"
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            'h-4 w-4 shrink-0',
+                                                            selectedInstCode !==
+                                                                item.instCode &&
+                                                                'opacity-0',
+                                                        )}
+                                                    />
+                                                    <span>
+                                                        {item.instCode} —{' '}
+                                                        {item.instName}
+                                                    </span>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <div className="relative">
+                            <Search className="absolute top-3 left-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                aria-label="Search programs, majors or permit numbers"
+                                placeholder="Search program, major or permit…"
+                                value={search}
+                                onChange={(event) =>
+                                    changeFilter(setSearch)(event.target.value)
+                                }
+                                className="h-10 pl-10"
+                            />
                         </div>
-                        {canClearCache && (
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <Filter
+                            id="classification"
+                            label="Classification"
+                            value={classification}
+                            onChange={changeFilter(setClassification)}
+                            options={[
+                                { value: 'all', label: 'All classifications' },
+                                { value: 'Unknown', label: 'Unclassified' },
+                                { value: 'Board', label: 'Board' },
+                                { value: 'Non-Board', label: 'Non-Board' },
+                            ]}
+                        />
+                        <Filter
+                            id="program-status"
+                            label="Program status"
+                            value={status}
+                            onChange={changeFilter(setStatus)}
+                            options={[
+                                { value: 'all', label: 'All statuses' },
+                                ...[
+                                    ...new Set([
+                                        ...statusOptions,
+                                        ...(status !== 'all' ? [status] : []),
+                                    ]),
+                                ].map((value) => ({
+                                    value,
+                                    label:
+                                        value.charAt(0).toUpperCase() +
+                                        value.slice(1),
+                                })),
+                            ]}
+                        />
+                        <Filter
+                            id="permit-information"
+                            label="Permit information"
+                            value={permit}
+                            onChange={changeFilter(setPermit)}
+                            options={[
+                                {
+                                    value: 'all',
+                                    label: 'All permit information',
+                                },
+                                ...Object.entries(permitLabels).map(
+                                    ([value, label]) => ({ value, label }),
+                                ),
+                            ]}
+                        />
+                    </div>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Program / Major</TableHead>
+                                    <TableHead>Classification</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Permit information</TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">Actions</span>
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filtered
+                                    .slice(start, start + 10)
+                                    .map((program) => {
+                                        const state = permitState(program);
+                                        const Icon =
+                                            state === 'document'
+                                                ? FileText
+                                                : state === 'number'
+                                                  ? FileWarning
+                                                  : AlertCircle;
+                                        return (
+                                            <TableRow key={program.id}>
+                                                <TableCell className="max-w-md py-4 whitespace-normal">
+                                                    <p className="font-medium">
+                                                        {program.program_name}
+                                                    </p>
+                                                    {program.major && (
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {program.major}
+                                                        </p>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">
+                                                        {program.program_type ===
+                                                        'Unknown'
+                                                            ? 'Unclassified'
+                                                            : program.program_type}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={
+                                                            program.program_status.toLowerCase() ===
+                                                            'active'
+                                                                ? 'bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                                                : ''
+                                                        }
+                                                    >
+                                                        {program.program_status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            'gap-1.5 whitespace-normal',
+                                                            permitColors[state],
+                                                        )}
+                                                    >
+                                                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                                                        {permitLabels[state]}
+                                                    </Badge>
+                                                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                                                        {program.permit_number ??
+                                                            'Permit number not recorded'}
+                                                    </p>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setSelectedPermit(
+                                                                program,
+                                                            )
+                                                        }
+                                                        aria-label={
+                                                            'View permit for ' +
+                                                            program.program_name
+                                                        }
+                                                    >
+                                                        <FileText className="h-3.5 w-3.5" />
+                                                        View Permit
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                {filtered.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="h-32 text-center text-muted-foreground"
+                                        >
+                                            {snapshot.error &&
+                                            !snapshot.last_fetched_at
+                                                ? 'Programs are unavailable. Try Refresh from portal.'
+                                                : !selectedInstCode
+                                                  ? 'Choose an institution to view its programs.'
+                                                  : snapshot.programs.length ===
+                                                      0
+                                                    ? 'The portal returned no programs for this institution.'
+                                                    : 'No programs match these filters.'}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p
+                            className="text-sm text-muted-foreground"
+                            aria-live="polite"
+                        >
+                            Showing {filtered.length ? start + 1 : 0}–
+                            {Math.min(start + 10, filtered.length)} of{' '}
+                            {filtered.length} programs
+                        </p>
+                        <nav
+                            aria-label="Program pagination"
+                            className="flex items-center gap-2"
+                        >
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={handleClearCache}
-                                disabled={clearingCache}
-                                className="shrink-0 gap-2"
+                                disabled={activePage === 1}
+                                onClick={() => setPage(activePage - 1)}
                             >
-                                <RefreshCw className={cn('h-4 w-4', clearingCache && 'animate-spin')} />
-                                {clearingCache ? 'Clearing Cache…' : 'Clear Cache'}
+                                <ChevronLeft className="h-4 w-4" />
+                                Previous
                             </Button>
-                        )}
-                    </CardHeader>
-
-                    <CardContent>
-                        <div className="mb-6 flex flex-col gap-3 lg:flex-row">
-                            {/* Institution Selector */}
-                            <div className="w-full lg:w-2/3">
-                                <Popover open={open} onOpenChange={setOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            aria-expanded={open}
-                                            aria-label="Choose institution"
-                                            className="h-10 w-full justify-between"
-                                        >
-                                            <span className="truncate text-left">
-                                                {selectedInstitution ? (
-                                                    <>
-                                                        <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                            {selectedInstitution.instCode}
-                                                        </span>
-                                                        <span className="text-muted-foreground"> — </span>
-                                                        <span>{selectedInstitution.instName}</span>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-muted-foreground">
-                                                        Choose an institution…
-                                                    </span>
-                                                )}
-                                            </span>
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[650px] p-0" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search institutions..." className="h-10" />
-                                            <CommandList>
-                                                <CommandEmpty>No institution found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    {hei.map((h) => (
-                                                        <CommandItem
-                                                            key={h.instCode}
-                                                            value={`${h.instCode} ${h.instName}`}
-                                                            onSelect={() => onSelectInst(h.instCode)}
-                                                            className="flex items-center gap-3 py-3"
-                                                        >
-                                                            <Check
-                                                                className={cn(
-                                                                    'h-4 w-4 shrink-0',
-                                                                    selectedInstCode === h.instCode ? 'opacity-100' : 'opacity-0',
-                                                                )}
-                                                            />
-                                                            <span className="flex-1">
-                                                                <span className="font-semibold text-blue-600 dark:text-blue-400">
-                                                                    {h.instCode}
-                                                                </span>
-                                                                <span className="text-muted-foreground"> — </span>
-                                                                <span>{h.instName}</span>
-                                                            </span>
-                                                        </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            {/* Search Input */}
-                            <div className="relative w-full lg:w-1/3">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
-                                <Input
-                                    type="text"
-                                    placeholder="Search programs..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="h-10 w-full pl-10"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Table */}
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="hover:bg-transparent">
-                                        <TableHead className="h-12">Program Name</TableHead>
-                                        <TableHead className="h-12">Major</TableHead>
-                                        <TableHead className="h-12">Type</TableHead>
-                                        <TableHead className="h-12">Status</TableHead>
-                                        <TableHead className="h-12">Permit Number</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredPrograms.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="h-32 text-center text-gray-500">
-                                                No programs available
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        filteredPrograms.map((program) => {
-                                            const typeLabel = program.program_type || 'Unknown';
-                                            const hasPermit = !!program.permit_number;
-                                            const hasPdf = !!program.permit_pdf_url;
-
-                                            return (
-                                                <TableRow key={program.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                                                    <TableCell className="py-4 font-medium">
-                                                        {program.program_name}
-                                                    </TableCell>
-                                                    <TableCell className="py-4 text-sm text-gray-600 dark:text-gray-400">
-                                                        {program.major || '-'}
-                                                    </TableCell>
-                                                    <TableCell className="py-4">
-                                                        <Badge className={getProgramTypeColor(program.program_type)}>
-                                                            {typeLabel}
-                                                        </Badge>
-                                                    </TableCell>
-
-                                                    {/* ✅ PROGRAM STATUS BADGE */}
-                                                    <TableCell className="py-4">
-                                                        <Badge className={getProgramStatusColor(program.program_status)}>
-                                                            {program.program_status}
-                                                        </Badge>
-                                                    </TableCell>
-
-                                                    {/* ✅ PERMIT BADGE LOGIC */}
-                                                    <TableCell className="py-4">
-                                                        {hasPermit ? (
-                                                            hasPdf ? (
-                                                                // CASE 1: Has Permit + Has PDF = GREEN
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className="border-green-200 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300 gap-1.5"
-                                                                >
-                                                                    <FileText className="h-3 w-3" />
-                                                                    <span className="font-mono">{program.permit_number}</span>
-                                                                </Badge>
-                                                            ) : (
-                                                                // CASE 2: Has Permit + No PDF = PURPLE
-                                                                <Badge
-                                                                    variant="outline"
-                                                                    className="border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                                                                >
-                                                                    <span className="font-mono">{program.permit_number}</span>
-                                                                </Badge>
-                                                            )
-                                                        ) : (
-                                                            // CASE 3: No Permit = RED (Check with CHED)
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="border-red-200 bg-red-50 text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 gap-1.5"
-                                                            >
-                                                                <AlertCircle className="h-3 w-3" />
-                                                                <span className="font-bold text-[10px]">CHECK WITH CHED</span>
-                                                            </Badge>
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </AppLayout>
+                            <span className="text-sm">
+                                Page {activePage} of {pages}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={activePage === pages}
+                                onClick={() => setPage(activePage + 1)}
+                            >
+                                Next
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </nav>
+                    </div>
+                </CardContent>
+            </Card>
+            <PermitDialog
+                open={selectedPermit !== null}
+                onOpenChange={(value) => {
+                    if (!value) setSelectedPermit(null);
+                }}
+                program={
+                    selectedPermit
+                        ? {
+                              id: selectedPermit.id,
+                              name: selectedPermit.program_name,
+                              major: selectedPermit.major,
+                              copNumber: publicSchool
+                                  ? selectedPermit.permit_number
+                                  : null,
+                              grNumber: publicSchool
+                                  ? null
+                                  : selectedPermit.permit_number,
+                              permitPdfUrl: selectedPermit.permit_pdf_url,
+                              institution: {
+                                  code: selectedPermit.institution
+                                      .institution_code,
+                                  name: selectedPermit.institution.name,
+                                  type: selectedPermit.institution.type,
+                              },
+                          }
+                        : null
+                }
+            />
+        </div>
     );
 }

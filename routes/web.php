@@ -1,21 +1,19 @@
 <?php
 
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use App\Http\Controllers\InstitutionController;
-use App\Http\Controllers\ProgramController;
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\ConcernController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GraduateController;
 use App\Http\Controllers\ImportController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\InstitutionController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\ProgramCatalogController;
-use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PermitPdfProxyController;
-use App\Http\Controllers\ConcernController;
+use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WelcomeController;
+use Illuminate\Support\Facades\Route;
+
 // Note: ConcernController and WelcomeController API methods are handled in api.php
 
 /*
@@ -25,13 +23,6 @@ use App\Http\Controllers\RoleController;
 */
 Route::get('/', [WelcomeController::class, 'index'])->name('home');
 Route::get('/hei-map', [MapController::class, 'heiMap'])->name('hei-map');
-
-// Cache Clear (public — used on both landing page and admin programs page)
-Route::get('artisan/optimize-clear', function () {
-    Artisan::call('optimize:clear');
-    return response('Cache cleared successfully.', 200)
-        ->header('Content-Type', 'text/plain');
-})->name('artisan.optimize-clear');
 
 /*
 |--------------------------------------------------------------------------
@@ -73,7 +64,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | Programs (Authenticated)
     |--------------------------------------------------------------------------
     */
-    Route::get('programs', [ProgramController::class, 'index'])->name('programs.index');
+    Route::get('programs', [ProgramController::class, 'index'])->middleware('can:view_programs')->name('programs.index');
+    Route::post('programs/refresh', [ProgramController::class, 'refresh'])
+        ->middleware(['can:view_programs', 'throttle:12,1'])->name('programs.refresh');
 
     /*
     |--------------------------------------------------------------------------
@@ -81,9 +74,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('programs/catalog', [ProgramCatalogController::class, 'index'])
+        ->middleware('can:view_programs')
         ->name('programs.catalog.index');
 
+    Route::post('programs/catalog/sync', [ProgramCatalogController::class, 'startSync'])
+        ->middleware(['can:update_program_catalog', 'throttle:6,1'])->name('programs.catalog.sync');
+    Route::get('programs/catalog/sync/{run}', [ProgramCatalogController::class, 'syncStatus'])
+        ->middleware(['can:update_program_catalog', 'throttle:60,1'])->name('programs.catalog.sync-status');
     Route::patch('programs/catalog/{programCatalog}', [ProgramCatalogController::class, 'update'])
+        ->middleware('can:update_program_catalog')
         ->name('programs.catalog.update');
 
     /*
@@ -145,9 +144,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('institutions/clear', [ImportController::class, 'clearInstitutions'])
             ->middleware('can:clear_data')
             ->name('institutions.clear');
-        Route::post('graduates', [ImportController::class, 'importGraduates'])
-            ->middleware('can:import_graduates')
+        Route::post('graduates', [\App\Http\Controllers\GraduateImportController::class, 'store'])
+            ->middleware(['can:import_graduates', 'throttle:6,1'])
             ->name('graduates');
+        Route::prefix('graduates/runs')->middleware('can:import_graduates')->group(function () {
+            Route::get('/', [\App\Http\Controllers\GraduateImportController::class, 'index']);
+            Route::get('{run}', [\App\Http\Controllers\GraduateImportController::class, 'show'])->middleware('throttle:60,1');
+            Route::post('{run}/retry', [\App\Http\Controllers\GraduateImportController::class, 'retry'])->middleware('throttle:6,1');
+            Route::post('{run}/process', [\App\Http\Controllers\GraduateImportController::class, 'process'])->middleware('throttle:60,1');
+            Route::get('{run}/review', [\App\Http\Controllers\GraduateImportController::class, 'review'])->middleware('throttle:60,1');
+            Route::get('{run}/issues', [\App\Http\Controllers\GraduateImportController::class, 'issues']);
+        });
         Route::post('graduates/clear', [ImportController::class, 'clearGraduates'])
             ->middleware('can:clear_data')
             ->name('graduates.clear');

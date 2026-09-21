@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Graduate;
 use App\Models\ProgramCatalog;
-use App\Models\ActivityLog;
 use App\Services\PortalService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -26,34 +26,42 @@ class GraduateController extends Controller
 
         // Get all HEIs from the Portal once (cached)
         $heiFromPortal = collect($portalService->fetchAllHEI())->keyBy('instCode');
+        $catalogTypes = ProgramCatalog::pluck('program_type', 'normalized_name');
+        $matchingHeis = $heiFromPortal->filter(fn ($hei) => str_contains(mb_strtolower($hei['instName']), mb_strtolower($q)))->keys()->all();
 
         $query = Graduate::with(['program.institution', 'institution']);
 
         if ($q !== '') {
-            $query->where(function ($sub) use ($q) {
+            $query->where(function ($sub) use ($q, $matchingHeis) {
                 $sub->where('last_name', 'like', "%{$q}%")
                     ->orWhere('first_name', 'like', "%{$q}%")
                     ->orWhere('middle_name', 'like', "%{$q}%")
                     ->orWhere('so_number', 'like', "%{$q}%")
                     ->orWhere('academic_year', 'like', "%{$q}%")
-                    ->orWhere('hei_uii', 'like', "%{$q}%");
+                    ->orWhere('hei_uii', 'like', "%{$q}%")
+                    ->orWhere('course_from_excel', 'like', "%{$q}%")
+                    ->orWhere('major_from_excel', 'like', "%{$q}%")
+                    ->orWhere('psced_code', 'like', "%{$q}%")
+                    ->orWhere('date_graduated', 'like', "%{$q}%")
+                    ->orWhereIn('hei_uii', $matchingHeis);
             })
-            ->orWhereHas('program', function ($sub) use ($q) {
-                $sub->where('program_name', 'like', "%{$q}%")
-                    ->orWhere('major', 'like', "%{$q}%");
-            })
-            ->orWhereHas('program.institution', function ($sub) use ($q) {
-                $sub->where('name', 'like', "%{$q}%")
-                    ->orWhere('institution_code', 'like', "%{$q}%");
-            });
+                ->orWhereHas('program', function ($sub) use ($q) {
+                    $sub->where('program_name', 'like', "%{$q}%")
+                        ->orWhere('major', 'like', "%{$q}%");
+                })
+                ->orWhereHas('program.institution', function ($sub) use ($q) {
+                    $sub->where('name', 'like', "%{$q}%")
+                        ->orWhere('institution_code', 'like', "%{$q}%");
+                });
         }
 
         $graduates = $query
             ->orderBy('last_name')
             ->orderBy('first_name')
+            ->orderBy('id')
             ->paginate(25)
             ->withQueryString()
-            ->through(function (Graduate $graduate) use ($heiFromPortal) {
+            ->through(function (Graduate $graduate) use ($heiFromPortal, $catalogTypes) {
                 $portalHei = $graduate->hei_uii
                     ? $heiFromPortal->get($graduate->hei_uii)
                     : null;
@@ -78,51 +86,47 @@ class GraduateController extends Controller
 
                 // Base program fields (from relation if present; otherwise from Excel)
                 $programName = $graduate->program?->program_name ?? $graduate->course_from_excel;
-                $major       = $graduate->program?->major ?? $graduate->major_from_excel;
+                $major = $graduate->program?->major ?? $graduate->major_from_excel;
 
                 // Look up program type from ProgramCatalog using normalized name
                 $programType = 'Unknown';
                 if ($programName) {
                     $normalized = ProgramCatalog::normalizeName($programName);
-                    $catalog    = ProgramCatalog::where('normalized_name', $normalized)->first();
-
-                    if ($catalog) {
-                        $programType = $catalog->program_type ?? 'Unknown';
-                    }
+                    $programType = $catalogTypes->get($normalized, 'Unknown');
                 }
 
                 $programData = [
-                    'program_name'  => $programName,
-                    'major'         => $major,
-                    'program_type'  => $programType,
+                    'program_name' => $programName,
+                    'major' => $major,
+                    'program_type' => $programType,
                     'permit_number' => $graduate->program?->permit_number,
-                    'institution'   => [
+                    'institution' => [
                         'institution_code' => $institutionCode,
-                        'name'             => $institutionName,
-                        'type'             => $institutionType,
+                        'name' => $institutionName,
+                        'type' => $institutionType,
                     ],
                 ];
 
                 return [
-                    'id'                => $graduate->id,
+                    'id' => $graduate->id,
                     'student_id_number' => $graduate->student_id_number,
-                    'date_of_birth'     => $graduate->date_of_birth,
-                    'last_name'         => $graduate->last_name,
-                    'first_name'        => $graduate->first_name,
-                    'middle_name'       => $graduate->middle_name,
-                    'extension_name'    => $graduate->extension_name,
-                    'sex'               => $graduate->sex,
-                    'year_graduated'    => $graduate->date_graduated,
-                    'academic_year'     => $graduate->academic_year,
-                    'hei_uii'           => $graduate->hei_uii,
-                    'program'           => $programData,
-                    'so_number'         => $graduate->so_number,
+                    'date_of_birth' => $graduate->date_of_birth,
+                    'last_name' => $graduate->last_name,
+                    'first_name' => $graduate->first_name,
+                    'middle_name' => $graduate->middle_name,
+                    'extension_name' => $graduate->extension_name,
+                    'sex' => $graduate->sex,
+                    'year_graduated' => $graduate->date_graduated,
+                    'academic_year' => $graduate->academic_year,
+                    'hei_uii' => $graduate->hei_uii,
+                    'program' => $programData,
+                    'so_number' => $graduate->so_number,
                 ];
             });
 
         return Inertia::render('graduates/index', [
             'graduates' => $graduates,
-            'filters'   => [
+            'filters' => [
                 'q' => $q !== '' ? $q : null,
             ],
         ]);
@@ -135,19 +139,26 @@ class GraduateController extends Controller
     public function update(Request $request, Graduate $graduate)
     {
         $this->authorize('update', $graduate);
+        abort_if(\App\Models\GraduateImport::where('active_slot', 1)->exists(), 409, 'Wait for the active import before editing graduate records.');
 
         $validated = $request->validate([
-            'last_name'      => 'required|string|max:255',
-            'first_name'     => 'required|string|max:255',
-            'middle_name'    => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
             'extension_name' => 'nullable|string|max:255',
-            'sex'            => 'nullable|in:MALE,FEMALE',
+            'sex' => 'nullable|in:MALE,FEMALE',
             'date_graduated' => 'nullable|string|max:20',
-            'academic_year'  => 'nullable|string|max:20',
-            'so_number'      => 'nullable|string|max:255',
-            'program_name'   => 'required|string|max:500',
-            'major'          => 'nullable|string|max:500',
+            'academic_year' => 'nullable|string|max:20',
+            'so_number' => 'nullable|string|max:255',
+            'program_name' => 'required|string|max:500',
+            'major' => 'nullable|string|max:500',
         ]);
+
+        // Snapshot BEFORE for logging
+        $identity = \App\Services\GraduateData::identity($graduate->hei_uii, $validated['so_number'] ?? null);
+        if ($identity && Graduate::where('identity_key', $identity)->where('id', '!=', $graduate->id)->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['so_number' => 'This institution already has a student with this SO number.']);
+        }
 
         // Snapshot BEFORE for logging
         $before = $graduate->only([
@@ -164,48 +175,48 @@ class GraduateController extends Controller
         ]);
 
         // --- Update main fields ---
-        $graduate->last_name      = $validated['last_name'];
-        $graduate->first_name     = $validated['first_name'];
-        $graduate->middle_name    = $validated['middle_name'] ?? null;
+        $graduate->last_name = $validated['last_name'];
+        $graduate->first_name = $validated['first_name'];
+        $graduate->middle_name = $validated['middle_name'] ?? null;
         $graduate->extension_name = $validated['extension_name'] ?? null;
-        $graduate->sex            = $validated['sex'] ?? null;
+        $graduate->sex = $validated['sex'] ?? null;
         $graduate->date_graduated = $validated['date_graduated'] ?: $graduate->date_graduated;
-        $graduate->academic_year  = $validated['academic_year'] ?? null;
-        $graduate->so_number      = $validated['so_number'] ?? null;
+        $graduate->academic_year = $validated['academic_year'] ?? null;
+        $graduate->so_number = $validated['so_number'] ?? null;
 
         // Excel-backed program fields (for reference / ProgramCatalog matching)
         $graduate->course_from_excel = $validated['program_name'];
-        $graduate->major_from_excel  = $validated['major'] ?? null;
+        $graduate->major_from_excel = $validated['major'] ?? null;
 
         $graduate->save();
 
         // --- Log the edit ---
         ActivityLog::create([
-            'user_id'      => $request->user()?->id,
-            'action'       => 'graduate_update',
+            'user_id' => $request->user()?->id,
+            'action' => 'graduate_update',
             'subject_type' => Graduate::class,
-            'subject_id'   => $graduate->id,
-            'summary'      => sprintf(
+            'subject_id' => $graduate->id,
+            'summary' => sprintf(
                 'Updated graduate %s %s (SO: %s)',
                 $graduate->first_name,
                 $graduate->last_name,
                 $graduate->so_number ?? 'N/A'
             ),
-            'properties'   => [
+            'properties' => [
                 'graduate_id' => $graduate->id,
-                'so_number'   => $graduate->so_number,
-                'before'      => $before,
-                'after'       => [
-                    'last_name'         => $graduate->last_name,
-                    'first_name'        => $graduate->first_name,
-                    'middle_name'       => $graduate->middle_name,
-                    'extension_name'    => $graduate->extension_name,
-                    'sex'               => $graduate->sex,
-                    'date_graduated'    => $graduate->date_graduated,
-                    'academic_year'     => $graduate->academic_year,
-                    'so_number'         => $graduate->so_number,
+                'so_number' => $graduate->so_number,
+                'before' => $before,
+                'after' => [
+                    'last_name' => $graduate->last_name,
+                    'first_name' => $graduate->first_name,
+                    'middle_name' => $graduate->middle_name,
+                    'extension_name' => $graduate->extension_name,
+                    'sex' => $graduate->sex,
+                    'date_graduated' => $graduate->date_graduated,
+                    'academic_year' => $graduate->academic_year,
+                    'so_number' => $graduate->so_number,
                     'course_from_excel' => $graduate->course_from_excel,
-                    'major_from_excel'  => $graduate->major_from_excel,
+                    'major_from_excel' => $graduate->major_from_excel,
                 ],
             ],
         ]);
@@ -222,26 +233,27 @@ class GraduateController extends Controller
     public function destroy(Request $request, Graduate $graduate)
     {
         $this->authorize('delete', $graduate);
+        abort_if(\App\Models\GraduateImport::where('active_slot', 1)->exists(), 409, 'Wait for the active import before deleting graduate records.');
 
-        $id       = $graduate->id;
+        $id = $graduate->id;
         $soNumber = $graduate->so_number;
-        $name     = trim($graduate->first_name . ' ' . $graduate->last_name);
+        $name = trim($graduate->first_name.' '.$graduate->last_name);
 
         $graduate->delete();
 
         ActivityLog::create([
-            'user_id'      => $request->user()?->id,
-            'action'       => 'graduate_delete',
+            'user_id' => $request->user()?->id,
+            'action' => 'graduate_delete',
             'subject_type' => Graduate::class,
-            'subject_id'   => $id,
-            'summary'      => sprintf(
+            'subject_id' => $id,
+            'summary' => sprintf(
                 'Deleted graduate %s (SO: %s)',
                 $name !== '' ? $name : "ID {$id}",
                 $soNumber ?? 'N/A'
             ),
-            'properties'   => [
+            'properties' => [
                 'graduate_id' => $id,
-                'so_number'   => $soNumber,
+                'so_number' => $soNumber,
             ],
         ]);
 

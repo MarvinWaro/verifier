@@ -5,48 +5,26 @@ namespace App\Http\Controllers;
 use App\Models\Graduate;
 use App\Services\PortalService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index(PortalService $portalService)
+    public function index(Request $request, PortalService $portalService, \App\Services\DashboardAnalytics $analytics)
     {
-        // 1. Fetch Key Metrics
-        $totalGraduates = Graduate::count();
+        $filters = $request->validate([
+            'year' => ['nullable', 'integer', 'between:1000,9999'],
+            'institution' => ['nullable', 'string', 'max:100', \Illuminate\Validation\Rule::exists('graduates', 'hei_uii')],
+        ]);
+        $year = isset($filters['year']) ? (int) $filters['year'] : null;
+        $institution = $filters['institution'] ?? null;
+        $snapshot = $portalService->schoolSnapshot();
 
-        // Fetch Institutions from API (Cached by Service)
-        $institutions = $portalService->fetchAllHEI();
-        $totalInstitutions = count($institutions);
-
-        // Count distinct programs from API-sourced data
-        $totalPrograms = Graduate::distinct('course_from_excel')
-            ->whereNotNull('course_from_excel')
-            ->count('course_from_excel');
-
-        // 2. Top Programs by Graduate Count
-        $topPrograms = Graduate::select('course_from_excel', DB::raw('COUNT(*) as count'))
-            ->whereNotNull('course_from_excel')
-            ->groupBy('course_from_excel')
-            ->orderByDesc('count')
-            ->limit(10)
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'program' => $item->course_from_excel,
-                    'count' => $item->count,
-                ];
-            });
-
-        // 3. Render View with Data
-        return Inertia::render('dashboard', [
-            'stats' => [
-                'graduates' => $totalGraduates,
-                'institutions' => $totalInstitutions,
-                'programs' => $totalPrograms,
-            ],
-            'chartData' => [
-                'topPrograms' => $topPrograms,
+        return Inertia::render('dashboard', $analytics->summarize($year, $institution, $snapshot['data']) + [
+            'filters' => ['year' => $year, 'institution' => $institution],
+            'portal' => [
+                'count' => $snapshot['last_fetched_at'] ? count($snapshot['data']) : null,
+                'stale' => $snapshot['stale'],
+                'lastFetchedAt' => $snapshot['last_fetched_at'],
             ],
         ]);
     }
@@ -80,7 +58,7 @@ class DashboardController extends Controller
 
                 return [
                     'id' => $grad->id,
-                    'name' => $grad->first_name . ' ' . $grad->last_name,
+                    'name' => $grad->first_name.' '.$grad->last_name,
                     'so_number' => $grad->so_number,
                     'program' => $grad->course_from_excel,
                     'institution' => $institutionData['instName'] ?? 'Unknown Institution',
@@ -111,10 +89,10 @@ class DashboardController extends Controller
             'last_name' => $graduate->last_name,
             'middle_name' => $graduate->middle_name,
             'extension_name' => $graduate->extension_name,
-            'full_name' => trim($graduate->first_name . ' ' .
-                               ($graduate->middle_name ? $graduate->middle_name . ' ' : '') .
-                               $graduate->last_name .
-                               ($graduate->extension_name ? ' ' . $graduate->extension_name : '')),
+            'full_name' => trim($graduate->first_name.' '.
+                               ($graduate->middle_name ? $graduate->middle_name.' ' : '').
+                               $graduate->last_name.
+                               ($graduate->extension_name ? ' '.$graduate->extension_name : '')),
             'sex' => $graduate->sex,
             'date_of_birth' => $graduate->date_of_birth,
             'so_number' => $graduate->so_number,

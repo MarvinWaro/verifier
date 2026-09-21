@@ -4,244 +4,143 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class PortalService
 {
-    /** Base endpoints */
-    protected string $baseUrl      = 'https://portal.chedro12.com/api';
-    protected string $programsPath = '/fetch-programs';
-    protected string $allHeiPath   = '/fetch-all-hei';
-
-    /** Permit viewer base URL (for PDF links) */
-    protected string $permitBaseUrl = '';
-
-    /** Config */
-    protected int $timeout  = 30;   // seconds
-    protected int $retries  = 3;    // attempts
-    protected int $backoff  = 500;  // ms between retries
-    protected int $cacheTtl = 600;  // seconds
-
-    /** Secret (env) */
-    protected string $apiKey = '';  // default prevents null-type crash
-
-    public function __construct()
-    {
-        // Read from .env (no config file needed)
-        $this->apiKey = (string) env('PORTAL_API', '');
-
-        // Base URL to view permit PDFs (e.g. GR-2012-041)
-        $this->permitBaseUrl = (string) env(
-            'PORTAL_PERMIT_BASE_URL',
-            'https://portal.chedro12.com/govt_auth/view_file'
-        );
-
-        // Optional: log if missing (helps debugging)
-        if ($this->apiKey === '') {
-            logger()->error('PORTAL_API is missing in .env');
-        }
-    }
-
-    /**
-     * Get unique program names for an institution.
-     * Returns: [ "BSIT", "BSBA", ... ]
-     */
     public function fetchPrograms(string $instCode): array
     {
-        $instCode = trim($instCode);
-        if ($instCode === '') {
-            return [];
-        }
-
-        $cacheKey = "chedro12_programs_{$instCode}";
-
-        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($instCode) {
-            $data = $this->postToCHED($instCode);
-
-            return collect($data ?? [])
-                ->pluck('programName')
-                ->filter(fn ($v) => filled($v))
-                ->map(fn ($v) => trim($v))
-                ->unique()
-                ->values()
-                ->all();
-        });
+        return collect($this->fetchProgramRecords($instCode))->pluck('programName')
+            ->map(fn ($name) => trim((string) $name))->filter()->unique()->values()->all();
     }
 
-    /**
-     * Get majors for a specific program in an institution.
-     * Returns: [ "Network Tech", "Data Science", ... ]
-     */
     public function fetchMajors(string $instCode, string $programName): array
     {
-        $instCode    = trim($instCode);
-        $programName = trim($programName);
-        if ($instCode === '' || $programName === '') {
-            return [];
-        }
-
-        $cacheKey = "chedro12_program_majors_{$instCode}_{$programName}";
-
-        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($instCode, $programName) {
-            $data = $this->postToCHED($instCode);
-
-            return collect($data ?? [])
-                ->filter(fn ($item) => trim((string)($item['programName'] ?? '')) === $programName)
-                ->pluck('majorName')
-                ->filter(fn ($name) => filled($name))
-                ->map(fn ($v) => trim($v))
-                ->unique()
-                ->values()
-                ->all();
-        });
+        return collect($this->fetchProgramRecords($instCode))
+            ->filter(fn ($row) => trim($row['programName']) === trim($programName))
+            ->pluck('majorName')->map(fn ($name) => trim((string) $name))->filter()->unique()->values()->all();
     }
 
-    /**
-     * Get the full program records for an institution (raw API rows).
-     * Each row: instCode, instName, programCode, programName, majorName, permit_4thyr, programLevel, ...
-     */
     public function fetchProgramRecords(string $instCode): array
     {
-        $instCode = trim($instCode);
-        if ($instCode === '') {
-            return [];
-        }
-
-        $cacheKey = "chedro12_program_records_{$instCode}";
-
-        return Cache::remember($cacheKey, $this->cacheTtl, function () use ($instCode) {
-            return $this->postToCHED($instCode) ?? [];
-        });
+        return $instCode === '' ? [] : $this->programSnapshot($instCode)['data'];
     }
 
-    /**
-     * Get list of all HEIs with extra fields you need.
-     * Each item returns:
-     *  instCode, instName, instOwnership, province, municipalityCity, status,
-     *  xCoordinate, yCoordinate, ownershipSector, ownershipHei_type
-     */
     public function fetchAllHEI(): array
     {
-        $cacheKey = 'chedro12_allhei';
-
-        return Cache::remember($cacheKey, $this->cacheTtl, function () {
-            if ($this->apiKey === '') {
-                // Fail soft if key missing
-                return [];
-            }
-
-            try {
-                $response = Http::withHeaders([
-                        'PORTAL-API' => $this->apiKey,
-                        'Accept'     => 'application/json',
-                    ])
-                    ->timeout($this->timeout)
-                    ->retry($this->retries, $this->backoff)
-                    ->get($this->baseUrl . $this->allHeiPath);
-
-                if (!$response->ok()) {
-                    return [];
-                }
-
-                $data = $this->normalize($response->json());
-
-                return collect($data ?? [])
-                    ->map(function ($item) {
-                        return [
-                            'instCode'          => $item['instCode']          ?? null,
-                            'instName'          => $item['instName']          ?? null,
-                            'instOwnership'     => $item['instOwnership']     ?? null,
-                            'province'          => $item['province']          ?? null,
-                            'municipalityCity'  => $item['municipalityCity']  ?? null,
-                            'status'            => $item['status']            ?? null,
-                            'xCoordinate'       => $item['xCoordinate']       ?? null,
-                            'yCoordinate'       => $item['yCoordinate']       ?? null,
-                            'ownershipSector'   => $item['ownershipSector']   ?? null,
-                            'ownershipHei_type' => $item['ownershipHei_type'] ?? null,
-                        ];
-                    })
-                    ->filter(fn ($r) => filled($r['instCode']) && filled($r['instName']))
-                    ->sortBy('instName', SORT_NATURAL | SORT_FLAG_CASE)
-                    ->values()
-                    ->all();
-            } catch (\Throwable $e) {
-                report($e);
-                return [];
-            }
-        });
+        return $this->schoolSnapshot()['data'];
     }
 
-    /**
-     * Internal: POST to fetch programs/majors for an institution.
-     */
-    protected function postToCHED(string $instCode): ?array
+    /** @return array{data: array, last_fetched_at: ?string, stale: bool, error: ?string} */
+    public function schoolSnapshot(bool $force = false): array
     {
-        if ($this->apiKey === '') {
-            // Fail soft if key missing
-            return null;
+        return $this->snapshot('schools', '/fetch-all-hei', null, $force);
+    }
+
+    /** @return array{data: array, last_fetched_at: ?string, stale: bool, error: ?string} */
+    public function programSnapshot(string $instCode, bool $force = false): array
+    {
+        return $this->snapshot('programs:'.hash('sha256', $instCode), '/fetch-programs', $instCode, $force);
+    }
+
+    private function snapshot(string $resource, string $path, ?string $instCode, bool $force): array
+    {
+        $key = 'portal:v2:'.$resource;
+        if (! $force && ($cached = Cache::get($key))) {
+            return $cached + ['stale' => false, 'error' => null];
         }
-
+        $lock = Cache::lock($key.':refresh', 60);
+        if (! $lock->get()) {
+            return $this->fallback($key, 'A refresh is already in progress. Please try again shortly.');
+        }
         try {
-            $response = Http::withHeaders([
-                    'PORTAL-API'   => $this->apiKey,
-                    'Accept'       => 'application/json',
-                    'Content-Type' => 'application/x-www-form-urlencoded',
-                ])
-                ->asForm()
-                ->timeout($this->timeout)
-                ->retry($this->retries, $this->backoff)
-                ->post($this->baseUrl . $this->programsPath, [
-                    'instCode' => $instCode,
-                ]);
-
-            if (!$response->ok()) {
-                return null;
+            if (! $force && ($cached = Cache::get($key))) {
+                return $cached + ['stale' => false, 'error' => null];
+            }
+            $apiKey = (string) config('services.portal.key');
+            if ($apiKey === '') {
+                throw new RuntimeException('Portal credentials are not configured.');
+            }
+            $request = Http::withHeaders(['PORTAL-API' => $apiKey])->acceptJson()
+                ->connectTimeout(5)->timeout(15)->retry(2, 300);
+            $url = rtrim(config('services.portal.base_url'), '/').$path;
+            $response = $instCode === null
+                ? $request->get($url)
+                : $request->asForm()->post($url, ['instCode' => $instCode]);
+            $response->throw();
+            // Associative decoding turns an empty JSON object into [], which is not a valid list.
+            if (is_object(json_decode($response->body()))) {
+                throw new RuntimeException('Invalid portal response.');
+            }
+            $rows = $this->normalize($response->json(), $instCode === null);
+            if ($instCode === null) {
+                $fields = array_fill_keys(['instCode', 'instName', 'instOwnership', 'province', 'municipalityCity',
+                    'status', 'xCoordinate', 'yCoordinate', 'ownershipSector', 'ownershipHei_type'], null);
+                $rows = array_map(fn ($row) => array_intersect_key($row, $fields) + $fields, $rows);
+                $rows = collect($rows)->sortBy('instName', SORT_NATURAL | SORT_FLAG_CASE)->values()->all();
+            }
+            $snapshot = ['data' => $rows, 'last_fetched_at' => now()->toIso8601String()];
+            Cache::put($key.':last_success', $snapshot, now()->addDays(7));
+            Cache::put($key, $snapshot, 600);
+            // Derive names/majors from this snapshot; no separately cached derived lists.
+            if ($force && $instCode !== null) {
+                foreach ($rows as $row) {
+                    if ($pdfUrl = $this->buildPermitUrl($row['filename'] ?? null)) {
+                        Cache::forget('pdf_proxy_'.md5($pdfUrl));
+                    }
+                }
             }
 
-            return $this->normalize($response->json());
-        } catch (\Throwable $e) {
-            report($e);
-            return null;
+            return $snapshot + ['stale' => false, 'error' => null];
+        } catch (\Throwable $exception) {
+            Log::warning('Portal fetch failed', ['resource' => $resource, 'exception' => $exception::class]);
+
+            return $this->fallback($key, 'Could not fetch updates from the portal. Please check your connection and try again.');
+        } finally {
+            $lock->release();
         }
     }
 
-    /**
-     * Build full URL for a permit PDF based on filename from the portal API.
-     *
-     * IMPORTANT: Do NOT use urlencode() here. The portal stores filenames with
-     * literal characters like parentheses and commas (e.g. "file_compressed_(1).pdf").
-     * URL-encoding them produces "%281%29" which the portal does NOT recognise,
-     * returning a 1-byte empty response or 404.
-     *
-     * We only encode the bare minimum (spaces → %20) so the URL is valid without
-     * breaking the portal's path matching.
-     */
+    private function fallback(string $key, string $message): array
+    {
+        $previous = Cache::get($key.':last_success');
+
+        return ($previous ?? ['data' => [], 'last_fetched_at' => null])
+            + ['stale' => true, 'error' => $message];
+    }
+
+    private function normalize(mixed $data, bool $schools): array
+    {
+        if (is_string($data) && str_starts_with($data, 'Array[')) {
+            $data = json_decode(substr($data, 5), true);
+        }
+        if (! is_array($data) || ! array_is_list($data)) {
+            throw new RuntimeException('Invalid portal response.');
+        }
+        foreach ($data as $row) {
+            foreach ($schools ? ['instCode', 'instName'] : ['programName'] as $field) {
+                if (! is_array($row) || ! isset($row[$field]) || ! is_string($row[$field]) || trim($row[$field]) === '') {
+                    throw new RuntimeException('Invalid portal record.');
+                }
+            }
+            $optional = $schools
+                ? ['instOwnership', 'province', 'municipalityCity', 'ownershipSector', 'ownershipHei_type']
+                : ['majorName', 'permit_4thyr', 'filename', 'program_status'];
+            foreach ($optional as $field) {
+                if (isset($row[$field]) && ! is_string($row[$field])) {
+                    throw new RuntimeException('Invalid portal field.');
+                }
+            }
+        }
+
+        return $data;
+    }
+
     public function buildPermitUrl(?string $filename): ?string
     {
         $filename = trim((string) $filename);
 
-        if ($filename === '') {
-            return null;
-        }
-
-        $base = rtrim($this->permitBaseUrl, '/');
-
-        // Only encode spaces; leave parentheses, commas, etc. as-is
-        $safeName = str_replace(' ', '%20', $filename);
-
-        return $base . '/' . $safeName;
-    }
-
-    /**
-     * Some endpoints sometimes return a string like "Array[ ...json... ]".
-     * Normalize to a PHP array or return null.
-     */
-    protected function normalize($data): ?array
-    {
-        if (is_string($data) && str_starts_with($data, 'Array[')) {
-            $data = substr($data, 5);
-            $data = json_decode($data, true);
-        }
-
-        return is_array($data) ? $data : null;
+        return $filename === '' ? null : rtrim(config('services.portal.permit_base_url'), '/').'/'.str_replace(' ', '%20', $filename);
     }
 }

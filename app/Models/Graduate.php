@@ -7,6 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Graduate extends Model
 {
+    protected static function booted(): void
+    {
+        static::saving(function (Graduate $graduate) {
+            $graduate->forceFill(\App\Services\GraduateData::indexes($graduate->getAttributes()));
+        });
+    }
+
     protected $fillable = [
         'institution_id',
         'program_id',

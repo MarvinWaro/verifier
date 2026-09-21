@@ -1,3 +1,6 @@
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -13,12 +16,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { GraduationCap, Loader2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import axios from 'axios';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-export interface GraduateLite {
+interface GraduateLite {
     id: number;
     first_name: string;
     last_name: string;
@@ -26,15 +28,22 @@ export interface GraduateLite {
     so_number: string | null;
     year_graduated: string | null;
 }
-
-interface ViewGraduatesDialogProps {
+interface Results {
+    data: GraduateLite[];
+    current_page: number;
+    last_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    years: number[];
+}
+interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     programName: string | null;
     institutionName: string | null;
     institutionCode: string | null;
-    graduates: GraduateLite[];
-    loading: boolean;
+    major: string | null;
 }
 
 export default function ViewGraduatesDialog({
@@ -43,251 +52,196 @@ export default function ViewGraduatesDialog({
     programName,
     institutionName,
     institutionCode,
-    graduates,
-    loading,
-}: ViewGraduatesDialogProps) {
-    const [yearFilter, setYearFilter] = useState<string>('');
+    major,
+}: Props) {
+    const [year, setYear] = useState('');
+    const [page, setPage] = useState(1);
+    const [results, setResults] = useState<Results | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [revision, setRevision] = useState(0);
 
-    // Extract year only from date strings (e.g., "2025-06-15" or "2025" -> "2025")
-    const extractYear = (dateString: string | null): string | null => {
-        if (!dateString) return null;
-
-        // If it's already just a year (4 digits)
-        if (/^\d{4}$/.test(dateString.trim())) {
-            return dateString.trim();
-        }
-
-        // If it's a date string, extract the year
-        const yearMatch = dateString.match(/(\d{4})/);
-        return yearMatch ? yearMatch[1] : null;
-    };
-
-    // Get unique years for the filter dropdown (YEAR ONLY)
-    const availableYears = useMemo(() => {
-        const years = graduates
-            .map((g) => extractYear(g.year_graduated))
-            .filter((year): year is string => year !== null && year !== undefined)
-            .sort()
-            .reverse();
-        return [...new Set(years)];
-    }, [graduates]);
-
-    // Filter graduates by selected year (compares extracted year with filter)
-    const filteredGraduates = useMemo(() => {
-        if (!yearFilter) return graduates;
-
-        return graduates.filter((grad) => {
-            const gradYear = extractYear(grad.year_graduated);
-            return gradYear === yearFilter;
-        });
-    }, [graduates, yearFilter]);
-
-    // Reset filter when dialog closes
-    const handleOpenChange = (newOpen: boolean) => {
-        if (!newOpen) {
-            setYearFilter('');
-        }
-        onOpenChange(newOpen);
-    };
+    useEffect(() => {
+        if (!open || !institutionCode || !programName) return;
+        const controller = new AbortController();
+        setLoading(true);
+        setError(null);
+        axios
+            .get<Results>(
+                `/institutions/${institutionCode}/programs/graduates`,
+                {
+                    params: {
+                        program_name: programName,
+                        major: major ?? '',
+                        year: year || undefined,
+                        page,
+                    },
+                    signal: controller.signal,
+                },
+            )
+            .then(({ data }) => {
+                if (!controller.signal.aborted) setResults(data);
+            })
+            .catch(() => {
+                if (!controller.signal.aborted)
+                    setError(
+                        'Could not load student records. Please try again.',
+                    );
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
+        return () => controller.abort();
+    }, [open, institutionCode, programName, major, year, page, revision]);
 
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-4xl w-full max-h-[85vh] flex flex-col">
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="flex max-h-[90vh] w-[95vw] flex-col sm:max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle className="text-xl">
-                        {programName || 'Program Details'}
-                    </DialogTitle>
+                    <DialogTitle>{programName}</DialogTitle>
                     <DialogDescription>
                         {institutionName} ({institutionCode})
+                        {major ? ' · ' + major : ''}
                     </DialogDescription>
                 </DialogHeader>
-
-                {/* Filter Section */}
-                {!loading && graduates.length > 0 && (
-                    <div className="flex items-center gap-4 pb-3 border-b">
-                        <div className="flex items-center gap-2">
-                            <label
-                                htmlFor="year-filter"
-                                className="text-sm font-medium whitespace-nowrap"
-                            >
-                                Filter by Year:
-                            </label>
-                            <select
-                                id="year-filter"
-                                value={yearFilter}
-                                onChange={(e) => setYearFilter(e.target.value)}
-                                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring min-w-[120px]"
-                            >
-                                <option value="">All Years</option>
-                                {/* FILTER: Shows only years (2024, 2025, etc.) */}
-                                {availableYears.map((year) => (
-                                    <option key={year} value={year}>
-                                        {year}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="text-sm text-muted-foreground ml-auto">
-                            Showing {filteredGraduates.length} of{' '}
-                            {graduates.length} graduate
-                            {graduates.length !== 1 ? 's' : ''}
-                        </div>
-
-                        {yearFilter && (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                        Graduation year
+                        <select
+                            aria-label="Graduation year"
+                            className="rounded-md border bg-background p-2"
+                            value={year}
+                            disabled={loading}
+                            onChange={(event) => {
+                                setYear(event.target.value);
+                                setPage(1);
+                            }}
+                        >
+                            <option value="">All years</option>
+                            {results?.years.map((value) => (
+                                <option key={value} value={value}>
+                                    {value}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    <span className="text-sm text-muted-foreground">
+                        {results?.total ?? 0} graduates
+                    </span>
+                </div>
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertDescription>
+                            {error}{' '}
                             <Button
-                                variant="ghost"
                                 size="sm"
-                                onClick={() => setYearFilter('')}
-                                className="h-8 text-xs"
+                                variant="outline"
+                                onClick={() => setRevision((v) => v + 1)}
                             >
-                                Clear Filter
+                                Retry
                             </Button>
-                        )}
-                    </div>
+                        </AlertDescription>
+                    </Alert>
                 )}
-
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto border rounded-md min-h-[400px] max-h-[calc(85vh-280px)]">
-                    {loading ? (
-                        <div className="h-full flex items-center justify-center min-h-[300px]">
-                            <div className="text-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto mb-2" />
-                                <p className="text-sm text-muted-foreground">
-                                    Loading graduates...
-                                </p>
-                            </div>
-                        </div>
-                    ) : graduates.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center min-h-[300px] text-gray-500 p-8">
-                            <GraduationCap className="h-12 w-12 mb-3 opacity-20" />
-                            <p className="text-base font-medium mb-1">
-                                No graduates found for this program
-                            </p>
-                            <p className="text-xs text-muted-foreground text-center max-w-md">
-                                This could mean the program name in your
-                                database doesn't match the API data, or no
-                                students have graduated from this program yet.
-                            </p>
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
+                <div
+                    className="min-h-40 overflow-auto rounded-md border"
+                    aria-busy={loading}
+                >
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student name</TableHead>
+                                <TableHead>SO number</TableHead>
+                                <TableHead>Graduation date</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
                                 <TableRow>
-                                    <TableHead className="w-[50%]">
-                                        Student Name
-                                    </TableHead>
-                                    <TableHead className="w-[35%]">
-                                        SO Number
-                                    </TableHead>
-                                    <TableHead className="text-right w-[15%]">
-                                        Year Graduated
-                                    </TableHead>
+                                    <TableCell
+                                        colSpan={3}
+                                        className="py-10 text-center"
+                                    >
+                                        <Loader2
+                                            aria-label="Loading graduates"
+                                            className="mx-auto h-5 w-5 animate-spin"
+                                        />
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredGraduates.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={3}
-                                            className="text-center py-12 text-gray-500"
-                                        >
-                                            <div className="flex flex-col items-center gap-2">
-                                                <GraduationCap className="h-8 w-8 opacity-20" />
-                                                <p>
-                                                    No graduates found for year{' '}
-                                                    <span className="font-semibold">
-                                                        {yearFilter}
-                                                    </span>
-                                                </p>
-                                                <Button
-                                                    variant="link"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setYearFilter('')
-                                                    }
-                                                    className="text-xs"
-                                                >
-                                                    View all graduates
-                                                </Button>
-                                            </div>
+                            ) : results?.data.length ? (
+                                results.data.map((graduate) => (
+                                    <TableRow key={graduate.id}>
+                                        <TableCell className="whitespace-normal">
+                                            {graduate.last_name},{' '}
+                                            {graduate.first_name}
+                                            <span className="block text-xs text-muted-foreground">
+                                                {graduate.middle_name}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            {graduate.so_number ?? '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">
+                                                {graduate.year_graduated ?? '—'}
+                                            </Badge>
                                         </TableCell>
                                     </TableRow>
-                                ) : (
-                                    filteredGraduates.map((grad) => (
-                                        <TableRow
-                                            key={grad.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                                        >
-                                            <TableCell className="font-medium">
-                                                <div className="flex flex-col">
-                                                    <span>
-                                                        {grad.last_name},{' '}
-                                                        {grad.first_name}
-                                                    </span>
-                                                    {grad.middle_name && (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {grad.middle_name}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="font-mono text-sm">
-                                                {grad.so_number ? (
-                                                    <span className="text-blue-600 dark:text-blue-400">
-                                                        {grad.so_number}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-gray-400">
-                                                        -
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {grad.year_graduated ? (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="bg-orange-50 text-orange-800 hover:bg-orange-50 dark:bg-orange-900 dark:text-orange-300"
-                                                    >
-                                                        {/* TABLE: Shows FULL original date */}
-                                                        {grad.year_graduated}
-                                                    </Badge>
-                                                ) : (
-                                                    <span className="text-gray-400 text-sm">
-                                                        -
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    )}
-                </div>
-
-                {/* Footer Stats */}
-                {!loading && graduates.length > 0 && (
-                    <div className="flex justify-between items-center pt-3 border-t">
-                        <div className="text-sm text-muted-foreground">
-                            <span className="font-medium">
-                                {filteredGraduates.length}
-                            </span>{' '}
-                            graduate{filteredGraduates.length !== 1 ? 's' : ''}{' '}
-                            {yearFilter && (
-                                <>
-                                    in{' '}
-                                    <span className="font-medium">
-                                        {yearFilter}
-                                    </span>{' '}
-                                    <span className="text-xs">
-                                        ({graduates.length} total)
-                                    </span>
-                                </>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell
+                                        colSpan={3}
+                                        className="py-10 text-center text-muted-foreground"
+                                    >
+                                        {error
+                                            ? 'Student records unavailable.'
+                                            : 'No graduates match this program, major and year.'}
+                                    </TableCell>
+                                </TableRow>
                             )}
-                        </div>
-                    </div>
-                )}
+                        </TableBody>
+                    </Table>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <span>
+                        Showing {results?.from ?? 0}–{results?.to ?? 0} of{' '}
+                        {results?.total ?? 0}
+                    </span>
+                    <nav
+                        aria-label="Graduate pages"
+                        className="flex items-center gap-2"
+                    >
+                        <Button
+                            variant="outline"
+                            disabled={
+                                loading || (results?.current_page ?? 1) <= 1
+                            }
+                            onClick={() =>
+                                setPage((results?.current_page ?? 1) - 1)
+                            }
+                        >
+                            Previous
+                        </Button>
+                        <span>
+                            {results?.current_page ?? 1} /{' '}
+                            {results?.last_page ?? 1}
+                        </span>
+                        <Button
+                            variant="outline"
+                            disabled={
+                                loading ||
+                                !results ||
+                                results.current_page >= results.last_page
+                            }
+                            onClick={() =>
+                                setPage((results?.current_page ?? 1) + 1)
+                            }
+                        >
+                            Next
+                        </Button>
+                    </nav>
+                </div>
             </DialogContent>
         </Dialog>
     );
