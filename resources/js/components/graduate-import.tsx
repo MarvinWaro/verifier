@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { usePermissions } from '@/hooks/use-permissions';
 import axios from 'axios';
-import { AlertCircle, Loader2, Upload } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -79,55 +79,81 @@ export default function GraduateImport() {
     const [online, setOnline] = useState(
         () => typeof navigator === 'undefined' || navigator.onLine,
     );
+    const [visible, setVisible] = useState(
+        () =>
+            typeof document === 'undefined' ||
+            document.visibilityState === 'visible',
+    );
+    const [historyLoading, setHistoryLoading] = useState(false);
     const input = useRef<HTMLInputElement>(null);
+    const lastLifecycleRefresh = useRef(0);
     const canImport = can('import_graduates');
 
     useEffect(() => {
-        const update = () => setOnline(navigator.onLine);
-        window.addEventListener('online', update);
-        window.addEventListener('offline', update);
+        const refreshAfterLifecycleChange = () => {
+            const now = Date.now();
+            if (now - lastLifecycleRefresh.current < 500) return;
+            lastLifecycleRefresh.current = now;
+            setRevision((value) => value + 1);
+        };
+        const updateConnection = () => {
+            const connected = navigator.onLine;
+            setOnline(connected);
+            if (connected && document.visibilityState === 'visible')
+                refreshAfterLifecycleChange();
+        };
+        const updateVisibility = () => {
+            const isVisible = document.visibilityState === 'visible';
+            setVisible(isVisible);
+            if (isVisible && navigator.onLine) refreshAfterLifecycleChange();
+        };
+        const updateFocus = () => {
+            if (document.visibilityState === 'visible' && navigator.onLine)
+                refreshAfterLifecycleChange();
+        };
+        window.addEventListener('online', updateConnection);
+        window.addEventListener('offline', updateConnection);
+        window.addEventListener('focus', updateFocus);
+        document.addEventListener('visibilitychange', updateVisibility);
         return () => {
-            window.removeEventListener('online', update);
-            window.removeEventListener('offline', update);
+            window.removeEventListener('online', updateConnection);
+            window.removeEventListener('offline', updateConnection);
+            window.removeEventListener('focus', updateFocus);
+            document.removeEventListener('visibilitychange', updateVisibility);
         };
     }, []);
 
     useEffect(() => {
         if (!canImport) return;
         const controller = new AbortController();
-        let timer: ReturnType<typeof setTimeout>;
-        const poll = async () => {
-            if (controller.signal.aborted) return;
-            if (document.visibilityState === 'visible' && navigator.onLine) {
-                try {
-                    const { data } = await axios.get<History>(
-                        '/import/graduates/runs',
-                        { params: { page }, signal: controller.signal },
-                    );
-                    if (!controller.signal.aborted) {
-                        setHistory(data);
-                        setHistoryError(null);
-                    }
-                } catch {
-                    if (!controller.signal.aborted)
-                        setHistoryError(
-                            'Could not load import progress. Retrying when connected.',
-                        );
+        const load = async () => {
+            if (!online || !visible) return;
+            setHistoryLoading(true);
+            try {
+                const { data } = await axios.get<History>(
+                    '/import/graduates/runs',
+                    { params: { page }, signal: controller.signal },
+                );
+                if (!controller.signal.aborted) {
+                    setHistory(data);
+                    setHistoryError(null);
                 }
+            } catch {
+                if (!controller.signal.aborted)
+                    setHistoryError(
+                        'Could not load import progress. Refresh when connected.',
+                    );
+            } finally {
+                if (!controller.signal.aborted) setHistoryLoading(false);
             }
-            if (!controller.signal.aborted)
-                timer = setTimeout(() => void poll(), 2000);
         };
-        void poll();
-        return () => {
-            controller.abort();
-            clearTimeout(timer);
-        };
-    }, [canImport, page, revision]);
+        void load();
+        return () => controller.abort();
+    }, [canImport, online, page, revision, visible]);
 
     const activeId = history?.active_id;
     useEffect(() => {
-        if (!canImport || !activeId) return;
+        if (!canImport || !activeId || !online || !visible) return;
         let stopped = false;
         let timer: ReturnType<typeof setTimeout>;
         const process = async () => {
@@ -141,6 +167,7 @@ export default function GraduateImport() {
                     );
                     if (stopped) return;
                     setProcessingError(null);
+                    setHistoryError(null);
                     setHistory((old) =>
                         old
                             ? {
@@ -161,8 +188,10 @@ export default function GraduateImport() {
                               }
                             : old,
                     );
-                    if (!['queued', 'processing'].includes(data.run.status))
+                    if (!['queued', 'processing'].includes(data.run.status)) {
+                        setRevision((value) => value + 1);
                         return;
+                    }
                 } catch {
                     if (stopped) return;
                     setProcessingError({
@@ -180,7 +209,7 @@ export default function GraduateImport() {
             stopped = true;
             clearTimeout(timer);
         };
-    }, [canImport, activeId]);
+    }, [canImport, activeId, online, visible]);
 
     const run =
         history?.runs.data.find((item) => item.id === selected) ??
@@ -512,8 +541,21 @@ export default function GraduateImport() {
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between gap-3">
                     <CardTitle>Import history</CardTitle>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={historyLoading || !online}
+                        onClick={() => setRevision((value) => value + 1)}
+                    >
+                        <RefreshCw
+                            aria-hidden="true"
+                            className={`h-4 w-4 ${historyLoading ? 'animate-spin motion-reduce:animate-none' : ''}`}
+                        />
+                        {historyLoading ? 'Refreshing' : 'Refresh history'}
+                    </Button>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {!history ? (

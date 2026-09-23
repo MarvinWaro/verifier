@@ -27,7 +27,7 @@ interface ActivityLogItem {
     action: string;
     summary: string;
     created_at: string;
-    properties: Record<string, any> | null;
+    properties: Record<string, unknown> | null;
 }
 
 interface Pagination<T> {
@@ -65,13 +65,13 @@ export default function LogsIndex({ logs }: Props) {
     const getActionColor = (action: string) => {
         switch (action) {
             case 'graduates_import':
-                return 'bg-blue-100 text-blue-800';
+                return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300';
             case 'graduate_update':
-                return 'bg-amber-100 text-amber-800';
+                return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300';
             case 'graduate_delete':
-                return 'bg-red-100 text-red-800';
+                return 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
         }
     };
 
@@ -103,15 +103,15 @@ export default function LogsIndex({ logs }: Props) {
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
-                                                className="py-8 text-center text-gray-500"
+                                                className="py-8 text-center text-muted-foreground"
                                             >
                                                 No activity yet.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         logs.data.map((log) => (
-                                            <TableRow key={log.id} className="hover:bg-gray-50">
-                                                <TableCell className="text-sm text-gray-600">
+                                            <TableRow key={log.id} className="hover:bg-muted/50">
+                                                <TableCell className="text-sm text-muted-foreground">
                                                     {log.created_at}
                                                 </TableCell>
                                                 <TableCell className="text-sm">
@@ -120,7 +120,7 @@ export default function LogsIndex({ logs }: Props) {
                                                             {log.user_name ?? 'System'}
                                                         </span>
                                                         {log.user_email && (
-                                                            <span className="text-xs text-gray-500">
+                                                            <span className="text-xs text-muted-foreground">
                                                                 {log.user_email}
                                                             </span>
                                                         )}

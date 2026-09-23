@@ -127,7 +127,28 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
 
     const { icon: ThemeIcon, tooltip } = getThemeIcon();
 
-    const isProgramsActive = page.url.startsWith('/programs');
+    const normalizePath = (value: string) => {
+        const withoutQuery = value.split(/[?#]/, 1)[0];
+        const withLeadingSlash = withoutQuery.startsWith('/')
+            ? withoutQuery
+            : `/${withoutQuery}`;
+
+        return withLeadingSlash.length > 1
+            ? withLeadingSlash.replace(/\/+$/, '')
+            : withLeadingSlash;
+    };
+    const currentPath = normalizePath(page.url);
+    const itemUrl = (item: NavItem) =>
+        normalizePath(typeof item.href === 'string' ? item.href : item.href.url);
+    const isItemActive = (item: NavItem) => {
+        const href = itemUrl(item);
+
+        if (href === normalizePath(dashboard().url)) return currentPath === href;
+
+        return currentPath === href || currentPath.startsWith(`${href}/`);
+    };
+    const isProgramsActive =
+        currentPath === '/programs' || currentPath.startsWith('/programs/');
 
     return (
         <>
@@ -173,7 +194,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                                 className={cn(
                                                                     'flex items-center space-x-2 rounded-md px-3 py-2 font-medium transition-colors',
                                                                     // ✅ FIX: Force cast item.href to string here too just in case
-                                                                    page.url === (item.href as string)
+                                                                    isItemActive(item)
                                                                         ? 'bg-[#1e40af] text-white'
                                                                         : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800',
                                                                 )}
@@ -321,7 +342,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                     className={cn(
                                                         'flex h-full items-center space-x-2 border-b-2 px-4 text-sm font-medium transition-colors',
                                                         // ✅ FIX: Added (as string) to resolve TS2345 error
-                                                        page.url.startsWith(item.href as string)
+                                                        isItemActive(item)
                                                             ? 'border-[#1e40af] text-[#1e40af] bg-[#1e40af]/5'
                                                             : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
                                                     )}

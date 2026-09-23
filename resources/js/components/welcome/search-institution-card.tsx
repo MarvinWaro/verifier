@@ -41,7 +41,15 @@ export default function SearchInstitutionCard({
                     </div>
                 </div>
 
-                <div className="flex flex-col items-stretch gap-3">
+                <form
+                    role="search"
+                    aria-label="Institution lookup"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        onSearch();
+                    }}
+                    className="flex flex-col items-stretch gap-3"
+                >
                     <div className="relative flex-1">
                         <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
                             <div className="grid h-10 w-10 place-items-center rounded-full bg-gray-100 dark:bg-gray-700/60">
@@ -50,20 +58,22 @@ export default function SearchInstitutionCard({
                         </div>
 
                         <Input
+                            id="institution-search"
                             type="text"
+                            aria-label="Institution code or name"
+                            aria-describedby={searchMessage ? 'institution-search-message' : undefined}
+                            aria-invalid={searchMessageType === 'error'}
+                            autoComplete="off"
                             placeholder="Enter institution code or name..."
                             value={searchTerm}
                             onChange={(e) => onSearchTermChange(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') onSearch();
-                            }}
                             className="h-14 rounded-full border border-gray-200 bg-white pl-16 pr-4 text-base shadow-sm transition-all placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-gray-700 dark:bg-gray-800/90 dark:text-white dark:placeholder:text-gray-500 dark:focus:border-blue-500"
                             disabled={isSearching}
                         />
                     </div>
 
                     <Button
-                        onClick={onSearch}
+                        type="submit"
                         className="h-14 rounded-full bg-blue-600 px-8 text-base font-semibold shadow-md transition-all hover:bg-blue-700 hover:shadow-lg disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
                         disabled={isSearching}
                     >
@@ -79,6 +89,9 @@ export default function SearchInstitutionCard({
 
                     {searchMessage && (
                         <div
+                            id="institution-search-message"
+                            role={searchMessageType === 'error' ? 'alert' : 'status'}
+                            aria-live="polite"
                             className={`mt-1 rounded-lg border px-4 py-3 text-sm ${
                                 searchMessageType === 'error'
                                     ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-200'
@@ -88,10 +101,14 @@ export default function SearchInstitutionCard({
                             {searchMessage}
                         </div>
                     )}
-                </div>
+                </form>
 
                 {institutionsCount > 0 && (
-                    <div className="mt-5 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 p-4 transition-all dark:border-blue-700 dark:bg-blue-900/30">
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        className="mt-5 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 p-4 transition-all dark:border-blue-700 dark:bg-blue-900/30"
+                    >
                         <div className="flex items-center gap-2">
                             <div className="rounded-full bg-blue-600 p-1 dark:bg-blue-500">
                                 <svg

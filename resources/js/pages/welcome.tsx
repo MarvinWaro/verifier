@@ -9,13 +9,13 @@ import SearchInstitutionCard from '@/components/welcome/search-institution-card'
 import PermitDialog from '@/components/welcome/permit-dialog';
 import Footer from '@/components/footer';
 import Concerns from '@/components/welcome/concerns';
-import Notice from '@/components/welcome/notice';
 import { useAppearance } from '@/hooks/use-appearance';
 import WelcomeNav from '@/components/welcome/welcome-nav';
 import { Toaster } from '@/components/ui/sonner';
 import axios from 'axios';
 import { Sun, Moon, Monitor } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 // --- Types ---
 interface Graduate {
@@ -82,14 +82,7 @@ interface HeiLocation {
     municipalityCity?: string | null;
 }
 
-interface Props {
-    stats: {
-        institutions: number;
-        programs: number;
-    };
-}
-
-export default function PRCCheckLanding({ stats }: Props) {
+export default function PRCCheckLanding() {
     // --- State ---
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [institutions, setInstitutions] = useState<Institution[]>([]);
@@ -121,11 +114,14 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     // Auto-scroll refs
     const resultsRef = useRef<HTMLDivElement | null>(null);
+    const searchRequest = useRef(0);
     const [shouldScrollToResults, setShouldScrollToResults] = useState(false);
 
-    // --- Handlers ---
+    // --- Handlers --- bsdfbksd ksjbjh shlashdfzlh lshldkfhskdfkhsdlh lsfhskdhf sdhilsh df
 
     const resetAll = () => {
+        searchRequest.current += 1;
+        setIsSearching(false);
         setInstitutions([]);
         setExpandedInstitutionCode(null);
         setInstitutionPrograms({});
@@ -150,7 +146,13 @@ export default function PRCCheckLanding({ stats }: Props) {
         const rect = resultsRef.current.getBoundingClientRect();
         const offset = 96;
         const absoluteTop = window.scrollY + rect.top - offset;
-        window.scrollTo({ top: absoluteTop, behavior: 'smooth' });
+        const reduceMotion = window.matchMedia(
+            '(prefers-reduced-motion: reduce)',
+        ).matches;
+        window.scrollTo({
+            top: absoluteTop,
+            behavior: reduceMotion ? 'auto' : 'smooth',
+        });
     };
 
     useEffect(() => {
@@ -162,7 +164,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
     // --- API Calls ---
 
-    const loadHeiMap = async () => {
+    const loadHeiMap = useCallback(async () => {
         setHeiMapLoading(true);
         setHeiMapError(null);
         try {
@@ -171,7 +173,9 @@ export default function PRCCheckLanding({ stats }: Props) {
             const centerRaw = data.center ?? {};
             const center = { lat: Number(centerRaw.lat ?? 6.5), lng: Number(centerRaw.lng ?? 124.5) };
             const zoom = Number(data.zoom ?? 8);
-            const heisRaw: any[] = Array.isArray(data.heis) ? data.heis : [];
+            const heisRaw: Record<string, unknown>[] = Array.isArray(data.heis)
+                ? data.heis
+                : [];
 
             const normalized: HeiLocation[] = heisRaw
                 .map((item) => {
@@ -183,10 +187,20 @@ export default function PRCCheckLanding({ stats }: Props) {
                         instName: String(item.instName ?? 'Unknown HEI'),
                         latitude: lat,
                         longitude: lng,
-                        ownershipSector: item.ownershipSector ?? item.instOwnership ?? null,
-                        ownershipHei_type: item.ownershipHei_type ?? null,
-                        province: item.province ?? null,
-                        municipalityCity: item.municipalityCity ?? null,
+                        ownershipSector:
+                            item.ownershipSector == null && item.instOwnership == null
+                                ? null
+                                : String(item.ownershipSector ?? item.instOwnership),
+                        ownershipHei_type:
+                            item.ownershipHei_type == null
+                                ? null
+                                : String(item.ownershipHei_type),
+                        province:
+                            item.province == null ? null : String(item.province),
+                        municipalityCity:
+                            item.municipalityCity == null
+                                ? null
+                                : String(item.municipalityCity),
                     } as HeiLocation;
                 })
                 .filter((v): v is HeiLocation => v !== null && v.instCode !== '');
@@ -200,14 +214,14 @@ export default function PRCCheckLanding({ stats }: Props) {
         } finally {
             setHeiMapLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         void loadHeiMap();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [loadHeiMap]);
 
     const performInstitutionSearch = async (rawSearch: string) => {
+        const requestId = ++searchRequest.current;
         setSearchMessage(null);
         setSearchMessageType(null);
         setSelectedProgram(null);
@@ -216,6 +230,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         const trimmed = rawSearch.trim();
         if (!trimmed) {
+            setIsSearching(false);
             setInstitutions([]);
             setSearchMessage('Please enter an institution code or name to search.');
             setSearchMessageType('warning');
@@ -224,6 +239,7 @@ export default function PRCCheckLanding({ stats }: Props) {
 
         const isNumeric = /^\d+$/.test(trimmed);
         if (isNumeric && trimmed.length < 4) {
+            setIsSearching(false);
             setInstitutions([]);
             setSearchMessage('For institution codes, please enter at least 4 digits (e.g., 1201).');
             setSearchMessageType('warning');
@@ -233,6 +249,7 @@ export default function PRCCheckLanding({ stats }: Props) {
         setIsSearching(true);
         try {
             const response = await axios.post('/api/search-institution', { search: trimmed });
+            if (requestId !== searchRequest.current) return;
             const result: Institution[] = response.data.institutions ?? [];
 
             setInstitutions(result);
@@ -266,11 +283,12 @@ export default function PRCCheckLanding({ stats }: Props) {
                 }
             }
         } catch (error) {
+            if (requestId !== searchRequest.current) return;
             console.error('Search failed:', error);
             setSearchMessage('Search failed. Please try again in a moment.');
             setSearchMessageType('error');
         } finally {
-            setIsSearching(false);
+            if (requestId === searchRequest.current) setIsSearching(false);
         }
     };
 
@@ -345,7 +363,7 @@ export default function PRCCheckLanding({ stats }: Props) {
             setPermitDialogOpen(true);
         } catch (error) {
             console.error('Failed to load program:', error);
-            alert('Failed to load program details. Please try again.');
+            toast.error('Could not load program details. Please try again.');
         } finally {
             setLoadingProgramId(null);
         }
@@ -401,6 +419,9 @@ export default function PRCCheckLanding({ stats }: Props) {
             <div className="pointer-events-none absolute inset-0 bg-white/70 dark:bg-gray-950/60" />
 
             <main className="relative z-10 mx-auto mt-5 w-full max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+                <h1 className="sr-only">
+                    CHED Region XII Programs and Permits Registry
+                </h1>
 
                 {/* Important Notice (Concerns) stays at top as requested previously */}
                 {/* <div className="mb-6">
@@ -409,18 +430,26 @@ export default function PRCCheckLanding({ stats }: Props) {
 
                 {/* Map + Search Grid */}
                 <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8">
-                    <WelcomeLeaflet
-                        center={heiMapCenter}
-                        zoom={heiMapZoom}
-                        heis={heiLocations}
-                        isLoading={heiMapLoading}
-                        error={heiMapError}
-                        onHeiClick={handleHeiMarkerClick}
-                        focusLocation={mapFocusLocation}
-                        fitLocations={mapFitLocations}
-                    />
+                    <section
+                        aria-labelledby="hei-map-title"
+                        className="order-2 lg:order-1 lg:col-span-8"
+                    >
+                        <h2 id="hei-map-title" className="sr-only">
+                            Higher education institutions map
+                        </h2>
+                        <WelcomeLeaflet
+                            center={heiMapCenter}
+                            zoom={heiMapZoom}
+                            heis={heiLocations}
+                            isLoading={heiMapLoading}
+                            error={heiMapError}
+                            onHeiClick={handleHeiMarkerClick}
+                            focusLocation={mapFocusLocation}
+                            fitLocations={mapFitLocations}
+                        />
+                    </section>
 
-                    <div className="flex flex-col gap-4 lg:col-span-4">
+                    <div className="order-1 flex flex-col gap-4 lg:order-2 lg:col-span-4">
                         <SearchInstitutionCard
                             searchTerm={searchTerm}
                             onSearchTermChange={handleSearchTermChange}
@@ -497,7 +526,6 @@ export default function PRCCheckLanding({ stats }: Props) {
                                             institutions={institutions}
                                             expandedInstitutionCode={expandedInstitutionCode}
                                             onToggleInstitution={handleInstitutionToggle}
-                                            programsByInstitution={institutionPrograms}
                                             programsLoading={institutionProgramsLoading}
                                             programsError={institutionProgramsError}
                                             onProgramClick={handleProgramClick}

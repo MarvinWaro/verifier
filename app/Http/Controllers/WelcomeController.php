@@ -15,25 +15,9 @@ class WelcomeController extends Controller
     /**
      * Landing page
      */
-    public function index(PortalService $portal)
+    public function index()
     {
-        $institutionsCount = 0;
-
-        try {
-            $hei = $portal->fetchAllHEI();
-            $institutionsCount = is_array($hei) ? count($hei) : 0;
-        } catch (\Throwable $e) {
-            report($e);
-        }
-
-        $stats = [
-            'institutions' => $institutionsCount,
-            'programs'     => Program::count(),
-        ];
-
-        return Inertia::render('welcome', [
-            'stats' => $stats,
-        ]);
+        return Inertia::render('welcome');
     }
 
     /**

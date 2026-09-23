@@ -86,6 +86,18 @@ test('student upload, queue recovery, history and institution records', async ({
     ).toBe(true);
     await page.goto('/graduates?q=Science');
     await expect(page.getByText('SO-1', { exact: true })).toBeVisible();
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    const graduateRow = page
+        .getByText('SO-1', { exact: true })
+        .locator('xpath=ancestor::tr');
+    await graduateRow.hover();
+    await expect
+        .poll(async () =>
+            graduateRow.evaluate(
+                (row) => getComputedStyle(row).backgroundColor,
+            ),
+        )
+        .not.toBe('rgb(249, 250, 251)');
     await page.goto('/institutions');
     await page.getByText('Example State College', { exact: true }).click();
     await page

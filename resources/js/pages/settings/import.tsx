@@ -218,7 +218,7 @@ function InstitutionsImport() {
                             type="file"
                             accept=".xlsx,.xls"
                             onChange={handleFileChange}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+                            className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-950 dark:file:text-blue-300 dark:hover:file:bg-blue-900"
                         />
                     </div>
                     <Button
@@ -232,16 +232,16 @@ function InstitutionsImport() {
                 </div>
 
                 {file && (
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                         Selected:{' '}
                         <span className="font-medium">{file.name}</span>
                     </div>
                 )}
 
                 {result && result.success && (
-                    <Alert className="border-green-200 bg-green-50">
+                    <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
                         <CheckCircle className="h-4 w-4 text-green-600" />
-                        <AlertDescription className="text-green-800">
+                        <AlertDescription className="text-green-800 dark:text-green-200">
                             {result.message}
                             {result.data && (
                                 <div className="mt-2 font-medium">
@@ -264,7 +264,7 @@ function InstitutionsImport() {
                     <h3 className="mb-3 text-sm font-medium">
                         Excel Format Requirements:
                     </h3>
-                    <div className="rounded-lg bg-gray-50 p-4">
+                    <div className="rounded-lg bg-muted/50 p-4">
                         <table className="w-full text-xs">
                             <thead>
                                 <tr className="border-b">
@@ -273,7 +273,7 @@ function InstitutionsImport() {
                                     <th className="py-2 text-left">Required</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-gray-600">
+                            <tbody className="text-muted-foreground">
                                 <tr>
                                     <td className="py-1">A</td>
                                     <td>Institution Code</td>
@@ -367,7 +367,7 @@ function InstitutionsImport() {
                             </div>
                         </PopoverContent>
                     </Popover>
-                    <p className="mt-2 text-xs text-gray-500">
+                    <p className="mt-2 text-xs text-muted-foreground">
                         Warning: This will permanently delete all institutions
                         and their programs
                     </p>

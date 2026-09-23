@@ -11,6 +11,9 @@ test('dashboard charts, filters, search and mobile dark mode', async ({
     await page.getByRole('button', { name: /log in/i }).click();
     await page.waitForURL('**/dashboard');
     await expect(
+        page.locator('.hidden.lg\\:flex a[href="/dashboard"]'),
+    ).toHaveClass(/border-\[#1e40af\]/);
+    await expect(
         page.getByRole('heading', { name: 'Graduate analytics' }),
     ).toBeVisible();
     await page.goto('/import');

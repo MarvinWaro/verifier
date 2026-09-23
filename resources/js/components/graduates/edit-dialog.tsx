@@ -156,9 +156,12 @@ export default function EditGraduateDialog({
 
             toast.success('Graduate updated successfully.');
             onOpenChange(false);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
-            const msg = error?.response?.data?.message ?? 'Failed to update graduate.';
+            const msg =
+                (axios.isAxiosError<{ message?: string }>(error)
+                    ? error.response?.data.message
+                    : null) ?? 'Failed to update graduate.';
             toast.error(msg);
         } finally {
             setLoading(false);
@@ -185,14 +188,14 @@ export default function EditGraduateDialog({
                     {/* Names */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label className="text-xs font-medium text-gray-700">Last Name</label>
+                            <label className="text-xs font-medium text-foreground">Last Name</label>
                             <Input
                                 value={form.last_name}
                                 onChange={(e) => handleChange('last_name', e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-gray-700">First Name</label>
+                            <label className="text-xs font-medium text-foreground">First Name</label>
                             <Input
                                 value={form.first_name}
                                 onChange={(e) => handleChange('first_name', e.target.value)}
@@ -203,21 +206,21 @@ export default function EditGraduateDialog({
                     {/* Middle / Ext / Sex */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label className="text-xs font-medium text-gray-700">Middle Name</label>
+                            <label className="text-xs font-medium text-foreground">Middle Name</label>
                             <Input
                                 value={form.middle_name}
                                 onChange={(e) => handleChange('middle_name', e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-gray-700">Extension</label>
+                            <label className="text-xs font-medium text-foreground">Extension</label>
                             <Input
                                 value={form.extension_name}
                                 onChange={(e) => handleChange('extension_name', e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-gray-700">Sex</label>
+                            <label className="text-xs font-medium text-foreground">Sex</label>
                             <Select
                                 value={form.sex || ''}
                                 onValueChange={(value) => handleChange('sex', value)}
@@ -236,7 +239,7 @@ export default function EditGraduateDialog({
                     {/* Dates */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                            <label className="text-xs font-medium text-gray-700">Date Graduated</label>
+                            <label className="text-xs font-medium text-foreground">Date Graduated</label>
                             <Input
                                 type="text"
                                 placeholder="YYYY-MM-DD"
@@ -245,7 +248,7 @@ export default function EditGraduateDialog({
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-gray-700">Academic Year</label>
+                            <label className="text-xs font-medium text-foreground">Academic Year</label>
                             <Input
                                 placeholder="e.g. 2023-2024"
                                 value={form.academic_year}
@@ -256,7 +259,7 @@ export default function EditGraduateDialog({
 
                     {/* SO number – full width */}
                     <div>
-                        <label className="text-xs font-medium text-gray-700">SO Number</label>
+                        <label className="text-xs font-medium text-foreground">SO Number</label>
                         <Input
                             value={form.so_number}
                             onChange={(e) => handleChange('so_number', e.target.value)}
@@ -265,7 +268,7 @@ export default function EditGraduateDialog({
 
                     {/* Program – full width */}
                     <div>
-                        <label className="text-xs font-medium text-gray-700">Program</label>
+                        <label className="text-xs font-medium text-foreground">Program</label>
                         <Input
                             value={form.program_name}
                             onChange={(e) => handleChange('program_name', e.target.value)}
@@ -274,7 +277,7 @@ export default function EditGraduateDialog({
 
                     {/* Major – full width */}
                     <div>
-                        <label className="text-xs font-medium text-gray-700">Major</label>
+                        <label className="text-xs font-medium text-foreground">Major</label>
                         <Input
                             value={form.major}
                             onChange={(e) => handleChange('major', e.target.value)}

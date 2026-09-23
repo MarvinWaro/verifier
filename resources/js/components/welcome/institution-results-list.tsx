@@ -26,7 +26,6 @@ interface InstitutionResultsListProps {
     institutions: Institution[];
     expandedInstitutionCode: string | null;
     onToggleInstitution: (institution: Institution) => void;
-    programsByInstitution: Record<string, Program[]>;
     programsLoading: Record<string, boolean>;
     programsError: Record<string, string | null>;
     onProgramClick: (program: Program) => void;
@@ -37,7 +36,6 @@ export default function InstitutionResultsList({
     institutions,
     expandedInstitutionCode,
     onToggleInstitution,
-    programsByInstitution,
     programsLoading,
 }: InstitutionResultsListProps) {
     return (
@@ -60,7 +58,7 @@ export default function InstitutionResultsList({
                             key={institution.code}
                             className={`py-0 group border border-dashed shadow-sm transition-all hover:shadow-md ${
                                 isSelected
-                                    ? 'bg-[#98fb98] border-[#98fb98] dark:bg-[#98fb98] dark:border-[#98fb98]'
+                                    ? 'border-emerald-300 bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/70'
                                     : 'bg-white/95 border-gray-200 dark:bg-gray-900/90 dark:border-gray-700'
                             }`}
                         >

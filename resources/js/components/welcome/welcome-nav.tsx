@@ -7,7 +7,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LogIn, Info } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 interface WelcomeNavProps {
     ThemeIcon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -15,38 +15,25 @@ interface WelcomeNavProps {
     onToggleTheme: () => void;
 }
 
-const NavItem = ({
-    href,
-    label,
-    Icon,
-}: {
-    href: string;
-    label: string;
-    Icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-}) => (
-    <a
-        href={href}
-        className="group flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white"
-    >
-        {Icon && <Icon className="h-4 w-4 opacity-90 group-hover:opacity-100" />}
-        {label}
-    </a>
-);
-
 const WelcomeNav: React.FC<WelcomeNavProps> = ({ ThemeIcon, tooltip, onToggleTheme }) => {
     return (
         <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-blue-900/95 backdrop-blur dark:bg-blue-950/95">
             <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                 {/* Left: Logo + title */}
-                <a href="/" className="flex items-center gap-3">
+                <a href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
                     <img
                         src="/assets/img/ched-logo.png"
                         alt="CHED Logo"
-                        className="h-9 w-9 object-contain"
+                        className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
                     />
-                    <div className="leading-tight">
-                        <div className="text-sm font-semibold text-white">COMMISSION ON HIGHER EDUCATION - REGIONAL OFFICE XII</div>
-                        <div className="text-[13px] text-white/70">
+                    <div className="min-w-0 leading-tight">
+                        <div className="text-sm font-semibold text-white sm:hidden">
+                            CHED RO XII
+                        </div>
+                        <div className="hidden text-sm font-semibold text-white sm:block">
+                            COMMISSION ON HIGHER EDUCATION - REGIONAL OFFICE XII
+                        </div>
+                        <div className="hidden text-[13px] text-white/70 sm:block">
                             Programs and Permits Registry
                         </div>
                     </div>
@@ -59,7 +46,7 @@ const WelcomeNav: React.FC<WelcomeNavProps> = ({ ThemeIcon, tooltip, onToggleThe
 
                     <a
                         href="/login"
-                        className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-blue-900 shadow hover:bg-white/90"
+                        className="inline-flex shrink-0 items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-semibold text-blue-900 shadow hover:bg-white/90"
                     >
                         <LogIn className="h-4 w-4" />
                         Log in
@@ -71,7 +58,7 @@ const WelcomeNav: React.FC<WelcomeNavProps> = ({ ThemeIcon, tooltip, onToggleThe
                                 <button
                                     onClick={onToggleTheme}
                                     className="rounded-full bg-white/10 p-2 text-white shadow-sm transition hover:bg-white/20"
-                                    aria-label="Toggle theme"
+                                    aria-label={tooltip}
                                 >
                                     <ThemeIcon className="h-5 w-5" />
                                 </button>

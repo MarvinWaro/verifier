@@ -115,22 +115,22 @@ export default function GraduateIndex({ graduates, filters }: Props) {
     const getProgramTypeColor = (type: string) => {
         switch (type) {
             case 'Board':
-                return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100';
+                return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-950';
             case 'Non-Board':
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800';
             default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800';
         }
     };
 
     const getSexColor = (sex: string | null) => {
         switch (sex?.toUpperCase()) {
             case 'MALE':
-                return 'bg-blue-50 text-blue-700 hover:bg-blue-50';
+                return 'bg-blue-50 text-blue-700 hover:bg-blue-50 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-950';
             case 'FEMALE':
-                return 'bg-pink-50 text-pink-700 hover:bg-pink-50';
+                return 'bg-pink-50 text-pink-700 hover:bg-pink-50 dark:bg-pink-950 dark:text-pink-300 dark:hover:bg-pink-950';
             default:
-                return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+                return 'bg-gray-100 text-gray-800 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-800';
         }
     };
 
@@ -188,10 +188,12 @@ export default function GraduateIndex({ graduates, filters }: Props) {
             setItems((prev) => prev.filter((g) => g.id !== id));
             setTotal((prev) => (prev > 0 ? prev - 1 : 0));
             toast.success('Graduate removed successfully.');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error);
             const msg =
-                error?.response?.data?.message ?? 'Failed to remove graduate.';
+                (axios.isAxiosError<{ message?: string }>(error)
+                    ? error.response?.data.message
+                    : null) ?? 'Failed to remove graduate.';
             toast.error(msg);
         }
     };
@@ -238,7 +240,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                         {/* Search Bar (server-side) */}
                         <form onSubmit={onSearchSubmit} className="mb-4">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     type="text"
                                     placeholder="Search by name, SO number, program, institution, or year..."
@@ -277,7 +279,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                         <TableRow>
                                             <TableCell
                                                 colSpan={14}
-                                                className="text-center py-8 text-gray-500"
+                                                className="text-center py-8 text-muted-foreground"
                                             >
                                                 {filters.q
                                                     ? 'No graduates found for your search.'
@@ -288,7 +290,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                         items.map((graduate) => (
                                             <TableRow
                                                 key={graduate.id}
-                                                className="hover:bg-gray-50"
+                                                className="hover:bg-muted/50"
                                             >
                                                 <TableCell className="text-sm">
                                                     {graduate.so_number ? (
@@ -298,7 +300,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                             }
                                                         </span>
                                                     ) : (
-                                                        <span className="text-gray-400">
+                                                        <span className="text-muted-foreground">
                                                             -
                                                         </span>
                                                     )}
@@ -312,7 +314,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                 <TableCell className="font-medium">
                                                     {graduate.middle_name}
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-600">
+                                                <TableCell className="text-sm text-muted-foreground">
                                                     {graduate.extension_name ||
                                                         '-'}
                                                 </TableCell>
@@ -327,7 +329,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                             {graduate.sex}
                                                         </Badge>
                                                     ) : (
-                                                        <span className="text-gray-400">
+                                                        <span className="text-muted-foreground">
                                                             -
                                                         </span>
                                                     )}
@@ -338,7 +340,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                             .institution.name
                                                     }
                                                 </TableCell>
-                                                <TableCell className="font-mono text-sm text-gray-600">
+                                                <TableCell className="font-mono text-sm text-muted-foreground">
                                                     {
                                                         graduate.program
                                                             .institution
@@ -349,7 +351,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                     {graduate.program
                                                         .program_name ?? '-'}
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-600">
+                                                <TableCell className="text-sm text-muted-foreground">
                                                     {graduate.program.major ||
                                                         '-'}
                                                 </TableCell>
@@ -369,7 +371,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                 <TableCell>
                                                     <Badge
                                                         variant="outline"
-                                                        className="bg-orange-50 text-orange-800 hover:bg-orange-50"
+                                                        className="bg-orange-50 text-orange-800 hover:bg-orange-50 dark:bg-orange-950 dark:text-orange-300 dark:hover:bg-orange-950"
                                                     >
                                                         {
                                                             graduate.year_graduated
@@ -427,7 +429,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                                 </Button>
                                                             </PopoverTrigger>
                                                             <PopoverContent
-                                                                className="w-72 border border-red-100 shadow-lg"
+                                                                className="w-72 border border-red-100 shadow-lg dark:border-red-900"
                                                                 align="end"
                                                             >
                                                                 <div className="flex items-start gap-3">
@@ -439,7 +441,7 @@ export default function GraduateIndex({ graduates, filters }: Props) {
                                                                             Delete
                                                                             graduate
                                                                         </p>
-                                                                        <p className="text-xs text-gray-600">
+                                                                        <p className="text-xs text-muted-foreground">
                                                                             Delete{' '}
                                                                             <span className="font-medium">
                                                                                 {

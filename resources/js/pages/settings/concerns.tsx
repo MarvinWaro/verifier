@@ -119,7 +119,7 @@ export default function ConcernsIndex({ concerns, filters }: Props) {
                         {/* Search Bar */}
                         <form onSubmit={onSearchSubmit} className="mb-4">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     type="text"
                                     placeholder="Search by school, program, or concern details..."
@@ -131,7 +131,7 @@ export default function ConcernsIndex({ concerns, filters }: Props) {
                                     <button
                                         type="button"
                                         onClick={clearSearch}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         <X className="h-4 w-4" />
                                     </button>
@@ -155,7 +155,7 @@ export default function ConcernsIndex({ concerns, filters }: Props) {
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
-                                                className="text-center py-8 text-gray-500"
+                                                className="text-center py-8 text-muted-foreground"
                                             >
                                                 {filters.q
                                                     ? 'No concerns found for your search.'
@@ -164,7 +164,7 @@ export default function ConcernsIndex({ concerns, filters }: Props) {
                                         </TableRow>
                                     ) : (
                                         items.map((item) => (
-                                            <TableRow key={item.id} className="hover:bg-gray-50 align-top">
+                                            <TableRow key={item.id} className="hover:bg-muted/50 align-top">
                                                 <TableCell className="text-sm font-medium">
                                                     <div className="flex items-start gap-2">
                                                         <School className="h-4 w-4 mt-0.5 text-blue-600 shrink-0" />
@@ -177,12 +177,12 @@ export default function ConcernsIndex({ concerns, filters }: Props) {
                                                         {item.program}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-700">
+                                                <TableCell className="text-sm text-foreground">
                                                     <p className="whitespace-pre-wrap leading-relaxed">
                                                         {item.concern}
                                                     </p>
                                                 </TableCell>
-                                                <TableCell className="text-sm text-gray-600 whitespace-nowrap">
+                                                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                                                     <div className="flex items-center gap-2">
                                                         <Calendar className="h-3.5 w-3.5" />
                                                         {item.created_at}
